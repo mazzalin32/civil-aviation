@@ -18,6 +18,7 @@ import {
 import type { CurrentUser } from "@/lib/session";
 import { cn } from "@/lib/utils";
 import { NAV, type NavIcon } from "./nav-config";
+import { SignOutButton } from "./sign-out-button";
 import { UserCard } from "./user-card";
 
 const ICONS: Record<NavIcon, LucideIcon> = {
@@ -32,7 +33,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   settings: Settings,
 };
 
-export function Sidebar({ user, devSwitch }: { user: CurrentUser; devSwitch?: React.ReactNode }) {
+export function Sidebar({ user }: { user: CurrentUser }) {
   const pathname = usePathname();
 
   return (
@@ -72,8 +73,8 @@ export function Sidebar({ user, devSwitch }: { user: CurrentUser; devSwitch?: Re
       </nav>
 
       <div className="flex-1" />
-      {devSwitch}
       <UserCard user={user} />
+      <SignOutButton />
     </aside>
   );
 }

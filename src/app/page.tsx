@@ -4,5 +4,5 @@ import { getCurrentUser } from "@/lib/session";
 
 export default async function Home() {
   const user = await getCurrentUser();
-  redirect(homePathFor(user.role));
+  redirect(user ? homePathFor(user.role) : "/login");
 }

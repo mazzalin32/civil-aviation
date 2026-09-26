@@ -8,7 +8,15 @@ Read `PROJECT_SPEC.md` and `FLOWS.md` before any work. The spec is the source of
 - After each phase: run lint, typecheck and tests; update `CHANGELOG.md`; update the seed script.
 
 ## Stack
-Next.js (App Router) · TypeScript strict · Tailwind · shadcn/ui · lucide-react · Prisma + PostgreSQL · zod · Recharts · Docker Compose.
+Next.js (App Router) · TypeScript strict · Tailwind · shadcn/ui · lucide-react · Prisma + PostgreSQL · Better Auth (email/password + TOTP 2FA) · zod · Recharts · Docker Compose.
+
+## Environment gotchas hit so far (check before assuming they're fixed)
+- **`npm install <pkg>` without a version can resolve to an unstable prerelease** if that's the npm "latest" tag (happened to `prisma` → 8.0.0-rc and `typescript` → 6.0.3, and once to `react`/`react-dom` drifting apart). Always check `npm view <pkg> dist-tags.latest` looks like a real stable release before trusting an unpinned install, and pin the exact version in `package.json`.
+- **Next 16 renamed `middleware.ts` to `src/proxy.ts`** (export `proxy`, not `middleware`) and runs it on the Node.js runtime by default — it can call Prisma/Better Auth directly, no Edge workarounds needed.
+- **A file/folder starting with `_` under `app/` is a private folder** — Next excludes it from routing entirely (learned the hard way with a temp test route).
+- Modules importing `"server-only"` (`src/lib/db.ts`, `src/lib/auth.ts`, `src/lib/mailer.ts`, …) **throw if imported outside a Next.js server context** — a plain `tsx` script (like `prisma/seed.ts`) must not import them; use a separate `PrismaClient` instance and the specific low-level functions it needs instead (see `prisma/seed.ts`).
+- Better Auth's `verifyTOTP`/`verifyBackupCode` **rotate the session on first 2FA confirmation** (old token deleted, new one issued). Read `getCurrentUser()` *before* calling them, not after, or you'll read an already-stale session.
+- A network connection can go from fine to 10+ minutes per package download and back with no warning — if an install or a Docker pull stalls or resets, that's very likely the network, not the tool.
 
 ## Conventions
 - Server Actions or route handlers for mutations; **validate every input with zod on the server**.

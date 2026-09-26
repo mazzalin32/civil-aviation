@@ -1,6 +1,7 @@
 // CAA Legal — data model. Grows phase by phase (PROJECT_SPEC.md §7, §12).
 // Phase 0: users (profile + security fields), settings, audit log.
-// Phase 1 adds the Better Auth tables (session, account/credentials, verification tokens, 2FA).
+// Phase 1: Better Auth's own tables (Session, Account, Verification, TwoFactor) — field
+// names/shapes must match what its Prisma adapter expects; see src/lib/auth.ts.
 
 generator client {
   provider = "prisma-client"
@@ -29,8 +30,10 @@ model User {
   practisingCertNo   String?
   certExpiry         DateTime? @db.Date
   isActive           Boolean   @default(true)
-  // Security state. Credentials and 2FA secrets live in Better Auth tables (Phase 1).
-  mfaEnabledAt       DateTime?
+  // Security state we own (not Better Auth's concern): 2FA display, forced change,
+  // lockout. The password hash and TOTP secret live in Account / TwoFactor below.
+  twoFactorEnabled   Boolean   @default(false) // field name/shape required by the twoFactor plugin
+  mfaEnabledAt       DateTime? // when 2FA setup was completed — for admin visibility only
   mustChangePassword Boolean   @default(false)
   passwordChangedAt  DateTime?
   failedLoginCount   Int       @default(0)
@@ -44,8 +47,74 @@ model User {
 
   auditLogs       AuditLog[]
   settingsUpdated Setting[]
+  sessions        Session[]
+  accounts        Account[]
+  twoFactor       TwoFactor[]
 
   @@index([role, isActive])
+}
+
+// --- Better Auth (email+password, sessions, 2FA). Field shapes are fixed by the
+// library's Prisma adapter — see node_modules/@better-auth/core/dist/db/schema/*.
+// One session row per signed-in device; deleting all of a user's rows is "sign out everywhere".
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+/// Holds the hashed password (providerId "credential"). No social providers in v1.
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId            String
+  accountId             String
+  password              String?
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+/// Single-use tokens: invite links and "forgot password" both use this (spec §15 decision).
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+/// TOTP secret + backup codes, added by the twoFactor plugin.
+model TwoFactor {
+  id                      String    @id @default(cuid())
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret                  String
+  backupCodes             String
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+
+  @@index([userId])
 }
 
 /// Key/value system settings edited in the Admin Settings portal (security, branding, AI switch…).

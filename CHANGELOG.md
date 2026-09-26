@@ -17,4 +17,29 @@
 
 ### Notes
 - MinIO no longer publishes images on Docker Hub. The S3-compatible storage image gets picked in Phase 6.
-- Auth tables (sessions, credentials, invite/reset tokens, 2FA, backup codes) come in Phase 1. Better Auth generates them, so they match its format.
+
+## Phase 1 — Auth & security base (2026-09-26)
+
+### Added
+- Better Auth (email + password, no public sign-up) with the `twoFactor` (TOTP + backup codes) and `haveIBeenPwned` (rejects breached passwords) plugins. `Session`, `Account`, `Verification`, `TwoFactor` tables added to the schema.
+- Login screen, matching the design mockup: one centred card, no sidebar.
+- One reset-password mechanism serves both a lawyer's first-time invite and any later "forgot password" — same 72-hour single-use link, different email wording (spec §15 decision).
+- Mandatory 2FA: a QR code + 10 backup codes, confirmed with a live code before the gate lets the user through. Applies to a lawyer's first login and after an Admin resets someone's 2FA.
+- Forced password change for the seeded Admin's temporary password.
+- Account lockout: 5 failed attempts locks for 15 minutes; the Admin gets an email alert. Pure lockout logic is unit-tested (`src/lib/lockout.ts`).
+- Session idle timeout: 15 minutes since the last request (`expiresIn`/`updateAge` on the Better Auth session).
+- `src/proxy.ts` (Next 16 renamed `middleware.ts`) gates every route: signed out → `/login`; mid-onboarding → forced to `/change-password` or `/2fa/setup` first.
+- Every auth event writes an `AuditLog` row: login, failed login, lockout, password change, 2FA enabled, sign-out.
+- Sign-out button in the sidebar.
+- Seed: the Admin gets a real temporary password; each lawyer gets a live activation link, emailed to Mailpit.
+
+### Removed
+- The dev-only role switch and its cookie — real accounts and real sessions now.
+
+### Fixed while verifying
+- npm resolved `prisma` and `typescript` to unstable pre-release "latest" tags in Phase 0; pinned both to their real stable releases.
+- `react`/`react-dom` had drifted to different patch versions; pinned to match.
+- `confirmTwoFactorSetup` read the signed-in user *after* calling `verifyTOTP`, which rotates the session on first confirmation — by then the request's own cookie was already stale, so the confirmation silently failed to record. Fixed by reading the user first.
+
+### Verified end-to-end (real HTTP requests against a running server, not just unit tests)
+Admin: temporary password → forced change → rejected on a breached password → 2FA setup (QR, backup codes, live TOTP confirmation) → dashboard. Lawyer: seeded invite link → set password → forced 2FA setup → My Day. Login: wrong password, wrong 2FA code, 5-failure lockout with the Admin email alert in Mailpit, then correct password + correct 2FA code all the way to a real session. Confirmed via the audit log and direct database checks, not just HTTP status codes.

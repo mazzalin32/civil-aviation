@@ -21,7 +21,7 @@ npm run db:seed               # first Admin + sample lawyers
 npm run dev                   # http://localhost:3000
 ```
 
-Until login exists (Phase 1), a **Dev preview** switch in the sidebar shows the Admin or Lawyer shell.
+The seed prints the Admin's temporary password and a live activation link for each lawyer (also sent to Mailpit). Sign in as the Admin, change the password, then set up 2FA — every account requires it.
 
 | Service | URL |
 |---|---|
