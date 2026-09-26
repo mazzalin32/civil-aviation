@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Copy } from "lucide-react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { FormAlert } from "@/components/auth/form-alert";
 import { beginTwoFactorSetup, confirmTwoFactorSetup } from "./actions";
@@ -53,7 +54,7 @@ export function SetupWizard() {
         <p className="m-0 text-[13px] text-text-muted">Confirm your password to set up two-factor authentication.</p>
         {error && <FormAlert>{error}</FormAlert>}
         <Field label="Password" htmlFor="password">
-          <Input id="password" name="password" type="password" autoComplete="current-password" required autoFocus />
+          <PasswordInput id="password" name="password" autoComplete="current-password" required autoFocus />
         </Field>
         <Button type="submit" variant="primary" disabled={pending} className="justify-center">
           {pending ? "Please wait…" : "Continue"}

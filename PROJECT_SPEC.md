@@ -70,7 +70,7 @@ Supreme Court → Court of Appeal / Constitutional Court → High Court (Civil, 
 ## 5. Core modules (v1 scope)
 
 ### 5.1 Authentication
-Login, invite-link activation, forgot password (email reset link), forced password change (seeded Admin's first login / password expiry), 2FA, session timeout after inactivity, account lockout after repeated failed attempts. The login screen is the first impression: the same warm, clean tokens as the app (§10) — one centred white card on the off-white background, UCAA logo, no imagery or clutter.
+Login, invite-link activation, forgot password (email reset link), forced password change (seeded Admin's first login / password expiry), 2FA, session timeout after inactivity, account lockout after repeated failed attempts. The login screen is the first impression: a split layout (revised 2026-09-26) — a solid brand-blue panel on one side with the UCAA identity, plain white on the other with the form. Collapses to a single column on phones. Same tokens as the app (§10), no imagery or clutter.
 
 ### 5.2 Admin Dashboard
 - KPI cards: Open cases · Hearings this week · Overdue deadlines · Cases closed this quarter
@@ -341,7 +341,7 @@ Legal files are the most sensitive thing in the system. Defence in depth:
 
 ## 10. Design system — "clean, warm, professional blue"
 
-Direction from the client: white and clean like the reference images, warm (not cold/sterile), one professional mid-tone blue — not navy, not baby blue. Calm, confidential, trustworthy.
+Direction from the client: white and clean like the reference images, warm (not cold/sterile). One bold, saturated blue accent (`#4169E1`, revised 2026-09-26 from an earlier muted mid-tone blue) — not navy, not baby blue. Confidential, trustworthy, with a modern, confident edge. Input fields are sharp-cornered (no radius); cards and buttons keep their rounded corners.
 
 **Colour tokens**
 | Token | Hex | Use |
@@ -352,15 +352,15 @@ Direction from the client: white and clean like the reference images, warm (not 
 | `--border` | `#E6E3DD` | Card & input borders (warm grey) |
 | `--text` | `#1F2328` | Headings & body |
 | `--text-muted` | `#6B6760` | Meta text, labels |
-| `--primary` | `#2F5E9E` | Primary buttons, active nav, current stage, links |
-| `--primary-hover` | `#264D83` | Hover/pressed |
-| `--primary-soft` | `#E8EFF8` | Selected rows, active nav bg, info chips |
+| `--primary` | `#4169E1` | Primary buttons, active nav, current stage, links |
+| `--primary-hover` | `#3759BF` | Hover/pressed |
+| `--primary-soft` | `#E8EDFC` | Selected rows, active nav bg, info chips |
 | `--success` | `#2E7D5B` / soft `#E6F3EC` | On track, won, done |
 | `--warning` | `#B7791F` / soft `#FBF1E1` | Due soon |
 | `--danger` | `#C0392B` / soft `#FBE9E7` | Overdue, critical, lost |
 | `--neutral-chip` | `#8A857D` / soft `#EFEDE9` | Closed, archived |
 
-| `--avatar-1..3` | `#2F5E9E` / `#7A6A55` / `#4F7A6B` | Team avatars (assigned by user, cycling) — the only other fills allowed |
+| `--avatar-1..3` | `#4169E1` / `#7A6A55` / `#4F7A6B` | Team avatars (assigned by user, cycling) — the only other fills allowed |
 
 **Dark mode:** tokens are defined for both themes from day one (dark values are in `docs/design/case-page.html`); the user picks Light / Dark / System in Profile & preferences. No theme toggle in the top bar.
 
@@ -452,3 +452,5 @@ Each phase ends with a working demo, updated seed data and a CHANGELOG entry. Th
 | 2026-09-26 | No global Messages page — chat is per case; bell covers notifications + mentions |
 | 2026-09-26 | Stack fixed: Better Auth + TOTP, FullCalendar, SSE, Node 24 + npm |
 | 2026-09-26 | Wizard is 5 steps (documents in step 5); seed grows per phase, cases arrive in Phase 4 |
+| 2026-09-26 | Primary blue revised to `#4169E1` (bolder/more saturated); login is a split layout, not a centred card; input fields are sharp-cornered |
+| 2026-09-26 | 2FA enforcement made a togglable env flag (`REQUIRE_2FA`) for easier testing — must be `true` before go-live (spec still requires 2FA on every account) |

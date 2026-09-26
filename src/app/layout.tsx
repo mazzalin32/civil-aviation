@@ -18,9 +18,10 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Theme: no data-theme = follow the OS. Profile preference sets it from Phase 1 onwards.
+  // TEMPORARY: pinned to light regardless of OS setting until the real theme
+  // toggle exists in Profile & preferences. Remove data-theme="light" then.
   return (
-    <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
+    <html lang="en" data-theme="light" className={`${inter.variable} ${sourceSerif.variable}`}>
       <body>{children}</body>
     </html>
   );

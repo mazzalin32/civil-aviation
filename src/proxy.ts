@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 
 /**
  * Route protection (Next 16 renamed `middleware.ts` to `proxy.ts`; behaviour is the
@@ -10,7 +11,8 @@ import { db } from "@/lib/db";
  *   1. mustChangePassword  — the seeded Admin's temporary password (spec §5.1)
  *   2. !twoFactorEnabled   — mandatory 2FA, including after an Admin-triggered reset (FLOWS §19)
  * Both redirect to their own page until satisfied, so a partly-onboarded session can
- * never reach case data.
+ * never reach case data. Gate 2 is switched off by REQUIRE_2FA=false while testing —
+ * spec requires 2FA on every account, so this must be true again before go-live.
  */
 const PUBLIC_PATHS = ["/login", "/forgot-password", "/activate", "/2fa"];
 
@@ -37,7 +39,7 @@ export async function proxy(request: NextRequest) {
     if (user.mustChangePassword && pathname !== "/change-password") {
       return NextResponse.redirect(new URL("/change-password", request.url));
     }
-    if (!user.mustChangePassword && !user.twoFactorEnabled && pathname !== "/2fa/setup") {
+    if (env.REQUIRE_2FA && !user.mustChangePassword && !user.twoFactorEnabled && pathname !== "/2fa/setup") {
       return NextResponse.redirect(new URL("/2fa/setup", request.url));
     }
   }

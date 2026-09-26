@@ -13,6 +13,8 @@ const schema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   MAIL_FROM: z.string().default("CAA Legal <no-reply@caa.go.ug>"),
+  // TEMPORARY, testing only — spec requires 2FA on every account. Must be true before go-live.
+  REQUIRE_2FA: z.stringbool().default(true),
 });
 
 export const env = schema.parse(process.env);

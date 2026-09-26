@@ -31,8 +31,10 @@ Next.js (App Router) · TypeScript strict · Tailwind · shadcn/ui · lucide-rea
 
 ## Design rules
 - Use ONLY the tokens in spec §10 (defined once in `globals.css` / Tailwind theme). Warm off-white `#F7F6F3` bg, white cards, warm-grey `#E6E3DD` borders, 16px card radius, 24px padding, barely-there shadow.
-- One professional blue `#2F5E9E` (hover `#264D83`, soft `#E8EFF8`) used only for primary actions, active nav, links and the current lifecycle stage.
+- One bold blue `#4169E1` (hover `#3759BF`, soft `#E8EDFC`) used only for primary actions, active nav, links and the current lifecycle stage.
 - Status colours: green = on track/won, amber = due soon, red = overdue/critical, grey = closed.
+- Input fields are sharp-cornered (`rounded-none`) — cards and buttons keep their rounded corners.
+- Login and every account-recovery screen use the split layout in `src/app/(auth)/layout.tsx` (brand panel + white form), not a centred card.
 - Every list/page needs empty, loading (skeleton) and error states.
 - Font: Inter for UI; Source Serif 4 (600) only for page/case titles (28–30px). Card titles 16px/600, body 14px, meta 12–13px muted. Tabular figures for numbers.
 - Light and dark tokens both defined; theme chosen in Profile, not the top bar. Avatar colours come from `--avatar-*` tokens.

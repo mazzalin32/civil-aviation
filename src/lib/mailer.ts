@@ -17,7 +17,7 @@ function layout(title: string, bodyHtml: string) {
   return `<!doctype html><html><body style="margin:0;background:#F7F6F3;font-family:Arial,Helvetica,sans-serif;color:#1F2328;padding:32px 16px;">
     <table role="presentation" style="max-width:480px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E3DD;border-radius:16px;padding:32px;">
       <tr><td>
-        <p style="margin:0 0 20px;font-size:13px;font-weight:600;letter-spacing:.02em;color:#2F5E9E;">CAA LEGAL</p>
+        <p style="margin:0 0 20px;font-size:13px;font-weight:600;letter-spacing:.02em;color:#4169E1;">CAA LEGAL</p>
         <h1 style="margin:0 0 16px;font-size:20px;">${title}</h1>
         ${bodyHtml}
         <p style="margin:32px 0 0;font-size:12px;color:#6B6760;">Uganda Civil Aviation Authority — Legal Department. This is an automated message; please do not reply.</p>
@@ -27,7 +27,7 @@ function layout(title: string, bodyHtml: string) {
 }
 
 function button(href: string, label: string) {
-  return `<p style="margin:20px 0;"><a href="${href}" style="display:inline-block;background:#2F5E9E;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:500;">${label}</a></p>
+  return `<p style="margin:20px 0;"><a href="${href}" style="display:inline-block;background:#4169E1;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:10px;font-size:14px;font-weight:500;">${label}</a></p>
     <p style="margin:0 0 20px;font-size:12px;color:#6B6760;word-break:break-all;">Or paste this link into your browser: ${href}</p>`;
 }
 

@@ -43,3 +43,19 @@
 
 ### Verified end-to-end (real HTTP requests against a running server, not just unit tests)
 Admin: temporary password → forced change → rejected on a breached password → 2FA setup (QR, backup codes, live TOTP confirmation) → dashboard. Lawyer: seeded invite link → set password → forced 2FA setup → My Day. Login: wrong password, wrong 2FA code, 5-failure lockout with the Admin email alert in Mailpit, then correct password + correct 2FA code all the way to a real session. Confirmed via the audit log and direct database checks, not just HTTP status codes.
+
+## Phase 1 follow-up — design feedback from live testing (2026-09-26)
+
+### Changed
+- Primary colour is now Royal Blue `#4169E1` (tried a brighter `#1F51FF` first; settled on Royal Blue). Updated everywhere: tokens, avatar accents, email templates, design docs.
+- Login and every auth screen use a split layout (brand panel + white form), matching the reference the client shared, instead of a single centred card.
+- Input fields are sharp-cornered (`rounded-none`); cards and buttons keep their rounded corners.
+- The sidebar is now filled with the brand blue (previously white with a blue accent), matching the login panel.
+- Sidebar is collapsible to icons-only, with hover tooltips for each link. The toggle lives right under the logo — always visible — not at the bottom, since it would get pushed out of view as more nav links are added. Remembers the choice via `localStorage`.
+- Top-bar search button shortened to just "Search" instead of a full sentence.
+- Added a show/hide (eye) toggle to every password field.
+- The app is pinned to the light theme for now (`data-theme="light"`) rather than following the OS setting, since dark mode isn't fully dialled in yet and was confusing during testing. Revisit once Profile & preferences (with a real theme switch) exists.
+- Added `REQUIRE_2FA` env flag (default `true`) so 2FA enforcement can be switched off for local testing without touching any code. **Must be `true` before go-live** — the spec requires 2FA on every account.
+
+### Fixed
+- The seeded Admin's temporary password had characters that are easy to mistype or that a password manager can mangle; replaced with a plain, unambiguous one for local testing.
