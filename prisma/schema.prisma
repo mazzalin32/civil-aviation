@@ -1,0 +1,77 @@
+// CAA Legal — data model. Grows phase by phase (PROJECT_SPEC.md §7, §12).
+// Phase 0: users (profile + security fields), settings, audit log.
+// Phase 1 adds the Better Auth tables (session, account/credentials, verification tokens, 2FA).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  LAWYER
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  name               String
+  email              String    @unique
+  emailVerified      Boolean   @default(false)
+  image              String?
+  phone              String?
+  role               Role      @default(LAWYER)
+  title              String?
+  department         String?
+  practisingCertNo   String?
+  certExpiry         DateTime? @db.Date
+  isActive           Boolean   @default(true)
+  // Security state. Credentials and 2FA secrets live in Better Auth tables (Phase 1).
+  mfaEnabledAt       DateTime?
+  mustChangePassword Boolean   @default(false)
+  passwordChangedAt  DateTime?
+  failedLoginCount   Int       @default(0)
+  lockedUntil        DateTime?
+  // Preferences
+  digestEnabled      Boolean   @default(false)
+  theme              String    @default("system") // system | light | dark
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  auditLogs       AuditLog[]
+  settingsUpdated Setting[]
+
+  @@index([role, isActive])
+}
+
+/// Key/value system settings edited in the Admin Settings portal (security, branding, AI switch…).
+model Setting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id])
+  updatedAt   DateTime @updatedAt
+}
+
+/// Append-only. The app never updates or deletes rows (enforced with DB privileges in Phase 13).
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}

@@ -1,0 +1,510 @@
+<title>CAA Legal Case Page</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7F6F3; --surface:#FFFFFF; --surface-muted:#F1EFEB; --border:#E6E3DD;
+  --text:#1F2328; --text-muted:#6B6760;
+  --primary:#2F5E9E; --primary-hover:#264D83; --primary-soft:#E8EFF8;
+  --success:#2E7D5B; --success-soft:#E6F3EC;
+  --warning:#B7791F; --warning-soft:#FBF1E1;
+  --danger:#C0392B; --danger-soft:#FBE9E7;
+  --neutral:#8A857D; --neutral-soft:#EFEDE9;
+  --avatar-1:#2F5E9E; --avatar-2:#7A6A55; --avatar-3:#4F7A6B; --on-avatar:#FFFFFF;
+  --shadow:0 1px 2px rgba(31,35,40,.04);
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#16171A; --surface:#1E2024; --surface-muted:#26292E; --border:#33363C;
+    --text:#ECEAE6; --text-muted:#A09B93;
+    --primary:#6F9BD6; --primary-hover:#86ACE0; --primary-soft:#23324A;
+    --success:#5DB38C; --success-soft:#1F3329; --warning:#D9A450; --warning-soft:#3A2E1B;
+    --danger:#E37466; --danger-soft:#3D2220; --neutral:#A09B93; --neutral-soft:#2B2D31;
+    --avatar-1:#3D6BAA; --avatar-2:#85745E; --avatar-3:#557F70;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#16171A; --surface:#1E2024; --surface-muted:#26292E; --border:#33363C;
+  --text:#ECEAE6; --text-muted:#A09B93;
+  --primary:#6F9BD6; --primary-hover:#86ACE0; --primary-soft:#23324A;
+  --success:#5DB38C; --success-soft:#1F3329; --warning:#D9A450; --warning-soft:#3A2E1B;
+  --danger:#E37466; --danger-soft:#3D2220; --neutral:#A09B93; --neutral-soft:#2B2D31;
+  --avatar-1:#3D6BAA; --avatar-2:#85745E; --avatar-3:#557F70;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:6px}
+svg{flex-shrink:0}
+
+.app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+.side{background:var(--surface);border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 22px}
+.brand-mark{width:34px;height:34px;border-radius:10px;background:var(--primary);display:grid;place-items:center;color:var(--on-avatar)}
+.brand b{display:block;font-weight:600;font-size:14px}
+.brand small{color:var(--text-muted);font-size:12px}
+.nav{display:grid;gap:2px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;color:var(--text-muted);text-decoration:none;font-weight:500}
+.nav a:hover{background:var(--surface-muted);color:var(--text)}
+.nav a.on{background:var(--primary-soft);color:var(--primary)}
+.nav .count{margin-left:auto;font-size:12px;background:var(--surface-muted);padding:1px 8px;border-radius:99px;font-variant-numeric:tabular-nums}
+.nav .count.alert{background:var(--danger-soft);color:var(--danger)}
+.side .spacer{flex:1}
+.me{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:12px}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--on-avatar);background:var(--avatar-1)}
+.av.b{background:var(--avatar-2)}.av.c{background:var(--avatar-3)}
+.me small{display:block;color:var(--text-muted);font-size:12px}
+
+.main{min-width:0}
+.top{display:flex;align-items:center;gap:12px;padding:14px 32px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.crumbs{color:var(--text-muted);font-size:13px;display:flex;gap:6px;align-items:center;min-width:0}
+.crumbs a{color:var(--text-muted);text-decoration:none}.crumbs a:hover{color:var(--text)}
+.search{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--surface-muted);border:1px solid transparent;border-radius:10px;padding:8px 12px;width:300px;color:var(--text-muted)}
+.search kbd{margin-left:auto;font:12px var(--sans);border:1px solid var(--border);border-radius:6px;padding:0 6px;background:var(--surface)}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);display:grid;place-items:center;position:relative;color:var(--text-muted)}
+.icon-btn:hover{color:var(--text)}
+.dot{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--danger);border:2px solid var(--surface)}
+
+.content{max-width:1440px;margin:0 auto;padding:28px 32px 48px}
+
+.case-head{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.case-title{font-family:var(--serif);font-weight:600;font-size:30px;line-height:1.2;margin:0 0 10px;letter-spacing:-.01em;text-wrap:balance}
+.case-title .v{font-style:italic;font-weight:500;color:var(--text-muted)}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--text-muted);font-size:13px}
+.meta .sep{width:3px;height:3px;border-radius:50%;background:var(--neutral)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:500;background:var(--neutral-soft);color:var(--text-muted);white-space:nowrap}
+.chip.blue{background:var(--primary-soft);color:var(--primary)}
+.chip.green{background:var(--success-soft);color:var(--success)}
+.chip.amber{background:var(--warning-soft);color:var(--warning)}
+.chip.red{background:var(--danger-soft);color:var(--danger)}
+.head-actions{margin-left:auto;display:flex;gap:8px;align-items:center;position:relative}
+.team{display:flex;margin-right:8px}.team .av{border:2px solid var(--bg);margin-left:-8px}.team .av:first-child{margin-left:0}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-weight:500;font-size:13px}
+.btn:hover{background:var(--surface-muted)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:var(--on-avatar)}
+.btn.primary:hover{background:var(--primary-hover)}
+.btn.icon{padding:9px 10px}
+.menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px rgba(31,35,40,.08);padding:6px;min-width:210px;z-index:6;display:grid}
+.menu button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:8px;font-size:13px}
+.menu button:hover{background:var(--surface-muted)}
+.menu hr{border:0;border-top:1px solid var(--border);margin:4px 0}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow)}
+.life{margin-top:24px;padding:22px 24px}
+.life-top{display:flex;align-items:baseline;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.life-top h2{margin:0;font-size:16px;font-weight:600}
+.life-top p{margin:0;color:var(--text-muted);font-size:13px}
+.life-top .progress{margin-left:auto;font-size:13px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.track-wrap{overflow-x:auto;padding:6px 0 4px}
+.track{display:flex;min-width:980px;position:relative}
+.stage{flex:1;position:relative;background:none;border:0;padding:0 4px;text-align:center}
+.stage::before{content:"";position:absolute;top:13px;left:-50%;right:50%;height:2px;background:var(--border)}
+.stage:first-child::before{display:none}
+.stage.done::before,.stage.current::before{background:var(--primary)}
+.node{position:relative;z-index:1;width:28px;height:28px;margin:0 auto;border-radius:50%;display:grid;place-items:center;border:2px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:12px;font-weight:600;transition:transform .15s}
+.stage.done .node{background:var(--primary);border-color:var(--primary);color:var(--on-avatar)}
+.stage.current .node{border-color:var(--primary);color:var(--primary);box-shadow:0 0 0 5px var(--primary-soft);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 5px var(--primary-soft)}50%{box-shadow:0 0 0 8px var(--primary-soft)}}
+.stage:hover .node{transform:scale(1.08)}
+.stage .lbl{display:block;margin-top:10px;font-size:12.5px;font-weight:500;color:var(--text-muted);line-height:1.3}
+.stage.done .lbl{color:var(--text)}
+.stage.current .lbl{color:var(--primary);font-weight:600}
+.stage .when{display:block;font-size:11.5px;color:var(--text-muted);margin-top:2px}
+.stage.sel .lbl{text-decoration:underline;text-underline-offset:4px}
+.stage-detail{margin-top:20px;border-top:1px solid var(--border);padding-top:16px;display:grid;grid-template-columns:220px 1fr;gap:20px}
+.stage-detail h3{margin:0 0 4px;font-size:15px;font-weight:600}
+.stage-detail .sd-meta{color:var(--text-muted);font-size:13px}
+.stage-detail ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.stage-detail li{display:flex;gap:10px;font-size:13.5px}
+.stage-detail li span{color:var(--text-muted);min-width:84px;font-variant-numeric:tabular-nums}
+.branch{margin-top:14px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-muted);padding-left:6px;flex-wrap:wrap}
+.branch-line{width:22px;height:18px;border-left:2px dashed var(--border);border-bottom:2px dashed var(--border);border-bottom-left-radius:8px;margin-top:-10px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;margin-top:24px}
+.catch{padding:22px 24px}
+.catch h2,.panel h2{margin:0;font-size:16px;font-weight:600}
+.catch-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.catch-top .btn{margin-left:auto;padding:6px 10px}
+.summary{font-size:14.5px;line-height:1.65;max-width:72ch;margin:0}
+.summary p{margin:0 0 10px}
+.summary b{font-weight:600}
+.pinned{margin-top:14px;display:flex;gap:10px;align-items:flex-start;background:var(--surface-muted);border-radius:12px;padding:12px 14px;font-size:13px}
+.pinned small{display:block;color:var(--text-muted)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:28px 0 0;overflow-x:auto}
+.tab{background:none;border:0;padding:10px 12px;color:var(--text-muted);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--primary);border-color:var(--primary)}
+.tab .n{font-size:11.5px;background:var(--surface-muted);padding:0 7px;border-radius:99px;margin-left:4px;color:var(--text-muted)}
+.pane{padding-top:18px}
+
+.tl-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.fchip{border:1px solid var(--border);background:var(--surface);border-radius:99px;padding:4px 12px;font-size:12.5px;color:var(--text-muted)}
+.fchip.on{background:var(--primary-soft);border-color:transparent;color:var(--primary)}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:15px;top:6px;bottom:6px;width:2px;background:var(--border)}
+.ev{position:relative;display:grid;grid-template-columns:32px 1fr;gap:14px;padding:0 0 18px}
+.ev-ic{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;color:var(--text-muted);z-index:1}
+.ev.hearing .ev-ic{color:var(--primary);border-color:var(--primary-soft);background:var(--primary-soft)}
+.ev.stage-ev .ev-ic{color:var(--success);background:var(--success-soft);border-color:transparent}
+.ev-body{padding-top:4px;min-width:0}
+.ev-row{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.ev-row b{font-weight:600}
+.ev-row time{margin-left:auto;color:var(--text-muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.ev-body p{margin:4px 0 0;color:var(--text-muted);max-width:70ch}
+.ev-doc{display:inline-flex;gap:6px;align-items:center;margin-top:8px;font-size:12.5px;padding:4px 10px;border:1px solid var(--border);border-radius:8px;color:var(--text)}
+.ev-doc svg{color:var(--danger)}
+
+.docs-bar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:500;color:var(--text-muted);font-size:12.5px;padding:10px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:14px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tr:hover td{background:var(--surface-muted)}
+.fname{display:flex;gap:10px;align-items:center;font-weight:500}
+.ficon{width:30px;height:34px;border-radius:6px;background:var(--danger-soft);color:var(--danger);display:grid;place-items:center;font-size:10px;font-weight:600}
+.ficon.w{background:var(--success-soft);color:var(--success)}
+.muted{color:var(--text-muted)}
+.drop{margin-top:14px;border:1.5px dashed var(--border);border-radius:14px;padding:18px;text-align:center;color:var(--text-muted);font-size:13px}
+.drop b{color:var(--primary);font-weight:500}
+
+.hear{display:grid;gap:10px}
+.h-item{display:grid;grid-template-columns:64px 1fr auto;gap:16px;align-items:center;padding:14px 16px}
+.h-date{text-align:center;border-right:1px solid var(--border);padding-right:14px}
+.h-date b{display:block;font-size:22px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.h-date small{color:var(--text-muted);font-size:12px}
+.h-item h4{margin:0;font-size:14px;font-weight:600}
+.h-item p{margin:2px 0 0;color:var(--text-muted);font-size:13px}
+.h-item.past{opacity:.75}
+
+.tasks{display:grid}
+.task{display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+.task:last-child{border-bottom:0}
+.task input{width:16px;height:16px;accent-color:var(--primary)}
+.task span.t{flex:1}
+.task.done span.t{text-decoration:line-through;color:var(--text-muted)}
+
+.chat{display:grid;gap:14px}
+.msg{display:grid;grid-template-columns:30px 1fr;gap:10px}
+.msg-b{background:var(--surface);border:1px solid var(--border);border-radius:4px 14px 14px 14px;padding:10px 14px;max-width:70ch}
+.msg-b header{display:flex;gap:8px;align-items:baseline;font-size:13px}
+.msg-b header b{font-weight:600}
+.msg-b header time{color:var(--text-muted);font-size:12px}
+.msg-b p{margin:4px 0 0}
+.mention{color:var(--primary);font-weight:500}
+.composer{display:flex;gap:8px;margin-top:6px;border:1px solid var(--border);border-radius:14px;background:var(--surface);padding:8px}
+.composer input{flex:1;min-width:0;border:0;background:none;font:inherit;color:var(--text);padding:6px 8px;outline:none}
+
+.parties{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.party{padding:16px}
+.party small{color:var(--text-muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.party b{display:block;margin:4px 0 2px}
+.party p{margin:0;color:var(--text-muted);font-size:13px}
+
+.act{list-style:none;margin:0;padding:0;display:grid}
+.act li{display:grid;grid-template-columns:130px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.act li:last-child{border-bottom:0}
+.act time{color:var(--text-muted);font-variant-numeric:tabular-nums}
+
+.panel{padding:20px}
+.panel + .panel{margin-top:16px}
+.next{margin-top:14px;padding:14px;border-radius:12px;background:var(--primary-soft)}
+.next small{color:var(--primary);font-weight:500;font-size:12px}
+.next b{display:block;font-size:15px;margin:4px 0 2px}
+.next span{font-size:13px;color:var(--text-muted)}
+.facts{margin:14px 0 0}
+.fact{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+.fact:last-child{border:0}
+.fact dt{color:var(--text-muted)}
+.fact dd{margin:0;text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
+.dl-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.dl-list li{display:flex;gap:10px;align-items:center;font-size:13.5px}
+.dl-list li .chip{margin-left:auto}
+.bar{height:6px;border-radius:99px;background:var(--surface-muted);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--primary);border-radius:99px}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.2s}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1180px){.grid{grid-template-columns:1fr}}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}.side{display:none}
+  .top{padding:12px 16px}.search{display:none}
+  .content{padding:20px 16px 40px}
+  .case-title{font-size:24px}
+  .head-actions{margin-left:0;width:100%;flex-wrap:wrap}
+  .stage-detail{grid-template-columns:1fr}
+  .h-item{grid-template-columns:52px 1fr}.h-item > .chip{grid-column:2;justify-self:start}
+  .act li{grid-template-columns:1fr;gap:2px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <aside class="side" aria-label="Main navigation">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7zM17 7l-3 7a3 3 0 0 0 6 0l-3-7zM8 21h8"/></svg>
+      </div>
+      <div><b>CAA Legal</b><small>Uganda Civil Aviation Authority</small></div>
+    </div>
+    <nav class="nav">
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>My Day</a>
+      <a href="#" class="on" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>My cases<span class="count">12</span></a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>My calendar</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Tasks<span class="count alert">2 overdue</span></a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="me"><div class="av">AN</div><div><b>Agnes Nakato</b><small>Senior Legal Officer</small></div></div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div class="crumbs"><a href="#">My cases</a><span>/</span><span>UCAA/LIT/2026/0042</span></div>
+      <div class="search" role="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search cases, parties, documents<kbd id="kbd">Ctrl K</kbd></div>
+      <button class="icon-btn" aria-label="Notifications, 3 unread" data-toast="Notifications and mentions open here"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg><span class="dot"></span></button>
+    </header>
+
+    <main class="content">
+      <section class="case-head">
+        <div>
+          <h1 class="case-title">Uganda Civil Aviation Authority <span class="v">v.</span> Nile Horizon Aviation Ltd</h1>
+          <div class="meta">
+            <span class="chip blue">Open</span>
+            <span class="chip amber">High priority</span>
+            <span class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Confidential</span>
+            <span>UCAA/LIT/2026/0042</span><span class="sep"></span>
+            <span>Civil Suit No. 412 of 2026</span><span class="sep"></span>
+            <span>ECCMIS HCT-00-CC-CS-0412-2026</span><span class="sep"></span>
+            <span>High Court, Commercial Division</span>
+          </div>
+        </div>
+        <div class="head-actions">
+          <div class="team" title="Agnes Nakato (lead), Brian Okello, Carol Atim"><div class="av">AN</div><div class="av b">BO</div><div class="av c">CA</div></div>
+          <button class="btn" data-toast="Add event opens here">Add event</button>
+          <button class="btn" data-toast="Upload opens here">Upload</button>
+          <button class="btn primary" data-toast="Move stage: Mediation → Scheduling conference">Move stage</button>
+          <button class="btn icon" id="more" aria-label="More actions" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+          <div class="menu" id="menu" role="menu" hidden>
+            <button role="menuitem" data-toast="Schedule hearing opens here">Schedule hearing</button>
+            <button role="menuitem" data-toast="Add deadline opens here">Add deadline</button>
+            <button role="menuitem" data-toast="New application (sub-process) opens here">New application</button>
+            <hr>
+            <button role="menuitem" data-toast="Put on hold asks for a reason">Put on hold</button>
+            <button role="menuitem" data-toast="Closure is available once the case reaches a closable stage">Request closure</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card life" aria-labelledby="life-h">
+        <div class="life-top">
+          <h2 id="life-h">Case lifecycle</h2>
+          <p>Civil litigation · Debt recovery</p>
+          <span class="progress">Stage 5 of 11 · 257 days open</span>
+        </div>
+        <div class="track-wrap"><div class="track" id="track"></div></div>
+        <div class="branch"><span class="branch-line"></span><span class="chip">Application</span> Security for costs (Misc. App. 88 of 2026): ruling delivered 12 Aug 2026</div>
+        <div class="stage-detail" id="detail" aria-live="polite"></div>
+      </section>
+
+      <div class="grid">
+        <div>
+          <section class="card catch" aria-labelledby="catch-h">
+            <div class="catch-top">
+              <h2 id="catch-h">Case in 30 seconds</h2>
+              <span class="chip">Edited by Agnes · 3 days ago</span>
+              <button class="btn" data-toast="Summary editor opens here; previous versions are kept">Edit summary</button>
+            </div>
+            <div class="summary">
+              <p><b>What it's about.</b> UCAA is recovering UGX 1.84 billion in unpaid landing, parking and navigation charges from Nile Horizon for flights between March 2024 and June 2025.</p>
+              <p><b>Where it stands.</b> Pleadings are closed. The defendant admits the flights but disputes the parking rate applied after the July 2024 tariff revision. Court-annexed mediation has had one session, and the defendant proposed a 24-month payment plan.</p>
+              <p><b>What's next.</b> Second mediation session on Friday 2 October. We need the Finance department's reconciliation of the disputed parking invoices before then.</p>
+            </div>
+            <div class="pinned">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--primary);margin-top:2px"><path d="M12 17v5M5 17h14l-2-4V4H7v9z"/></svg>
+              <div>Head of Legal approved settling for no less than 85% of the principal, with interest waived only if paid within 12 months.<small>Pinned from discussion · Head of Legal · 18 Sep</small></div>
+            </div>
+          </section>
+
+          <div class="tabs" role="tablist">
+            <button class="tab on" role="tab" aria-selected="true" data-pane="timeline">Timeline<span class="n">18</span></button>
+            <button class="tab" role="tab" aria-selected="false" data-pane="docs">Documents<span class="n">24</span></button>
+            <button class="tab" role="tab" aria-selected="false" data-pane="hear">Hearings & deadlines<span class="n">6</span></button>
+            <button class="tab" role="tab" aria-selected="false" data-pane="tasks">Tasks<span class="n">4</span></button>
+            <button class="tab" role="tab" aria-selected="false" data-pane="chat">Discussion<span class="n">3 new</span></button>
+            <button class="tab" role="tab" aria-selected="false" data-pane="parties">Parties</button>
+            <button class="tab" role="tab" aria-selected="false" data-pane="notes">Notes</button>
+            <button class="tab" role="tab" aria-selected="false" data-pane="activity">Activity</button>
+          </div>
+
+          <div class="pane" id="timeline" role="tabpanel">
+            <div class="tl-filter">
+              <button class="fchip on">All</button><button class="fchip">Hearings</button><button class="fchip">Filings</button><button class="fchip">Rulings</button><button class="fchip">Correspondence</button><button class="fchip">Stage changes</button>
+            </div>
+            <ol class="tl">
+              <li class="ev hearing"><div class="ev-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m14 13-7.5 7.5a2.1 2.1 0 0 1-3-3L11 10M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8"/></svg></div>
+                <div class="ev-body"><div class="ev-row"><b>First mediation session</b><span class="chip">Mediation</span><time>18 Sep 2026</time></div>
+                <p>Defendant proposed a 24-month plan and asked for waiver of interest. Mediator adjourned to 2 Oct for UCAA to respond.</p></div></li>
+              <li class="ev stage-ev"><div class="ev-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+                <div class="ev-body"><div class="ev-row"><b>Moved to Mediation</b><time>2 Sep 2026</time></div><p>By Agnes Nakato · Referred by court under the mediation rules.</p></div></li>
+              <li class="ev"><div class="ev-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div>
+                <div class="ev-body"><div class="ev-row"><b>Ruling on security for costs</b><span class="chip green">In our favour</span><time>12 Aug 2026</time></div>
+                <p>Application dismissed with costs to UCAA.</p><span class="ev-doc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Ruling – MA 88 of 2026.pdf</span></div></li>
+              <li class="ev"><div class="ev-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m4 4 8 8 8-8"/></svg></div>
+                <div class="ev-body"><div class="ev-row"><b>Reply to defence filed</b><span class="chip">Filing</span><time>1 Apr 2026</time></div><p>Filed on ECCMIS and served on M/s Kato & Partners Advocates.</p><span class="ev-doc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Reply to WSD.pdf</span></div></li>
+              <li class="ev"><div class="ev-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m4 4 8 8 8-8"/></svg></div>
+                <div class="ev-body"><div class="ev-row"><b>Written statement of defence received</b><span class="chip">Filing</span><time>18 Mar 2026</time></div><p>Admits the flights; disputes the parking tariff applied from July 2024.</p></div></li>
+            </ol>
+          </div>
+
+          <div class="pane" id="docs" role="tabpanel" hidden>
+            <div class="docs-bar"><span class="chip blue">All folders</span><span class="chip">Pleadings 6</span><span class="chip">Evidence 9</span><span class="chip">Court orders 3</span><span class="chip">Correspondence 4</span><span class="chip">Internal memos 2</span></div>
+            <div class="card table-wrap"><table>
+              <thead><tr><th>Name</th><th>Folder</th><th>Version</th><th>Uploaded</th><th>Access</th></tr></thead>
+              <tbody>
+                <tr><td><div class="fname"><span class="ficon">PDF</span>Mediation position paper.pdf</div></td><td class="muted">Internal memos</td><td>v3</td><td class="muted">Agnes · 17 Sep</td><td><span class="chip">View only</span></td></tr>
+                <tr><td><div class="fname"><span class="ficon">PDF</span>Ruling – MA 88 of 2026.pdf</div></td><td class="muted">Court orders</td><td>v1</td><td class="muted">Brian · 12 Aug</td><td><span class="chip green">Download</span></td></tr>
+                <tr><td><div class="fname"><span class="ficon w">XLS</span>Invoice reconciliation 2024–25.xlsx</div></td><td class="muted">Evidence</td><td>v2</td><td class="muted">Carol · 5 Aug</td><td><span class="chip">View only</span></td></tr>
+                <tr><td><div class="fname"><span class="ficon">PDF</span>Plaint – CS 412 of 2026.pdf</div></td><td class="muted">Pleadings</td><td>v1</td><td class="muted">Agnes · 20 Feb</td><td><span class="chip green">Download</span></td></tr>
+              </tbody></table></div>
+            <div class="drop">Drop files here or <b>browse</b> · Files are virus-scanned, encrypted and watermarked on view</div>
+          </div>
+
+          <div class="pane" id="hear" role="tabpanel" hidden>
+            <div class="hear">
+              <div class="card h-item"><div class="h-date"><b>30</b><small>Sep</small></div><div><h4>Deadline: Finance reconciliation to Legal</h4><p>Assigned to Carol Atim · Needed for the mediation response</p></div><span class="chip amber">In 4 days</span></div>
+              <div class="card h-item"><div class="h-date"><b>02</b><small>Oct</small></div><div><h4>Second mediation session</h4><p>Fri 10:00 · Mediation Registry, High Court Commercial Division · Respond to payment-plan proposal</p></div><span class="chip blue">In 6 days</span></div>
+              <div class="card h-item past"><div class="h-date"><b>18</b><small>Sep</small></div><div><h4>First mediation session</h4><p>Outcome recorded: adjourned to 2 Oct</p></div><span class="chip green">Outcome recorded</span></div>
+            </div>
+          </div>
+
+          <div class="pane" id="tasks" role="tabpanel" hidden>
+            <div class="card tasks">
+              <label class="task"><input type="checkbox" id="t1"><span class="t">Send parking invoice reconciliation to Legal</span><span class="muted">Carol</span><span class="chip amber">30 Sep</span></label>
+              <label class="task"><input type="checkbox" id="t2"><span class="t">Draft response to the payment-plan proposal</span><span class="muted">Agnes</span><span class="chip">1 Oct</span></label>
+              <label class="task"><input type="checkbox" id="t3"><span class="t">Draft witness statement for Finance Manager</span><span class="muted">Brian</span><span class="chip">24 Oct</span></label>
+              <label class="task done"><input type="checkbox" id="t4" checked><span class="t">Circulate mediation position paper</span><span class="muted">Agnes</span><span class="chip green">Done</span></label>
+            </div>
+          </div>
+
+          <div class="pane" id="chat" role="tabpanel" hidden>
+            <div class="chat">
+              <div class="msg"><div class="av b">BO</div><div class="msg-b"><header><b>Brian Okello</b><time>Thu 16:40</time></header><p>Their counsel called. They may increase the first instalment if we drop interest completely.</p></div></div>
+              <div class="msg"><div class="av">AN</div><div class="msg-b"><header><b>Agnes Nakato</b><time>Thu 17:05</time></header><p><span class="mention">@Carol Atim</span> can Finance confirm the disputed parking total before Wednesday? That's our anchor number.</p></div></div>
+              <div class="msg"><div class="av c">CA</div><div class="msg-b"><header><b>Carol Atim</b><time>Fri 09:12</time></header><p>Requested from Finance this morning. They've promised it by the 30th.</p></div></div>
+              <div class="composer"><input id="msg" aria-label="Message" placeholder="Message the case team. Use @ to mention"><button class="btn primary" data-toast="Message sent">Send</button></div>
+            </div>
+          </div>
+
+          <div class="pane" id="parties" role="tabpanel" hidden>
+            <div class="parties">
+              <div class="card party"><small>Opposing party</small><b>Nile Horizon Aviation Ltd</b><p>Defendant · Plot 14, Kitoro, Entebbe</p></div>
+              <div class="card party"><small>Opposing counsel</small><b>Kato & Partners Advocates</b><p>Counsel: Samuel Kato</p></div>
+              <div class="card party"><small>Internal contact</small><b>Finance Department</b><p>Referred the matter · Revenue Accountant</p></div>
+            </div>
+          </div>
+
+          <div class="pane" id="notes" role="tabpanel" hidden><p class="muted">Shared notes, plus private notes that only their author and the Head of Legal can see.</p></div>
+
+          <div class="pane" id="activity" role="tabpanel" hidden>
+            <ul class="act">
+              <li><time>Fri 09:14</time><span>Carol Atim viewed <b>Invoice reconciliation 2024–25.xlsx</b></span></li>
+              <li><time>Thu 17:05</time><span>Agnes Nakato posted in Discussion</span></li>
+              <li><time>18 Sep 16:20</time><span>Agnes Nakato recorded the outcome of the first mediation session</span></li>
+              <li><time>17 Sep 11:02</time><span>Agnes Nakato uploaded version 3 of <b>Mediation position paper.pdf</b></span></li>
+            </ul>
+          </div>
+        </div>
+
+        <aside>
+          <section class="card panel">
+            <h2>Key facts</h2>
+            <div class="next"><small>Next date</small><b>Fri 2 Oct · 10:00</b><span>Second mediation session</span></div>
+            <dl class="facts">
+              <div class="fact"><dt>Amount claimed</dt><dd>UGX 1,840,000,000</dd></div>
+              <div class="fact"><dt>UCAA role</dt><dd>Plaintiff</dd></div>
+              <div class="fact"><dt>Judge</dt><dd>Hon. Justice R. Mugisha</dd></div>
+              <div class="fact"><dt>Opposing counsel</dt><dd>Kato & Partners</dd></div>
+              <div class="fact"><dt>Category</dt><dd>Debt recovery</dd></div>
+              <div class="fact"><dt>Last activity</dt><dd>Yesterday</dd></div>
+            </dl>
+          </section>
+          <section class="card panel">
+            <h2>Deadlines</h2>
+            <ul class="dl-list">
+              <li>Finance reconciliation<span class="chip amber">4 days</span></li>
+              <li>Witness statements<span class="chip">24 Oct</span></li>
+            </ul>
+            <div style="margin-top:16px;font-size:12.5px" class="muted">24 days in Mediation</div>
+            <div class="bar"><i style="width:40%"></i></div>
+          </section>
+          <section class="card panel">
+            <h2>Team</h2>
+            <ul class="dl-list">
+              <li><div class="av">AN</div>Agnes Nakato<span class="chip blue">Lead</span></li>
+              <li><div class="av b">BO</div>Brian Okello<span class="chip">Support</span></li>
+              <li><div class="av c">CA</div>Carol Atim<span class="chip">Support</span></li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const stages=[
+ {n:"Intake",d:"12 Jan",s:"done",ev:[["12 Jan","Referral memo from Finance: UGX 1.84bn outstanding"],["14 Jan","Assigned to Agnes Nakato"]]},
+ {n:"Pre-action",d:"20 Jan",s:"done",ev:[["20 Jan","Final demand sent to Nile Horizon"],["19 Feb","No payment received"]]},
+ {n:"Filed & served",d:"20 Feb",s:"done",ev:[["20 Feb","Plaint filed on ECCMIS"],["4 Mar","Summons served on defendant"]]},
+ {n:"Pleadings",d:"18 Mar",s:"done",ev:[["18 Mar","Written statement of defence received"],["1 Apr","Reply filed"],["12 Aug","Ruling on security for costs"]]},
+ {n:"Mediation",d:"Since 2 Sep",s:"current",ev:[["2 Sep","Referred to mediation"],["18 Sep","First session, adjourned"],["2 Oct","Second session (upcoming)"]]},
+ {n:"Scheduling conference",d:"",s:"",ev:[]},
+ {n:"Hearing",d:"",s:"",ev:[]},
+ {n:"Submissions",d:"",s:"",ev:[]},
+ {n:"Judgment",d:"",s:"",ev:[]},
+ {n:"Post-judgment",d:"",s:"",ev:[]},
+ {n:"Closed",d:"",s:"",ev:[]}
+];
+const track=document.getElementById('track'),detail=document.getElementById('detail');
+let sel=4;
+function render(){
+  track.innerHTML=stages.map((st,i)=>`<button class="stage ${st.s} ${i===sel?'sel':''}" data-i="${i}" aria-pressed="${i===sel}">
+    <span class="node">${st.s==='done'?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 5 5 9-10"/></svg>':i+1}</span>
+    <span class="lbl">${st.n}</span><span class="when">${st.d||'&nbsp;'}</span></button>`).join('');
+  const st=stages[sel];
+  detail.innerHTML=`<div><h3>${st.n}</h3><div class="sd-meta">${st.s==='done'?'Completed':st.s==='current'?'Current stage':'Not started'}${st.d?' · '+st.d:''}</div></div>
+   ${st.ev.length?`<ul>${st.ev.map(e=>`<li><span>${e[0]}</span>${e[1]}</li>`).join('')}</ul>`:`<p class="muted" style="margin:0">Nothing has happened in this stage yet.</p>`}`;
+}
+track.addEventListener('click',e=>{const b=e.target.closest('.stage');if(!b)return;sel=+b.dataset.i;render()});
+render();
+
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>{x.classList.remove('on');x.setAttribute('aria-selected','false')});
+  document.querySelectorAll('.pane').forEach(p=>p.hidden=true);
+  t.classList.add('on');t.setAttribute('aria-selected','true');
+  document.getElementById(t.dataset.pane).hidden=false;
+}));
+document.querySelectorAll('.fchip').forEach(c=>c.addEventListener('click',()=>{
+  document.querySelectorAll('.fchip').forEach(x=>x.classList.remove('on'));c.classList.add('on');
+}));
+document.querySelectorAll('.task input').forEach(i=>i.addEventListener('change',()=>i.closest('.task').classList.toggle('done',i.checked)));
+
+const more=document.getElementById('more'),menu=document.getElementById('menu');
+more.addEventListener('click',e=>{e.stopPropagation();menu.hidden=!menu.hidden;more.setAttribute('aria-expanded',String(!menu.hidden))});
+document.addEventListener('click',e=>{if(!menu.hidden&&!menu.contains(e.target)){menu.hidden=true;more.setAttribute('aria-expanded','false')}});
+
+if(/Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent))document.getElementById('kbd').textContent='⌘K';
+
+const toast=document.getElementById('toast');let tt;
+document.addEventListener('click',e=>{const b=e.target.closest('[data-toast]');if(!b)return;
+  if(menu.contains(b))menu.hidden=true;
+  toast.textContent=b.dataset.toast;toast.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toast.classList.remove('show'),1800)});
+</script>
