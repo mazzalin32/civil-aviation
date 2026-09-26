@@ -16,17 +16,18 @@ const TABS = [
 export function SettingsTabs() {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-1 overflow-x-auto lg:grid lg:overflow-visible">
+    <nav role="tablist" className="flex gap-1 overflow-x-auto border-b border-border">
       {TABS.map((tab) => {
         const active = pathname.startsWith(tab.href);
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            aria-current={active ? "page" : undefined}
+            role="tab"
+            aria-selected={active}
             className={cn(
-              "shrink-0 rounded-control px-3 py-2 text-[13px] font-medium whitespace-nowrap text-text-muted hover:bg-surface-muted hover:text-text",
-              active && "bg-primary-soft text-primary hover:bg-primary-soft hover:text-primary",
+              "shrink-0 border-b-2 border-transparent px-3 py-2.5 text-[13px] font-medium whitespace-nowrap text-text-muted hover:text-text",
+              active && "border-primary text-primary",
             )}
           >
             {tab.label}
