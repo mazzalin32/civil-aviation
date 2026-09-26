@@ -2,6 +2,9 @@
 // Phase 0: users (profile + security fields), settings, audit log.
 // Phase 1: Better Auth's own tables (Session, Account, Verification, TwoFactor) — field
 // names/shapes must match what its Prisma adapter expects; see src/lib/auth.ts.
+// Phase 2: Admin-configured reference data (spec §5.13) — categories, matter types &
+// lifecycle templates, forums, event/document types, outcomes, reminder rules. Nothing
+// legal is hard-coded (CLAUDE.md); every later feature reads these instead.
 
 generator client {
   provider = "prisma-client"
@@ -124,6 +127,118 @@ model Setting {
   updatedById String?
   updatedBy   User?    @relation(fields: [updatedById], references: [id])
   updatedAt   DateTime @updatedAt
+}
+
+enum ClosurePolicy {
+  ADMIN_APPROVAL
+  LAWYER_CLOSES
+}
+
+/// Subject — what a matter is about (spec §7 "Category vs matter type"). Drives reports.
+model Category {
+  id       String     @id @default(cuid())
+  name     String
+  parentId String?
+  parent   Category?  @relation("CategoryToParent", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryToParent")
+  color    String // one of the design-token status colours, stored by name (e.g. "primary")
+  order    Int        @default(0)
+  isActive Boolean    @default(true)
+
+  @@unique([name])
+  @@index([parentId])
+}
+
+/// Process — how a matter runs; picks its lifecycle (spec §7). isSubProcess marks
+/// templates used for applications/appeals/execution/costs inside a matter, not on their own.
+model MatterType {
+  id              String        @id @default(cuid())
+  name            String
+  referencePrefix String? // e.g. "LIT" → UCAA/LIT/2026/0042 (spec §5.13); null for sub-process types
+  closurePolicy   ClosurePolicy @default(ADMIN_APPROVAL)
+  isSubProcess    Boolean       @default(false)
+  order           Int           @default(0)
+  isActive        Boolean       @default(true)
+
+  stages StageTemplate[]
+
+  @@unique([name])
+  @@index([isSubProcess, isActive])
+}
+
+/// One step in a matter type's lifecycle. requiredFields is a small set of field keys the
+/// stage-move form must collect (e.g. "filingDate") — the real form fields arrive in Phase 5.
+model StageTemplate {
+  id            String     @id @default(cuid())
+  matterTypeId  String
+  matterType    MatterType @relation(fields: [matterTypeId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  order         Int
+  allowsClosure Boolean    @default(false)
+  requiredFields String[]
+  isActive      Boolean    @default(true)
+
+  @@unique([matterTypeId, name])
+  @@index([matterTypeId, order])
+}
+
+/// Court / tribunal / forum (Uganda hierarchy, spec §3, plus arbitration and internal panels).
+model Forum {
+  id       String  @id @default(cuid())
+  name     String
+  level    String // e.g. "HIGH_COURT", "TRIBUNAL", "ARBITRATION", "INTERNAL_PANEL" — a label, not an enum, so Admin can add new kinds
+  division String?
+  location String?
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  @@unique([name])
+}
+
+/// Timeline event kind (filing, hearing, ruling, correspondence, …).
+model EventType {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  icon     String? // lucide-react icon name
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+}
+
+/// Document tab folder (Pleadings, Evidence, Correspondence, Court Orders, Submissions, Internal Memos).
+model DocumentFolder {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+}
+
+/// Matter outcome (Won, Lost, Settled, …).
+model Outcome {
+  id       String  @id @default(cuid())
+  name     String  @unique
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+}
+
+/// Reminder schedule for one trigger (a hearing coming up, a deadline, an assignment, …).
+/// Sending the actual reminder is Phase 8; this phase only edits the schedule.
+model NotificationRule {
+  id       String  @id @default(cuid())
+  trigger  String  @unique // e.g. "HEARING_REMINDER", "DEADLINE_REMINDER" — matches spec §5.9
+  label    String // shown in the settings UI, e.g. "Hearing coming up"
+  offsets  Int[] // days before (positive) / after (negative) the trigger date; 0 = same day
+  channels String[] // "IN_APP" | "EMAIL"
+  mutable  Boolean @default(true) // false = lawyer can't turn this one off (spec §5.9)
+}
+
+/// Tracks the next case number per prefix+year (used from Phase 4 to generate references).
+model ReferenceCounter {
+  prefix String
+  year   Int
+  next   Int    @default(1)
+
+  @@id([prefix, year])
 }
 
 /// Append-only. The app never updates or deletes rows (enforced with DB privileges in Phase 13).

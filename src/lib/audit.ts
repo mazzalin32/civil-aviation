@@ -7,8 +7,8 @@ export type AuditEntry = {
   action: string; // e.g. "user.create", "setting.update"
   entity: string; // e.g. "User", "Matter"
   entityId?: string;
-  before?: Prisma.InputJsonValue;
-  after?: Prisma.InputJsonValue;
+  before?: Prisma.InputJsonValue | null;
+  after?: Prisma.InputJsonValue | null;
   ip?: string;
   userAgent?: string;
 };
@@ -17,5 +17,7 @@ type Client = Pick<typeof db, "auditLog">;
 
 /** Every mutation writes one row. Pass the transaction client so the log commits with the change. */
 export function writeAudit(entry: AuditEntry, client: Client = db) {
-  return client.auditLog.create({ data: entry });
+  // Prisma wants its own JsonNull sentinel for an explicit null, not the JS value —
+  // omitting the field is equivalent (both leave the column NULL), so drop it instead.
+  return client.auditLog.create({ data: { ...entry, before: entry.before ?? undefined, after: entry.after ?? undefined } });
 }

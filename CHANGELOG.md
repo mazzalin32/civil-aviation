@@ -59,3 +59,20 @@ Admin: temporary password → forced change → rejected on a breached password 
 
 ### Fixed
 - The seeded Admin's temporary password had characters that are easy to mistype or that a password manager can mangle; replaced with a plain, unambiguous one for local testing.
+
+## Phase 2 — Admin Settings (2026-09-26)
+
+### Added
+- Schema: `Category`, `MatterType` + `StageTemplate`, `Forum`, `EventType`, `DocumentFolder`, `Outcome`, `NotificationRule`, `ReferenceCounter`. Everything legal stays data, never hard-coded (CLAUDE.md).
+- Settings portal at `/settings`, six tabs:
+  - **Categories** — subject a matter is about; colour, reorder, deactivate.
+  - **Matter types & lifecycles** — process/lifecycle a matter follows, including the four sub-process templates (Interlocutory application, Appeal, Execution, Taxation of costs). Each type links to its own stage editor (add, rename, reorder, mark which stages allow closure, required-field keys per stage).
+  - **Courts & forums** — Uganda's court/tribunal hierarchy (spec §3).
+  - **Event & document types** — timeline event kinds and document folders.
+  - **Outcomes** — Won, Lost, Settled, …
+  - **Reminder schedules** — offsets/channels per trigger, and whether a lawyer can mute it. Sending reminders is Phase 8; this is just the schedule.
+- Every add/rename/deactivate/reorder writes an audit log entry with before/after values.
+- Seed grows to include all the above with the exact defaults from spec §5.13/§6 (9 categories, 6 matter types + 4 sub-process templates with 54 stages total, 18 forums, 10 event types, 6 document folders, 7 outcomes, 10 reminder rules).
+
+### Verified
+Full click-through against a running server and real database: added, renamed and deactivated a category (with reorder buttons); viewed matter types and drilled into Civil litigation's 11-stage lifecycle; edited a reminder rule's schedule and confirmed the change persisted; loaded every settings tab with zero console/page errors. Confirmed the seed is idempotent — re-running it twice produces the same row counts, no duplicates.
