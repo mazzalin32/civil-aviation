@@ -1,3 +1,6 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/app/avatar";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatUGX } from "@/lib/time";
@@ -22,8 +25,9 @@ const STATUS_LABEL = { OPEN: "Open", ON_HOLD: "On hold", CLOSURE_REQUESTED: "Clo
 const STATUS_TONE = { OPEN: "success", ON_HOLD: "warning", CLOSURE_REQUESTED: "info", CLOSED: "neutral" } as const;
 
 export function CaseRow({ c }: { c: CaseRowData }) {
+  const router = useRouter();
   return (
-    <tr>
+    <tr onClick={() => router.push(`/cases/${c.id}`)} className="cursor-pointer hover:bg-surface-muted">
       <td className="border-b border-border px-4 py-3">
         <p className="m-0 font-medium">{c.title}</p>
         <p className="m-0 text-xs text-text-muted">{c.reference}</p>

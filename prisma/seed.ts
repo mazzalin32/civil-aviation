@@ -533,6 +533,57 @@ const CASE_SEEDS: CaseSeed[] = [
   },
 ];
 
+/** Phase 5 demo content for the mockup case (docs/design/case-page.html) — a real summary,
+ * timeline and note so the Case Page isn't an empty shell the first time it's opened. */
+async function seedNileHorizonDetail(matterId: string, adminId: string, leadId: string) {
+  const already = await db.event.count({ where: { matterId } });
+  if (already > 0) return; // idempotent re-run
+
+  const typeIdByName = new Map((await db.eventType.findMany({ select: { id: true, name: true } })).map((t) => [t.name, t.id]));
+  const typeId = (name: string) => typeIdByName.get(name)!;
+
+  await db.summaryVersion.create({
+    data: {
+      matterId,
+      authorId: leadId,
+      body: [
+        "What it's about. UCAA is recovering UGX 1.84 billion in unpaid landing, parking and navigation charges from Nile Horizon for flights between March 2024 and June 2025.",
+        "Where it stands. Pleadings are closed. The defendant admits the flights but disputes the parking rate applied after the July 2024 tariff revision. Court-annexed mediation has had one session, and the defendant proposed a 24-month payment plan.",
+        "What's next. Second mediation session on Friday 2 October. We need the Finance department's reconciliation of the disputed parking invoices before then.",
+      ].join("\n\n"),
+    },
+  });
+
+  const events: { title: string; type: string; date: string; description?: string }[] = [
+    { title: "Referral memo from Finance: UGX 1.84bn outstanding", type: "Correspondence", date: "2026-01-12" },
+    { title: "Plaint filed on ECCMIS", type: "Filing", date: "2026-02-20" },
+    { title: "Summons served on defendant", type: "Filing", date: "2026-03-04" },
+    { title: "Written statement of defence received", type: "Filing", date: "2026-03-18" },
+    { title: "Reply filed", type: "Filing", date: "2026-04-01" },
+    { title: "Ruling on security for costs", type: "Ruling", date: "2026-08-12", description: "Application dismissed with costs to UCAA." },
+    {
+      title: "First mediation session",
+      type: "Mediation session",
+      date: "2026-09-18",
+      description: "Defendant proposed a 24-month plan and asked for waiver of interest. Mediator adjourned to 2 Oct for UCAA to respond.",
+    },
+  ];
+  for (const e of events) {
+    await db.event.create({
+      data: { matterId, typeId: typeId(e.type), title: e.title, description: e.description ?? null, date: new Date(`${e.date}T09:00:00Z`), createdById: leadId },
+    });
+  }
+
+  await db.note.create({
+    data: {
+      matterId,
+      authorId: adminId,
+      isPrivate: false,
+      body: "Head of Legal approved settling for no less than 85% of the principal, with interest waived only if paid within 12 months.",
+    },
+  });
+}
+
 async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
   const referenceCounters = new Map<string, number>(); // `${prefix}:${year}` -> next number to use
 
@@ -555,7 +606,12 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
     const createdAt = new Date(`${c.openedAt}T09:00:00Z`);
 
     const existing = await db.matter.findUnique({ where: { reference } });
-    if (existing) continue; // idempotent re-run — seeded cases are never edited by the seed itself
+    if (existing) {
+      // Idempotent re-run — the case itself is never edited by the seed, but a later phase's
+      // demo content (e.g. Phase 5's timeline/summary/note) may still need to be added.
+      if (c.title.includes("Nile Horizon")) await seedNileHorizonDetail(existing.id, adminId, leadId);
+      continue;
+    }
 
     const matter = await db.matter.create({
       data: {
@@ -590,6 +646,12 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
     }
     for (const p of c.opposing ?? []) {
       await db.party.create({ data: { matterId: matter.id, name: p.name, kind: PartyKind.OPPOSING, counselName: p.counselName ?? null, counselFirm: p.counselFirm ?? null } });
+    }
+
+    // Phase 5 demo content — real events/summary/note on the mockup case so the Case Page
+    // has something to show, not an empty shell.
+    if (c.title.includes("Nile Horizon")) {
+      await seedNileHorizonDetail(matter.id, adminId, leadId);
     }
   }
 

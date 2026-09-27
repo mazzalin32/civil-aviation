@@ -21,3 +21,12 @@ export async function canAccessMatter(userId: string, role: Role, matterId: stri
   const assignment = await db.matterAssignment.findFirst({ where: { matterId, userId, removedAt: null } });
   return assignment !== null;
 }
+
+/** The matter-page equivalent of requireRole() — every case-detail page/action gates through this. */
+export async function requireMatterAccess(matterId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const allowed = await canAccessMatter(user.id, user.role, matterId);
+  if (!allowed) redirect("/forbidden");
+  return user;
+}

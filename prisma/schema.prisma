@@ -66,6 +66,9 @@ model User {
   matterAssignmentsBy MatterAssignment[] @relation("MatterAssignedBy")
   matterStagesMoved   MatterStage[]
   wizardDraft         WizardDraft?
+  eventsCreated       Event[]
+  summaryVersions     SummaryVersion[]
+  notes               Note[]
 
   @@index([role, isActive])
   @@index([importBatchId])
@@ -247,6 +250,8 @@ model EventType {
   icon     String? // lucide-react icon name
   order    Int     @default(0)
   isActive Boolean @default(true)
+
+  events Event[]
 }
 
 /// Document tab folder (Pleadings, Evidence, Correspondence, Court Orders, Submissions, Internal Memos).
@@ -366,9 +371,12 @@ model Matter {
   closedBy          User?           @relation("MatterClosedBy", fields: [closedById], references: [id])
   lastActivityAt    DateTime        @default(now())
 
-  assignments MatterAssignment[]
-  stageMoves  MatterStage[]
-  parties     Party[]
+  assignments     MatterAssignment[]
+  stageMoves      MatterStage[]
+  parties         Party[]
+  events          Event[]
+  summaryVersions SummaryVersion[]
+  notes           Note[]
 
   @@index([status, priority])
   @@index([categoryId])
@@ -407,6 +415,7 @@ model MatterStage {
   enteredAt       DateTime      @default(now())
   exitedAt        DateTime?
   note            String?
+  fields          Json? // answers to the stage template's requiredFields, e.g. {"filingDate": "2026-03-01"}
   movedById       String
   movedBy         User          @relation(fields: [movedById], references: [id])
 
@@ -437,6 +446,55 @@ model WizardDraft {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   data      Json
   updatedAt DateTime @updatedAt
+}
+
+/// One timeline entry (spec §5.7 tab 1) — filings, hearings, rulings, correspondence, stage
+/// changes. subProcessId isn't here yet since SubProcess doesn't exist until a later phase.
+model Event {
+  id          String    @id @default(cuid())
+  matterId    String
+  matter      Matter    @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  date        DateTime
+  typeId      String
+  type        EventType @relation(fields: [typeId], references: [id])
+  title       String
+  description String?
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([matterId, date])
+}
+
+/// The "Case in 30 seconds" summary (spec §5.7 C) — Matter shows the latest; older ones kept
+/// for history. isAiDraft is always false until Phase 14's AI assistant.
+model SummaryVersion {
+  id        String   @id @default(cuid())
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  body      String
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  isAiDraft Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([matterId, createdAt])
+}
+
+/// Shared or private note on a matter (spec §5.7 tab 7). Private notes are visible only to
+/// their author and the Admin (FLOWS §6) — enforced in the query, not the schema.
+model Note {
+  id        String   @id @default(cuid())
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  isPrivate Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([matterId])
 }
 
 /// Append-only. The app never updates or deletes rows (enforced with DB privileges in Phase 13).
