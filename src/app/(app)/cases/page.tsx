@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, ArrowUp, CheckCircle2, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/session";
@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { cn } from "@/lib/utils";
 import { CaseFiltersBar, type CaseFilterOptions } from "./case-filters";
 import { CaseRow, type CaseRowData } from "./case-row";
+import { CreatedToast } from "./created-toast";
 import { buildCaseOrderBy, buildCaseWhere, parseCaseFilters, PRIORITY_RANK, type SortKey } from "./filters";
 
 export const metadata = { title: "Cases" };
@@ -113,16 +114,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
         }
       />
 
-      {created && (
-        <div className="mb-4 flex items-center justify-between rounded-card border border-success/40 bg-success-soft px-4 py-3 text-[13px] text-success">
-          <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="size-4" /> Case <strong>{created}</strong> created.
-          </span>
-          <Link href="/cases" aria-label="Dismiss">
-            <X className="size-4" />
-          </Link>
-        </div>
-      )}
+      {created && <CreatedToast reference={created} />}
 
       <Card>
         <CaseFiltersBar filters={filters} options={options} />
