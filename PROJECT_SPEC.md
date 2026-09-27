@@ -341,7 +341,7 @@ Legal files are the most sensitive thing in the system. Defence in depth:
 
 ## 10. Design system — "clean, warm, professional blue"
 
-Direction from the client: white and clean like the reference images, warm (not cold/sterile). One bold, saturated blue accent (`#4169E1`, revised 2026-09-26 from an earlier muted mid-tone blue) — not navy, not baby blue. Confidential, trustworthy, with a modern, confident edge. Input fields are sharp-cornered (no radius); cards and buttons keep their rounded corners.
+Direction from the client: white and clean like the reference images, warm (not cold/sterile). One bold, saturated blue accent (`#4169E1`, revised 2026-09-26 from an earlier muted mid-tone blue) — not navy, not baby blue. Confidential, trustworthy, with a modern, confident edge. Inputs, selects and dropdowns share the same rounded corners as buttons and cards (revised 2026-09-27 from an earlier sharp-cornered input style, which read as inconsistent next to rounded buttons in the same toolbar).
 
 **Colour tokens**
 | Token | Hex | Use |
@@ -454,3 +454,4 @@ Each phase ends with a working demo, updated seed data and a CHANGELOG entry. Th
 | 2026-09-26 | Wizard is 5 steps (documents in step 5); seed grows per phase, cases arrive in Phase 4 |
 | 2026-09-26 | Primary blue revised to `#4169E1` (bolder/more saturated); login is a split layout, not a centred card; input fields are sharp-cornered |
 | 2026-09-26 | 2FA enforcement made a togglable env flag (`REQUIRE_2FA`) for easier testing — must be `true` before go-live (spec still requires 2FA on every account) |
+| 2026-09-27 | Inputs/selects/dropdowns switched from sharp corners to the same rounded corners as buttons — seeing sharp inputs next to rounded buttons live read as inconsistent |

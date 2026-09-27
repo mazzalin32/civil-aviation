@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { createMatterType } from "./actions";
@@ -42,10 +43,10 @@ export function AddMatterType({ isSubProcess }: { isSubProcess: boolean }) {
             </Field>
           )}
           <Field label="Closure policy" htmlFor="mt-policy">
-            <select id="mt-policy" name="closurePolicy" defaultValue="ADMIN_APPROVAL" className="h-10 w-full rounded-none border border-border bg-surface px-3 text-sm">
+            <Select id="mt-policy" name="closurePolicy" defaultValue="ADMIN_APPROVAL">
               <option value="ADMIN_APPROVAL">Admin approves closure</option>
               <option value="LAWYER_CLOSES">Lawyer closes directly</option>
-            </select>
+            </Select>
           </Field>
           <div className="flex gap-2 pt-2">
             <Button type="submit" variant="primary" disabled={pending}>

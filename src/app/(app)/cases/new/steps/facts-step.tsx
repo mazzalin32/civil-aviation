@@ -20,7 +20,7 @@ export function FactsStep({
             value={value.description ?? ""}
             onChange={(e) => onChange({ description: e.target.value })}
             rows={4}
-            className="w-full rounded-none border border-border bg-surface p-3 text-sm text-text placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+            className="w-full rounded-control border border-border bg-surface p-3 text-sm text-text placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
           />
         </Field>
         <Field label="How it came to Legal" htmlFor="fa-referral" hint="Referral memo" className="sm:col-span-2">
@@ -29,7 +29,7 @@ export function FactsStep({
             value={value.referralNote ?? ""}
             onChange={(e) => onChange({ referralNote: e.target.value })}
             rows={3}
-            className="w-full rounded-none border border-border bg-surface p-3 text-sm text-text placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+            className="w-full rounded-control border border-border bg-surface p-3 text-sm text-text placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
           />
         </Field>
       </FormSection>

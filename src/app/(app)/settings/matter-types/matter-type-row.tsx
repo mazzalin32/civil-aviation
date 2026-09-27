@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { Ban, Check, CheckCircle2, ListTree, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { cn } from "@/lib/utils";
@@ -49,10 +50,10 @@ export function MatterTypeRowItem({ item }: { item: MatterTypeRow }) {
               {error && <p className="m-0 mt-1 text-xs text-danger">{error}</p>}
             </div>
             <Input name="referencePrefix" defaultValue={item.referencePrefix ?? ""} placeholder="Prefix e.g. LIT" className="h-9 w-32" />
-            <select name="closurePolicy" defaultValue={item.closurePolicy} className="h-9 rounded-none border border-border bg-surface px-2 text-sm">
+            <Select name="closurePolicy" defaultValue={item.closurePolicy} className="h-9">
               <option value="ADMIN_APPROVAL">Admin approves closure</option>
               <option value="LAWYER_CLOSES">Lawyer closes directly</option>
-            </select>
+            </Select>
             <Button type="submit" size="sm" variant="primary" disabled={pending}>
               <Check className="size-4" /> Save
             </Button>
