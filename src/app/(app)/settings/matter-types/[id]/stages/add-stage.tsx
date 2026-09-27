@@ -21,7 +21,7 @@ export function AddStage({ createAction }: { createAction: (formData: FormData) 
 
   if (!adding) {
     return (
-      <div className="border-t border-border p-3">
+      <div className="border-b border-border p-3">
         <Button size="sm" onClick={() => setAdding(true)}>
           <Plus className="size-4" /> Add stage
         </Button>
@@ -30,7 +30,7 @@ export function AddStage({ createAction }: { createAction: (formData: FormData) 
   }
 
   return (
-    <div className="border-t border-border bg-surface-muted p-3">
+    <div className="border-b border-border bg-surface-muted p-3">
       <form action={create} className="grid gap-2">
         <div className="flex flex-wrap items-start gap-2">
           <div className="min-w-[160px] flex-1">

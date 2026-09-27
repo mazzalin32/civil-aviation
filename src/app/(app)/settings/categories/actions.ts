@@ -48,6 +48,24 @@ export async function toggleCategoryActive(id: string, isActive: boolean) {
   await reload();
 }
 
+/**
+ * Real delete, not soft — safe because no matter yet references a category (Phase 4
+ * adds that). Once matters exist, this must check usage first and refuse if any exist
+ * (spec §5.13: "hard delete only if never used"); deactivate is the everyday tool.
+ */
+export async function deleteCategory(id: string) {
+  const admin = await requireRole("ADMIN");
+  const before = await db.category.findUnique({ where: { id } });
+  if (!before) return;
+  try {
+    await db.category.delete({ where: { id } });
+  } catch {
+    return { error: "Couldn't delete this category — it may have sub-categories under it. Deactivate it instead." };
+  }
+  await writeAudit({ userId: admin.id, action: "setting.category.delete", entity: "Category", entityId: id, before });
+  await reload();
+}
+
 export async function moveCategory(id: string, direction: "up" | "down") {
   const admin = await requireRole("ADMIN");
   const items = await db.category.findMany({ orderBy: { order: "asc" } });

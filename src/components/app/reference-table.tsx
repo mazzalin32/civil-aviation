@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, Ban, Check, CheckCircle2, Pencil, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Check, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -29,6 +29,7 @@ export function ReferenceTable({
   createAction,
   updateAction,
   toggleActiveAction,
+  deleteAction,
   moveAction,
 }: {
   items: ReferenceItem[];
@@ -37,6 +38,7 @@ export function ReferenceTable({
   createAction: (formData: FormData) => Promise<ActionResult>;
   updateAction: (formData: FormData) => Promise<ActionResult>;
   toggleActiveAction: (id: string, isActive: boolean) => Promise<void>;
+  deleteAction?: (id: string) => Promise<{ error?: string } | void>;
   moveAction?: (id: string, direction: "up" | "down") => Promise<void>;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -44,6 +46,11 @@ export function ReferenceTable({
 
   return (
     <Card>
+      <div className="flex items-center justify-between border-b border-border p-3">
+        <Button size="sm" onClick={() => setAdding((v) => !v)} disabled={adding}>
+          + {addLabel}
+        </Button>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13.5px]">
           <thead>
@@ -59,6 +66,7 @@ export function ReferenceTable({
             </tr>
           </thead>
           <tbody>
+            {adding && <AddRow fields={fields} createAction={createAction} onDone={() => setAdding(false)} />}
             {items.map((item, i) => (
               <Row
                 key={item.id}
@@ -70,22 +78,15 @@ export function ReferenceTable({
                 onSaved={() => setEditingId(null)}
                 updateAction={updateAction}
                 toggleActiveAction={toggleActiveAction}
+                deleteAction={deleteAction}
                 moveAction={moveAction}
                 canMoveUp={i > 0}
                 canMoveDown={i < items.length - 1}
               />
             ))}
-            {adding && <AddRow fields={fields} createAction={createAction} onDone={() => setAdding(false)} />}
           </tbody>
         </table>
       </div>
-      {!adding && (
-        <div className="border-t border-border p-3">
-          <Button size="sm" onClick={() => setAdding(true)}>
-            + {addLabel}
-          </Button>
-        </div>
-      )}
     </Card>
   );
 }
@@ -118,6 +119,7 @@ function Row({
   onSaved,
   updateAction,
   toggleActiveAction,
+  deleteAction,
   moveAction,
   canMoveUp,
   canMoveDown,
@@ -130,12 +132,22 @@ function Row({
   onSaved: () => void;
   updateAction: (formData: FormData) => Promise<ActionResult>;
   toggleActiveAction: (id: string, isActive: boolean) => Promise<void>;
+  deleteAction?: (id: string) => Promise<{ error?: string } | void>;
   moveAction?: (id: string, direction: "up" | "down") => Promise<void>;
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
+
+  function onDelete() {
+    if (!deleteAction) return;
+    if (!window.confirm(`Delete "${item.name}"? This can't be undone.`)) return;
+    startTransition(async () => {
+      const result = await deleteAction(item.id);
+      if (result?.error) window.alert(result.error);
+    });
+  }
 
   function save(formData: FormData) {
     formData.set("id", item.id);
@@ -207,6 +219,7 @@ function Row({
               disabled: pending,
               onClick: () => startTransition(() => toggleActiveAction(item.id, !item.isActive)),
             },
+            ...(deleteAction ? [{ label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: onDelete }] : []),
           ]}
         />
       </td>

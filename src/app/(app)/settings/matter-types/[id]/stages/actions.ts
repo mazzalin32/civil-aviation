@@ -58,6 +58,16 @@ export async function toggleStageActive(matterTypeId: string, id: string, isActi
   revalidatePath(`/settings/matter-types/${matterTypeId}/stages`);
 }
 
+/** Real delete — safe until Phase 5 adds matters sitting on a stage. Deactivate is the everyday tool. */
+export async function deleteStage(matterTypeId: string, id: string) {
+  const admin = await requireRole("ADMIN");
+  const before = await db.stageTemplate.findUnique({ where: { id } });
+  if (!before) return;
+  await db.stageTemplate.delete({ where: { id } });
+  await writeAudit({ userId: admin.id, action: "setting.stage.delete", entity: "StageTemplate", entityId: id, before });
+  revalidatePath(`/settings/matter-types/${matterTypeId}/stages`);
+}
+
 export async function moveStage(matterTypeId: string, id: string, direction: "up" | "down") {
   const admin = await requireRole("ADMIN");
   const items = await db.stageTemplate.findMany({ where: { matterTypeId }, orderBy: { order: "asc" } });

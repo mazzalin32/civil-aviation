@@ -48,6 +48,16 @@ export async function toggleOutcomeActive(id: string, isActive: boolean) {
   await reload();
 }
 
+/** Real delete — safe until Phase 4 adds matters that reference an outcome. Deactivate is the everyday tool. */
+export async function deleteOutcome(id: string) {
+  const admin = await requireRole("ADMIN");
+  const before = await db.outcome.findUnique({ where: { id } });
+  if (!before) return;
+  await db.outcome.delete({ where: { id } });
+  await writeAudit({ userId: admin.id, action: "setting.outcome.delete", entity: "Outcome", entityId: id, before });
+  await reload();
+}
+
 export async function moveOutcome(id: string, direction: "up" | "down") {
   const admin = await requireRole("ADMIN");
   const items = await db.outcome.findMany({ orderBy: { order: "asc" } });

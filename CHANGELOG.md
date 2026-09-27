@@ -85,3 +85,12 @@ Full click-through against a running server and real database: added, renamed an
 
 ### Fixed
 - Local Mailpit clashed with another project's on ports 1025/8025; moved ours to 1026/8026 in `docker-compose.yml`, `.env(.example)`, the seed script and the README.
+
+## Phase 2 follow-up — top-placed add, real delete (2026-09-27)
+
+### Changed
+- "+ Add" now sits above the table on every settings page, instead of below it — no more scrolling past a long list to add something.
+- Every settings row's "⋯" menu gets a **Delete** option alongside Deactivate. This is a real, permanent delete (not soft) — safe right now because nothing in the app references these rows yet (matters don't exist until Phase 4). Confirmed with a browser dialog before it runs. Deactivate stays the everyday tool; Delete is for cleaning up a genuine mistake. Once later phases add matters/documents/events that reference these tables, delete must first check nothing uses the row (spec §5.13: "hard delete only if never used") — flagged in code comments at each delete action so it isn't missed.
+
+### Verified
+Created a test category, deleted it through the real UI (confirmed the browser dialog, confirmed the row disappeared entirely rather than just greying out) — checked with a live browser session against the running app, not just code review.

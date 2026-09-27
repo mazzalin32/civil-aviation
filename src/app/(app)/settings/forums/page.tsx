@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/app/page-header";
 import { ReferenceTable, type FieldSpec } from "@/components/app/reference-table";
-import { createForum, moveForum, toggleForumActive, updateForum } from "./actions";
+import { createForum, deleteForum, moveForum, toggleForumActive, updateForum } from "./actions";
 
 export const metadata = { title: "Courts & forums" };
 
@@ -43,6 +43,7 @@ export default async function ForumsPage() {
         createAction={createForum}
         updateAction={updateForum}
         toggleActiveAction={toggleForumActive}
+        deleteAction={deleteForum}
         moveAction={moveForum}
       />
     </>

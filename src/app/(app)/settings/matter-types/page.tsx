@@ -60,8 +60,8 @@ export default async function MatterTypesPage() {
         <section>
           <h2 className="mb-3 text-sm font-semibold">Matter types</h2>
           <Card>
-            <Table items={matterTypes} />
             <AddMatterType isSubProcess={false} />
+            <Table items={matterTypes} />
           </Card>
         </section>
         <section>
@@ -70,8 +70,8 @@ export default async function MatterTypesPage() {
             Run inside a matter with their own mini-lifecycle — an application, appeal, execution or taxation of costs.
           </p>
           <Card>
-            <Table items={subProcesses} />
             <AddMatterType isSubProcess={true} />
+            <Table items={subProcesses} />
           </Card>
         </section>
       </div>

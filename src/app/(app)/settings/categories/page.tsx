@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/app/page-header";
 import { ReferenceTable, type FieldSpec } from "@/components/app/reference-table";
 import { CHIP_COLORS } from "@/lib/validation/settings";
-import { createCategory, moveCategory, toggleCategoryActive, updateCategory } from "./actions";
+import { createCategory, deleteCategory, moveCategory, toggleCategoryActive, updateCategory } from "./actions";
 
 export const metadata = { title: "Categories" };
 
@@ -28,6 +28,7 @@ export default async function CategoriesPage() {
         createAction={createCategory}
         updateAction={updateCategory}
         toggleActiveAction={toggleCategoryActive}
+        deleteAction={deleteCategory}
         moveAction={moveCategory}
       />
     </>

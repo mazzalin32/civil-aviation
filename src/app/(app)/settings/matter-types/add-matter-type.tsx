@@ -22,7 +22,7 @@ export function AddMatterType({ isSubProcess }: { isSubProcess: boolean }) {
 
   if (!adding) {
     return (
-      <div className="border-t border-border p-3">
+      <div className="border-b border-border p-3">
         <Button size="sm" onClick={() => setAdding(true)}>
           <Plus className="size-4" /> {isSubProcess ? "Add sub-process template" : "Add matter type"}
         </Button>
@@ -31,7 +31,7 @@ export function AddMatterType({ isSubProcess }: { isSubProcess: boolean }) {
   }
 
   return (
-    <div className="border-t border-border bg-surface-muted p-3">
+    <div className="border-b border-border bg-surface-muted p-3">
       <form action={create} className="flex flex-wrap items-start gap-2">
         <input type="hidden" name="isSubProcess" value={isSubProcess ? "on" : ""} />
         <div className="min-w-[160px] flex-1">

@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { Card } from "@/components/ui/card";
-import { createStage, moveStage, toggleStageActive, updateStage } from "./actions";
+import { createStage, deleteStage, moveStage, toggleStageActive, updateStage } from "./actions";
 import { StageRowItem } from "./stage-row";
 import { AddStage } from "./add-stage";
 
@@ -33,6 +33,7 @@ export default async function StagesPage({ params }: { params: Promise<{ id: str
         </p>
       </div>
       <Card>
+        <AddStage createAction={createStage.bind(null, matterTypeId)} />
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>
@@ -54,13 +55,13 @@ export default async function StagesPage({ params }: { params: Promise<{ id: str
                   canMoveDown={i < matterType.stages.length - 1}
                   updateAction={updateStage.bind(null, matterTypeId)}
                   toggleActiveAction={toggleStageActive.bind(null, matterTypeId, stage.id)}
+                  deleteAction={deleteStage.bind(null, matterTypeId, stage.id)}
                   moveAction={moveStage.bind(null, matterTypeId, stage.id)}
                 />
               ))}
             </tbody>
           </table>
         </div>
-        <AddStage createAction={createStage.bind(null, matterTypeId)} />
       </Card>
     </>
   );

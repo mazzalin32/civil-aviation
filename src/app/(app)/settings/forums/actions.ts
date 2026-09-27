@@ -61,6 +61,16 @@ export async function toggleForumActive(id: string, isActive: boolean) {
   await reload();
 }
 
+/** Real delete — safe until Phase 4 adds matters that reference a forum. Deactivate is the everyday tool. */
+export async function deleteForum(id: string) {
+  const admin = await requireRole("ADMIN");
+  const before = await db.forum.findUnique({ where: { id } });
+  if (!before) return;
+  await db.forum.delete({ where: { id } });
+  await writeAudit({ userId: admin.id, action: "setting.forum.delete", entity: "Forum", entityId: id, before });
+  await reload();
+}
+
 export async function moveForum(id: string, direction: "up" | "down") {
   const admin = await requireRole("ADMIN");
   const items = await db.forum.findMany({ orderBy: { order: "asc" } });

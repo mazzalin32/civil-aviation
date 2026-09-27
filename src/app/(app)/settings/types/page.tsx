@@ -5,6 +5,8 @@ import { ReferenceTable } from "@/components/app/reference-table";
 import {
   createDocumentFolder,
   createEventType,
+  deleteDocumentFolder,
+  deleteEventType,
   moveDocumentFolder,
   moveEventType,
   toggleDocumentFolderActive,
@@ -34,6 +36,7 @@ export default async function TypesPage() {
             createAction={createEventType}
             updateAction={updateEventType}
             toggleActiveAction={toggleEventTypeActive}
+            deleteAction={deleteEventType}
             moveAction={moveEventType}
           />
         </section>
@@ -45,6 +48,7 @@ export default async function TypesPage() {
             createAction={createDocumentFolder}
             updateAction={updateDocumentFolder}
             toggleActiveAction={toggleDocumentFolderActive}
+            deleteAction={deleteDocumentFolder}
             moveAction={moveDocumentFolder}
           />
         </section>

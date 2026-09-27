@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Ban, Check, CheckCircle2, ListTree, Pencil, X } from "lucide-react";
+import { Ban, Check, CheckCircle2, ListTree, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { cn } from "@/lib/utils";
-import { toggleMatterTypeActive, updateMatterType } from "./actions";
+import { deleteMatterType, toggleMatterTypeActive, updateMatterType } from "./actions";
 
 export type MatterTypeRow = {
   id: string;
@@ -32,6 +32,11 @@ export function MatterTypeRowItem({ item }: { item: MatterTypeRow }) {
       if (result?.error) return setError(result.error);
       setEditing(false);
     });
+  }
+
+  function onDelete() {
+    if (!window.confirm(`Delete "${item.name}" and its ${item.stageCount} stage(s)? This can't be undone.`)) return;
+    startTransition(() => deleteMatterType(item.id));
   }
 
   if (editing) {
@@ -89,6 +94,7 @@ export function MatterTypeRowItem({ item }: { item: MatterTypeRow }) {
                 disabled: pending,
                 onClick: () => startTransition(() => toggleMatterTypeActive(item.id, !item.isActive)),
               },
+              { label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: onDelete },
             ]}
           />
         </div>

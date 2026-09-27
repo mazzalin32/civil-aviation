@@ -50,6 +50,16 @@ export async function toggleEventTypeActive(id: string, isActive: boolean) {
   await reload();
 }
 
+/** Real delete — safe until Phase 5 adds timeline events that reference a type. Deactivate is the everyday tool. */
+export async function deleteEventType(id: string) {
+  const admin = await requireRole("ADMIN");
+  const before = await db.eventType.findUnique({ where: { id } });
+  if (!before) return;
+  await db.eventType.delete({ where: { id } });
+  await writeAudit({ userId: admin.id, action: "setting.eventType.delete", entity: "EventType", entityId: id, before });
+  await reload();
+}
+
 export async function moveEventType(id: string, direction: "up" | "down") {
   const admin = await requireRole("ADMIN");
   const items = await db.eventType.findMany({ orderBy: { order: "asc" } });
@@ -103,6 +113,16 @@ export async function toggleDocumentFolderActive(id: string, isActive: boolean) 
     before,
     after: updated,
   });
+  await reload();
+}
+
+/** Real delete — safe until Phase 6 adds documents that reference a folder. Deactivate is the everyday tool. */
+export async function deleteDocumentFolder(id: string) {
+  const admin = await requireRole("ADMIN");
+  const before = await db.documentFolder.findUnique({ where: { id } });
+  if (!before) return;
+  await db.documentFolder.delete({ where: { id } });
+  await writeAudit({ userId: admin.id, action: "setting.documentFolder.delete", entity: "DocumentFolder", entityId: id, before });
   await reload();
 }
 

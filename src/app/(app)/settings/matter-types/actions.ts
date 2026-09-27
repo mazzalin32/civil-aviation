@@ -60,3 +60,16 @@ export async function toggleMatterTypeActive(id: string, isActive: boolean) {
   });
   await reload();
 }
+
+/**
+ * Real delete — cascades to its stage templates. Safe until Phase 4 adds matters that
+ * reference a matter type. Deactivate is the everyday tool.
+ */
+export async function deleteMatterType(id: string) {
+  const admin = await requireRole("ADMIN");
+  const before = await db.matterType.findUnique({ where: { id } });
+  if (!before) return;
+  await db.matterType.delete({ where: { id } });
+  await writeAudit({ userId: admin.id, action: "setting.matterType.delete", entity: "MatterType", entityId: id, before });
+  await reload();
+}

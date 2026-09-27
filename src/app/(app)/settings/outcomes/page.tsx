@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/app/page-header";
 import { ReferenceTable } from "@/components/app/reference-table";
-import { createOutcome, moveOutcome, toggleOutcomeActive, updateOutcome } from "./actions";
+import { createOutcome, deleteOutcome, moveOutcome, toggleOutcomeActive, updateOutcome } from "./actions";
 
 export const metadata = { title: "Outcomes" };
 
@@ -19,6 +19,7 @@ export default async function OutcomesPage() {
         createAction={createOutcome}
         updateAction={updateOutcome}
         toggleActiveAction={toggleOutcomeActive}
+        deleteAction={deleteOutcome}
         moveAction={moveOutcome}
       />
     </>

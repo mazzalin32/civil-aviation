@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, Ban, Check, CheckCircle2, Pencil, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Check, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ export function StageRowItem({
   canMoveDown,
   updateAction,
   toggleActiveAction,
+  deleteAction,
   moveAction,
 }: {
   stage: StageRow;
@@ -34,6 +35,7 @@ export function StageRowItem({
   canMoveDown: boolean;
   updateAction: (formData: FormData) => Promise<ActionResult>;
   toggleActiveAction: (isActive: boolean) => Promise<void>;
+  deleteAction: () => Promise<void>;
   moveAction: (direction: "up" | "down") => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -48,6 +50,11 @@ export function StageRowItem({
       if (result?.error) return setError(result.error);
       setEditing(false);
     });
+  }
+
+  function onDelete() {
+    if (!window.confirm(`Delete stage "${stage.name}"? This can't be undone.`)) return;
+    startTransition(deleteAction);
   }
 
   if (editing) {
@@ -111,6 +118,7 @@ export function StageRowItem({
               disabled: pending,
               onClick: () => startTransition(() => toggleActiveAction(!stage.isActive)),
             },
+            { label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: onDelete },
           ]}
         />
       </td>
