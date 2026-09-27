@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Ban, Check, CheckCircle2, LogOut, Mail, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ function certBadge(certExpiry: string | null) {
 }
 
 export function UserRowItem({ user }: { user: UserRowData }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
@@ -79,7 +81,10 @@ export function UserRowItem({ user }: { user: UserRowData }) {
   const status = !user.isActive ? { tone: "neutral" as const, label: "Deactivated" } : user.hasAccount ? { tone: "success" as const, label: "Active" } : { tone: "warning" as const, label: "Invited" };
 
   return (
-    <tr className={cn(!user.isActive && "opacity-60")}>
+    <tr
+      onClick={() => router.push(`/users/${user.id}`)}
+      className={cn("cursor-pointer hover:bg-surface-muted", !user.isActive && "opacity-60")}
+    >
       <td className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2.5">
           <Avatar name={user.name} seed={user.id} />
@@ -100,7 +105,7 @@ export function UserRowItem({ user }: { user: UserRowData }) {
       <td className="border-b border-border px-4 py-3">
         <Badge tone={status.tone}>{status.label}</Badge>
       </td>
-      <td className="border-b border-border px-4 py-3 text-right">
+      <td className="border-b border-border px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
         <RowActionsMenu
           actions={[
             { label: "Edit", icon: Pencil, onClick: () => setEditing(true) },

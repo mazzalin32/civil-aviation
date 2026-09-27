@@ -48,13 +48,42 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  auditLogs       AuditLog[]
-  settingsUpdated Setting[]
-  sessions        Session[]
-  accounts        Account[]
-  twoFactor       TwoFactor[]
+  // Set when this account was created by a bulk import; lets a batch be rolled back.
+  importBatchId String?
+  importBatch   ImportBatch? @relation("BatchMembers", fields: [importBatchId], references: [id])
+
+  auditLogs               AuditLog[]
+  settingsUpdated         Setting[]
+  sessions                Session[]
+  accounts                Account[]
+  twoFactor               TwoFactor[]
+  importBatchesCreated    ImportBatch[] @relation("BatchCreatedBy")
+  importBatchesRolledBack ImportBatch[] @relation("BatchRolledBackBy")
 
   @@index([role, isActive])
+  @@index([importBatchId])
+}
+
+/// One bulk-import run (spec §5.12). "details" holds the per-row outcome and error
+/// report — no file storage needed for this since Phase 6 doesn't exist yet, and this
+/// is small enough (a department's lawyer roster) to keep inline.
+model ImportBatch {
+  id             String    @id @default(cuid())
+  kind           String // "USERS" for now; matters get their own kind in Phase 12
+  rowsTotal      Int
+  rowsOk         Int
+  rowsFailed     Int
+  details        Json // { errors: [{ row, reasons }], columns: {...} }
+  createdById    String
+  createdBy      User      @relation("BatchCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime  @default(now())
+  rolledBackAt   DateTime?
+  rolledBackById String?
+  rolledBackBy   User?     @relation("BatchRolledBackBy", fields: [rolledBackById], references: [id])
+
+  members User[] @relation("BatchMembers")
+
+  @@index([kind, createdAt])
 }
 
 // --- Better Auth (email+password, sessions, 2FA). Field shapes are fixed by the

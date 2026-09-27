@@ -41,7 +41,7 @@ export function SlideOver({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "absolute inset-y-0 right-0 flex w-full max-w-[560px] flex-col bg-surface shadow-pop transition-transform duration-200",
+          "absolute inset-y-0 right-0 flex w-full max-w-[640px] flex-col bg-surface shadow-pop transition-transform duration-200",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >

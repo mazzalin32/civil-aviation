@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Ban, CheckCircle2, Pencil, Trash2, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
@@ -84,18 +85,13 @@ export function ReferenceTable({
 export function ExtraFieldInput({ field, defaultValue, id }: { field: FieldSpec; defaultValue?: string; id?: string }) {
   if (field.type === "select") {
     return (
-      <select
-        id={id}
-        name={field.key}
-        defaultValue={defaultValue ?? field.options[0]?.value}
-        className="h-10 w-full rounded-none border border-border bg-surface px-3 text-sm"
-      >
+      <Select id={id} name={field.key} defaultValue={defaultValue ?? field.options[0]?.value}>
         {field.options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
     );
   }
   return <Input id={id} name={field.key} defaultValue={defaultValue} placeholder={field.placeholder} />;
