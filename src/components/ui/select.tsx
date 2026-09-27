@@ -13,7 +13,7 @@ export function Select({
       {Icon && <Icon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted" />}
       <select
         className={cn(
-          "h-10 w-full appearance-none rounded-none border border-border bg-surface pr-9 text-sm text-text",
+          "h-10 w-full appearance-none rounded-control border border-border bg-surface pr-9 text-sm text-text",
           Icon ? "pl-9" : "pl-3",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
           "disabled:cursor-not-allowed disabled:opacity-50",
