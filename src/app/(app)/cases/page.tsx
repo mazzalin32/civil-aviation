@@ -1,33 +1,164 @@
 import Link from "next/link";
-import { BriefcaseBusiness, Plus } from "lucide-react";
-import { ComingSoon } from "@/components/app/coming-soon";
-import { buttonVariants } from "@/components/ui/button";
+import { ArrowDown, ArrowUp, CheckCircle2, Plus, X } from "lucide-react";
+import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { getCurrentUser } from "@/lib/session";
+import { Card } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { PageHeader } from "@/components/app/page-header";
+import { cn } from "@/lib/utils";
+import { CaseFiltersBar, type CaseFilterOptions } from "./case-filters";
+import { CaseRow, type CaseRowData } from "./case-row";
+import { buildCaseOrderBy, buildCaseWhere, parseCaseFilters, PRIORITY_RANK, type SortKey } from "./filters";
 
 export const metadata = { title: "Cases" };
 
-export default async function Page() {
+const COLUMNS: { key: SortKey | null; label: string }[] = [
+  { key: "title", label: "Case" },
+  { key: null, label: "Category & type" },
+  { key: null, label: "Stage" },
+  { key: "priority", label: "Priority" },
+  { key: "value", label: "Value" },
+  { key: null, label: "Team" },
+  { key: null, label: "Status" },
+  { key: "lastActivityAt", label: "Last activity" },
+];
+
+export default async function CasesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await requireRole();
-  const admin = user.role === "ADMIN";
+  const me = await getCurrentUser();
+  const sp = await searchParams;
+  const filters = parseCaseFilters(sp);
+  const isAdmin = user.role === "ADMIN";
+  if (!isAdmin && me) filters.lawyerId = me.id;
+  const created = typeof sp.created === "string" ? sp.created : undefined;
+
+  const where = buildCaseWhere(filters);
+
+  const [matters, categories, matterTypes, forums, lawyers, stageRows] = await Promise.all([
+    db.matter.findMany({
+      where,
+      orderBy: buildCaseOrderBy(filters),
+      select: {
+        id: true,
+        reference: true,
+        title: true,
+        priority: true,
+        status: true,
+        amountClaimed: true,
+        lastActivityAt: true,
+        category: { select: { name: true } },
+        matterType: { select: { name: true } },
+        currentStage: { select: { name: true } },
+        assignments: { where: { removedAt: null }, select: { role: true, user: { select: { id: true, name: true } } } },
+      },
+    }),
+    db.category.findMany({ where: { isActive: true }, orderBy: { order: "asc" }, select: { id: true, name: true } }),
+    db.matterType.findMany({ where: { isActive: true, isSubProcess: false }, orderBy: { order: "asc" }, select: { id: true, name: true } }),
+    db.forum.findMany({ where: { isActive: true }, orderBy: { order: "asc" }, select: { id: true, name: true } }),
+    db.user.findMany({ where: { role: "LAWYER", isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.stageTemplate.findMany({ where: { isActive: true }, select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
+  ]);
+
+  const rows: CaseRowData[] = matters.map((m) => {
+    const lead = m.assignments.find((a) => a.role === "LEAD")?.user ?? null;
+    const supportCount = m.assignments.filter((a) => a.role === "SUPPORT").length;
+    return {
+      id: m.id,
+      reference: m.reference,
+      title: m.title,
+      categoryName: m.category.name,
+      matterTypeName: m.matterType.name,
+      stageName: m.currentStage?.name ?? null,
+      priority: m.priority,
+      status: m.status,
+      amountClaimed: m.amountClaimed !== null ? m.amountClaimed.toString() : null,
+      lead: lead ? { id: lead.id, name: lead.name } : null,
+      supportCount,
+      lastActivityAt: m.lastActivityAt.toISOString(),
+    };
+  });
+
+  if (filters.sort === "priority") {
+    rows.sort((a, b) => (filters.dir === "asc" ? PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] : PRIORITY_RANK[b.priority] - PRIORITY_RANK[a.priority]));
+  }
+
+  const options: CaseFilterOptions = {
+    categories,
+    matterTypes,
+    forums,
+    lawyers: isAdmin ? lawyers : [],
+    stages: stageRows.map((s) => s.name),
+  };
+
+  function sortHref(key: SortKey) {
+    const params = new URLSearchParams(sp as Record<string, string>);
+    const nextDir = filters.sort === key && filters.dir === "asc" ? "desc" : "asc";
+    params.set("sort", key);
+    params.set("dir", nextDir);
+    return `/cases?${params.toString()}`;
+  }
+
   return (
-    <ComingSoon
-      title={admin ? "Cases" : "My cases"}
-      description={admin ? "Every matter in the department." : "Matters you lead or support."}
-      icon={BriefcaseBusiness}
-      emptyTitle="No cases yet"
-      emptyDescription={
-        admin
-          ? "Cases appear here once they are created or imported, with filters for status, stage, court, lawyer and time range."
-          : "Cases the Head of Legal assigns to you will appear here, with their stage and next date."
-      }
-      phase={4}
-      actions={
-        admin && (
-          <Link href="/cases/new" className={buttonVariants({ variant: "primary" })}>
-            <Plus className="size-4" /> New case
+    <>
+      <PageHeader
+        title={isAdmin ? "Cases" : "My cases"}
+        description={isAdmin ? "Every matter in the department." : "Matters you lead or support."}
+        actions={
+          isAdmin && (
+            <Link href="/cases/new" className={buttonVariants({ variant: "primary" })}>
+              <Plus className="size-4" /> New case
+            </Link>
+          )
+        }
+      />
+
+      {created && (
+        <div className="mb-4 flex items-center justify-between rounded-card border border-success/40 bg-success-soft px-4 py-3 text-[13px] text-success">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="size-4" /> Case <strong>{created}</strong> created.
+          </span>
+          <Link href="/cases" aria-label="Dismiss">
+            <X className="size-4" />
           </Link>
-        )
-      }
-    />
+        </div>
+      )}
+
+      <Card>
+        <CaseFiltersBar filters={filters} options={options} />
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13.5px]">
+            <thead>
+              <tr>
+                {COLUMNS.map((col) => (
+                  <th key={col.label} className="border-b border-border px-4 py-2.5 text-left text-xs font-medium text-text-muted">
+                    {col.key ? (
+                      <Link href={sortHref(col.key)} className="inline-flex items-center gap-1 hover:text-text">
+                        {col.label}
+                        {filters.sort === col.key && (filters.dir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
+                      </Link>
+                    ) : (
+                      col.label
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((c) => (
+                <CaseRow key={c.id} c={c} />
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={COLUMNS.length} className={cn("px-4 py-10 text-center text-text-muted")}>
+                    No cases match these filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </>
   );
 }

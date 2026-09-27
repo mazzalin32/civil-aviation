@@ -60,6 +60,13 @@ model User {
   importBatchesCreated    ImportBatch[] @relation("BatchCreatedBy")
   importBatchesRolledBack ImportBatch[] @relation("BatchRolledBackBy")
 
+  mattersCreated      Matter[]           @relation("MatterCreatedBy")
+  mattersClosed       Matter[]           @relation("MatterClosedBy")
+  matterAssignments   MatterAssignment[] @relation("MatterAssignee")
+  matterAssignmentsBy MatterAssignment[] @relation("MatterAssignedBy")
+  matterStagesMoved   MatterStage[]
+  wizardDraft         WizardDraft?
+
   @@index([role, isActive])
   @@index([importBatchId])
 }
@@ -174,6 +181,8 @@ model Category {
   order    Int        @default(0)
   isActive Boolean    @default(true)
 
+  matters Matter[]
+
   @@unique([name])
   @@index([parentId])
 }
@@ -189,7 +198,8 @@ model MatterType {
   order           Int           @default(0)
   isActive        Boolean       @default(true)
 
-  stages StageTemplate[]
+  stages  StageTemplate[]
+  matters Matter[]
 
   @@unique([name])
   @@index([isSubProcess, isActive])
@@ -198,15 +208,18 @@ model MatterType {
 /// One step in a matter type's lifecycle. requiredFields is a small set of field keys the
 /// stage-move form must collect (e.g. "filingDate") — the real form fields arrive in Phase 5.
 model StageTemplate {
-  id            String     @id @default(cuid())
-  matterTypeId  String
-  matterType    MatterType @relation(fields: [matterTypeId], references: [id], onDelete: Cascade)
-  name          String
-  description   String?
-  order         Int
-  allowsClosure Boolean    @default(false)
+  id             String     @id @default(cuid())
+  matterTypeId   String
+  matterType     MatterType @relation(fields: [matterTypeId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  order          Int
+  allowsClosure  Boolean    @default(false)
   requiredFields String[]
-  isActive      Boolean    @default(true)
+  isActive       Boolean    @default(true)
+
+  mattersCurrent Matter[]
+  stageMoves     MatterStage[]
 
   @@unique([matterTypeId, name])
   @@index([matterTypeId, order])
@@ -221,6 +234,8 @@ model Forum {
   location String?
   order    Int     @default(0)
   isActive Boolean @default(true)
+
+  matters Matter[]
 
   @@unique([name])
 }
@@ -248,17 +263,19 @@ model Outcome {
   name     String  @unique
   order    Int     @default(0)
   isActive Boolean @default(true)
+
+  matters Matter[]
 }
 
 /// Reminder schedule for one trigger (a hearing coming up, a deadline, an assignment, …).
 /// Sending the actual reminder is Phase 8; this phase only edits the schedule.
 model NotificationRule {
-  id       String  @id @default(cuid())
-  trigger  String  @unique // e.g. "HEARING_REMINDER", "DEADLINE_REMINDER" — matches spec §5.9
+  id       String   @id @default(cuid())
+  trigger  String   @unique // e.g. "HEARING_REMINDER", "DEADLINE_REMINDER" — matches spec §5.9
   label    String // shown in the settings UI, e.g. "Hearing coming up"
   offsets  Int[] // days before (positive) / after (negative) the trigger date; 0 = same day
   channels String[] // "IN_APP" | "EMAIL"
-  mutable  Boolean @default(true) // false = lawyer can't turn this one off (spec §5.9)
+  mutable  Boolean  @default(true) // false = lawyer can't turn this one off (spec §5.9)
 }
 
 /// Tracks the next case number per prefix+year (used from Phase 4 to generate references).
@@ -268,6 +285,158 @@ model ReferenceCounter {
   next   Int    @default(1)
 
   @@id([prefix, year])
+}
+
+enum UcaaRole {
+  PLAINTIFF
+  DEFENDANT
+  APPLICANT
+  RESPONDENT
+  ADVISOR
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Confidentiality {
+  NORMAL
+  CONFIDENTIAL
+  HIGHLY_CONFIDENTIAL
+}
+
+enum MatterStatus {
+  OPEN
+  ON_HOLD
+  CLOSURE_REQUESTED
+  CLOSED
+}
+
+enum AssignmentRole {
+  LEAD
+  SUPPORT
+}
+
+enum PartyKind {
+  OPPOSING
+  WITNESS
+  INTERNAL
+  OTHER
+}
+
+/// A piece of legal work (CLAUDE.md: "Matter" — litigation "case" is one matter type).
+/// Phase 4 builds creation, listing and assignment; the fields below that only matter to
+/// later phases (outcomeId, closingNote, closedAt/By) sit unused until Phase 10's closure
+/// workflow so this table doesn't need another migration then.
+model Matter {
+  id                String          @id @default(cuid())
+  reference         String          @unique // generated, e.g. "UCAA/LIT/2026/0042" — never hand-edited
+  title             String
+  categoryId        String
+  category          Category        @relation(fields: [categoryId], references: [id])
+  matterTypeId      String
+  matterType        MatterType      @relation(fields: [matterTypeId], references: [id])
+  ucaaRole          UcaaRole
+  priority          Priority        @default(MEDIUM)
+  confidentiality   Confidentiality @default(NORMAL)
+  status            MatterStatus    @default(OPEN)
+  currentStageId    String?
+  currentStage      StageTemplate?  @relation(fields: [currentStageId], references: [id])
+  forumId           String?
+  forum             Forum?          @relation(fields: [forumId], references: [id])
+  courtCaseNo       String?
+  eccmisNo          String?
+  eccmisUrl         String?
+  judge             String?
+  amountClaimed     BigInt? // integer UGX (CLAUDE.md) — BigInt, not Int, so a large national claim can't overflow
+  amountAgainst     BigInt?
+  causeOfActionDate DateTime?       @db.Date
+  referralNote      String?
+  outcomeId         String?
+  outcome           Outcome?        @relation(fields: [outcomeId], references: [id])
+  closingNote       String?
+  createdById       String
+  createdBy         User            @relation("MatterCreatedBy", fields: [createdById], references: [id])
+  createdAt         DateTime        @default(now())
+  closedAt          DateTime?
+  closedById        String?
+  closedBy          User?           @relation("MatterClosedBy", fields: [closedById], references: [id])
+  lastActivityAt    DateTime        @default(now())
+
+  assignments MatterAssignment[]
+  stageMoves  MatterStage[]
+  parties     Party[]
+
+  @@index([status, priority])
+  @@index([categoryId])
+  @@index([matterTypeId])
+  @@index([forumId])
+  @@index([currentStageId])
+  @@index([lastActivityAt])
+}
+
+/// Lead/supporting lawyer on a matter (CLAUDE.md domain words). Never deleted — removedAt
+/// keeps the assignment history intact for the Activity tab (Phase 5).
+model MatterAssignment {
+  id           String         @id @default(cuid())
+  matterId     String
+  matter       Matter         @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User           @relation("MatterAssignee", fields: [userId], references: [id])
+  role         AssignmentRole
+  assignedAt   DateTime       @default(now())
+  assignedById String
+  assignedBy   User           @relation("MatterAssignedBy", fields: [assignedById], references: [id])
+  removedAt    DateTime?
+
+  @@index([matterId, removedAt])
+  @@index([userId, removedAt])
+}
+
+/// One entry in a matter's stage history — current stage is whichever row has no exitedAt.
+/// subProcessId isn't here yet since SubProcess (post-judgment applications) is a later phase.
+model MatterStage {
+  id              String        @id @default(cuid())
+  matterId        String
+  matter          Matter        @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  stageTemplateId String
+  stageTemplate   StageTemplate @relation(fields: [stageTemplateId], references: [id])
+  enteredAt       DateTime      @default(now())
+  exitedAt        DateTime?
+  note            String?
+  movedById       String
+  movedBy         User          @relation(fields: [movedById], references: [id])
+
+  @@index([matterId, enteredAt])
+}
+
+/// Opposing party, witness, or the internal UCAA contact who raised the matter (spec §5.5 step 3).
+model Party {
+  id          String    @id @default(cuid())
+  matterId    String
+  matter      Matter    @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  name        String
+  kind        PartyKind
+  counselName String?
+  counselFirm String?
+  email       String?
+  phone       String?
+  address     String?
+  department  String? // INTERNAL kind only — which UCAA department raised the matter
+
+  @@index([matterId])
+}
+
+/// The New Case wizard's autosaved draft — one per Admin, overwritten as they type (spec §5.5).
+model WizardDraft {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data      Json
+  updatedAt DateTime @updatedAt
 }
 
 /// Append-only. The app never updates or deletes rows (enforced with DB privileges in Phase 13).

@@ -1,5 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { db } from "./db";
 import { getCurrentUser, type Role } from "./session";
 
 /**
@@ -12,4 +13,11 @@ export async function requireRole(...roles: Role[]) {
   if (!user) redirect("/login");
   if (roles.length > 0 && !roles.includes(user.role)) redirect("/forbidden");
   return user;
+}
+
+/** Admin sees every matter; a lawyer only ones they lead or support (MatterAccess grants come later). */
+export async function canAccessMatter(userId: string, role: Role, matterId: string) {
+  if (role === "ADMIN") return true;
+  const assignment = await db.matterAssignment.findFirst({ where: { matterId, userId, removedAt: null } });
+  return assignment !== null;
 }

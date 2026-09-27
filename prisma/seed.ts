@@ -8,13 +8,16 @@
  * http://localhost:8026 after running this, or read the link printed below.
  * Phase 2: Admin Settings reference data (categories, matter types & lifecycle
  * stages, forums, event/document types, outcomes, reminder rules) — spec §5.13.
+ * Phase 4: 15 realistic cases across every matter type and lawyer, the mockup case
+ * (docs/design/case-page.html) among them, matched by reference so re-running the
+ * seed never creates duplicates.
  */
 import "dotenv/config";
 import crypto from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 import nodemailer from "nodemailer";
-import { PrismaClient, Role } from "../src/generated/prisma/client";
+import { PrismaClient, Role, AssignmentRole, PartyKind } from "../src/generated/prisma/client";
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 const mail = nodemailer.createTransport({
@@ -271,6 +274,341 @@ async function seedReferenceData() {
   }
 }
 
+// --- Phase 4: 15 realistic cases (spec §12), the mockup case (docs/design/case-page.html) among them ---
+
+type CaseSeed = {
+  title: string;
+  categoryName: string;
+  matterTypeName: string;
+  stageName: string;
+  ucaaRole: "PLAINTIFF" | "DEFENDANT" | "APPLICANT" | "RESPONDENT" | "ADVISOR";
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+  status?: "OPEN" | "ON_HOLD" | "CLOSURE_REQUESTED" | "CLOSED";
+  forumName?: string;
+  courtCaseNo?: string;
+  eccmisNo?: string;
+  judge?: string;
+  amountClaimed?: bigint;
+  amountAgainst?: bigint;
+  causeOfActionDate?: string;
+  referralNote?: string;
+  openedAt: string; // also drives the reference year
+  lastActivityAt: string;
+  closedAt?: string;
+  leadEmail: string;
+  supportEmails?: string[];
+  opposing?: { name: string; counselName?: string; counselFirm?: string }[];
+};
+
+const CASE_SEEDS: CaseSeed[] = [
+  {
+    title: "Uganda Civil Aviation Authority v. Nile Horizon Aviation Ltd",
+    categoryName: "Debt Recovery",
+    matterTypeName: "Civil litigation",
+    stageName: "Mediation",
+    ucaaRole: "PLAINTIFF",
+    priority: "HIGH",
+    forumName: "High Court — Commercial Division",
+    courtCaseNo: "CS 412 of 2026",
+    eccmisNo: "HCT-00-CC-CS-0412-2026",
+    amountClaimed: BigInt(1_840_000_000),
+    causeOfActionDate: "2024-03-01",
+    referralNote: "Referral memo from Finance: UGX 1.84bn outstanding in landing, parking and navigation charges.",
+    openedAt: "2026-01-12",
+    lastActivityAt: "2026-09-18",
+    leadEmail: "agnes.nakato@caa.go.ug",
+    supportEmails: ["brian.okello@caa.go.ug", "carol.atim@caa.go.ug"],
+    opposing: [{ name: "Nile Horizon Aviation Ltd", counselName: "M/s Kato & Partners Advocates", counselFirm: "Kato & Partners Advocates" }],
+  },
+  {
+    title: "Advisory: Ground handling concession — competitive process",
+    categoryName: "Procurement",
+    matterTypeName: "Advisory",
+    stageName: "Draft",
+    ucaaRole: "ADVISOR",
+    priority: "MEDIUM",
+    referralNote: "Procurement department requests an opinion on structuring the next ground-handling concession tender.",
+    openedAt: "2026-07-02",
+    lastActivityAt: "2026-09-10",
+    leadEmail: "david.ssemwogerere@caa.go.ug",
+  },
+  {
+    title: "Namutebi v. Uganda Civil Aviation Authority",
+    categoryName: "Employment",
+    matterTypeName: "Civil litigation",
+    stageName: "Pleadings",
+    ucaaRole: "DEFENDANT",
+    priority: "MEDIUM",
+    forumName: "Industrial Court",
+    courtCaseNo: "LD 88 of 2026",
+    amountAgainst: BigInt(240_000_000),
+    causeOfActionDate: "2025-11-20",
+    referralNote: "Former ramp supervisor alleges unlawful termination.",
+    openedAt: "2026-02-15",
+    lastActivityAt: "2026-09-05",
+    leadEmail: "carol.atim@caa.go.ug",
+    opposing: [{ name: "Namutebi Sarah", counselName: "Nabwire & Co. Advocates" }],
+  },
+  {
+    title: "Enforcement: Unlicensed ground transport operators, Entebbe apron",
+    categoryName: "Regulatory & Licensing",
+    matterTypeName: "Regulatory enforcement",
+    stageName: "Investigation",
+    ucaaRole: "APPLICANT",
+    priority: "HIGH",
+    referralNote: "Airport security flagged repeated unlicensed vehicle access.",
+    openedAt: "2026-06-01",
+    lastActivityAt: "2026-09-20",
+    leadEmail: "brian.okello@caa.go.ug",
+  },
+  {
+    title: "Uganda Civil Aviation Authority v. Kaggwa Estates Ltd",
+    categoryName: "Land & Property",
+    matterTypeName: "Tribunal proceedings",
+    stageName: "Hearing",
+    ucaaRole: "APPLICANT",
+    priority: "MEDIUM",
+    forumName: "PPDA Appeals Tribunal",
+    courtCaseNo: "PPDA/APP/014/2026",
+    amountClaimed: BigInt(610_000_000),
+    causeOfActionDate: "2025-08-10",
+    openedAt: "2025-10-05",
+    lastActivityAt: "2026-08-28",
+    leadEmail: "david.ssemwogerere@caa.go.ug",
+    opposing: [{ name: "Kaggwa Estates Ltd" }],
+  },
+  {
+    title: "UCAA v. SkyBridge Cargo Handlers (arbitration)",
+    categoryName: "Compensation & Torts",
+    matterTypeName: "Arbitration / ADR",
+    stageName: "Statements of case",
+    ucaaRole: "RESPONDENT",
+    priority: "HIGH",
+    forumName: "CADER (Arbitration)",
+    amountAgainst: BigInt(950_000_000),
+    causeOfActionDate: "2025-12-02",
+    referralNote: "Cargo damage claim following a warehouse incident.",
+    openedAt: "2026-03-20",
+    lastActivityAt: "2026-09-22",
+    leadEmail: "agnes.nakato@caa.go.ug",
+    supportEmails: ["david.ssemwogerere@caa.go.ug"],
+    opposing: [{ name: "SkyBridge Cargo Handlers Ltd", counselName: "Mugisha & Partners" }],
+  },
+  {
+    title: "Recovery: Overdue concession fees — Highland Duty Free",
+    categoryName: "Debt Recovery",
+    matterTypeName: "Debt recovery (pre-suit)",
+    stageName: "Negotiation / payment plan",
+    ucaaRole: "PLAINTIFF",
+    priority: "LOW",
+    amountClaimed: BigInt(84_000_000),
+    causeOfActionDate: "2026-01-15",
+    openedAt: "2026-04-10",
+    lastActivityAt: "2026-08-30",
+    leadEmail: "carol.atim@caa.go.ug",
+    opposing: [{ name: "Highland Duty Free Ltd" }],
+  },
+  {
+    title: "UCAA v. Attorney General & Minister of Works (judicial review)",
+    categoryName: "Judicial Review",
+    matterTypeName: "Civil litigation",
+    stageName: "Filed & served",
+    ucaaRole: "APPLICANT",
+    priority: "URGENT",
+    forumName: "High Court — Civil Division",
+    courtCaseNo: "MC 21 of 2026",
+    causeOfActionDate: "2026-08-01",
+    referralNote: "Challenging a directive affecting airspace management authority.",
+    openedAt: "2026-08-20",
+    lastActivityAt: "2026-09-24",
+    leadEmail: "david.ssemwogerere@caa.go.ug",
+    supportEmails: ["agnes.nakato@caa.go.ug"],
+  },
+  {
+    title: "Republic v. Byaruhanga (cargo theft, tribunal referral)",
+    categoryName: "Criminal / Prosecution",
+    matterTypeName: "Tribunal proceedings",
+    stageName: "Response",
+    ucaaRole: "APPLICANT",
+    priority: "HIGH",
+    forumName: "Chief Magistrate's Court",
+    courtCaseNo: "CR 310 of 2026",
+    openedAt: "2026-05-18",
+    lastActivityAt: "2026-09-12",
+    leadEmail: "brian.okello@caa.go.ug",
+    opposing: [{ name: "Byaruhanga Moses" }],
+  },
+  {
+    title: "Advisory: Drone operator licensing framework — regional carriers",
+    categoryName: "Regulatory & Licensing",
+    matterTypeName: "Advisory",
+    stageName: "Issued",
+    status: "CLOSED",
+    ucaaRole: "ADVISOR",
+    priority: "LOW",
+    openedAt: "2025-09-01",
+    lastActivityAt: "2025-11-15",
+    closedAt: "2025-11-15",
+    leadEmail: "agnes.nakato@caa.go.ug",
+  },
+  {
+    title: "UCAA v. Meridian Fuel Supplies Ltd (settled)",
+    categoryName: "Contracts & Commercial",
+    matterTypeName: "Civil litigation",
+    stageName: "Closed",
+    status: "CLOSED",
+    ucaaRole: "PLAINTIFF",
+    priority: "MEDIUM",
+    forumName: "High Court — Commercial Division",
+    courtCaseNo: "CS 77 of 2025",
+    amountClaimed: BigInt(320_000_000),
+    openedAt: "2025-03-10",
+    lastActivityAt: "2025-12-01",
+    closedAt: "2025-12-01",
+    leadEmail: "carol.atim@caa.go.ug",
+    opposing: [{ name: "Meridian Fuel Supplies Ltd", counselFirm: "Byamugisha & Co. Advocates" }],
+  },
+  {
+    title: "Kintu v. Uganda Civil Aviation Authority (on hold pending mediation)",
+    categoryName: "Employment",
+    matterTypeName: "Civil litigation",
+    stageName: "Scheduling conference",
+    status: "ON_HOLD",
+    ucaaRole: "DEFENDANT",
+    priority: "MEDIUM",
+    forumName: "Industrial Court",
+    courtCaseNo: "LD 45 of 2026",
+    causeOfActionDate: "2026-01-05",
+    openedAt: "2026-02-28",
+    lastActivityAt: "2026-07-14",
+    leadEmail: "david.ssemwogerere@caa.go.ug",
+    opposing: [{ name: "Kintu Robert" }],
+  },
+  {
+    title: "UCAA v. Greenview Properties (way-leave dispute)",
+    categoryName: "Land & Property",
+    matterTypeName: "Tribunal proceedings",
+    stageName: "Decision",
+    ucaaRole: "APPLICANT",
+    priority: "HIGH",
+    forumName: "Tax Appeals Tribunal",
+    amountClaimed: BigInt(145_000_000),
+    openedAt: "2025-06-12",
+    lastActivityAt: "2026-09-01",
+    leadEmail: "agnes.nakato@caa.go.ug",
+    opposing: [{ name: "Greenview Properties Ltd" }],
+  },
+  {
+    title: "Recovery: Written-off parking charges — Coastal Air Charters",
+    categoryName: "Debt Recovery",
+    matterTypeName: "Debt recovery (pre-suit)",
+    stageName: "Recovered / written off",
+    status: "CLOSED",
+    ucaaRole: "PLAINTIFF",
+    priority: "LOW",
+    amountClaimed: BigInt(12_500_000),
+    openedAt: "2025-08-01",
+    lastActivityAt: "2025-10-20",
+    closedAt: "2025-10-20",
+    leadEmail: "brian.okello@caa.go.ug",
+    opposing: [{ name: "Coastal Air Charters Ltd" }],
+  },
+  {
+    title: "UCAA v. Prime Construction Uganda Ltd (terminal works dispute)",
+    categoryName: "Procurement",
+    matterTypeName: "Civil litigation",
+    stageName: "Submissions",
+    ucaaRole: "DEFENDANT",
+    priority: "URGENT",
+    forumName: "High Court — Commercial Division",
+    courtCaseNo: "CS 205 of 2025",
+    amountAgainst: BigInt(2_100_000_000),
+    causeOfActionDate: "2025-05-14",
+    referralNote: "Contractor claims a variation was wrongly rejected on the terminal expansion works.",
+    openedAt: "2025-07-22",
+    lastActivityAt: "2026-09-25",
+    leadEmail: "carol.atim@caa.go.ug",
+    supportEmails: ["david.ssemwogerere@caa.go.ug"],
+    opposing: [{ name: "Prime Construction Uganda Ltd", counselName: "Ariko & Ariko Advocates" }],
+  },
+];
+
+async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
+  const referenceCounters = new Map<string, number>(); // `${prefix}:${year}` -> next number to use
+
+  for (const c of CASE_SEEDS) {
+    const [category, matterType, forum] = await Promise.all([
+      db.category.findUniqueOrThrow({ where: { name: c.categoryName } }),
+      db.matterType.findUniqueOrThrow({ where: { name: c.matterTypeName } }),
+      c.forumName ? db.forum.findUniqueOrThrow({ where: { name: c.forumName } }) : Promise.resolve(null),
+    ]);
+    const stage = await db.stageTemplate.findFirstOrThrow({ where: { matterTypeId: matterType.id, name: c.stageName } });
+
+    const prefix = matterType.referencePrefix!;
+    const year = new Date(c.openedAt).getUTCFullYear();
+    const key = `${prefix}:${year}`;
+    const number = referenceCounters.get(key) ?? 1;
+    referenceCounters.set(key, number + 1);
+    const reference = `UCAA/${prefix}/${year}/${String(number).padStart(4, "0")}`;
+
+    const leadId = lawyersByEmail.get(c.leadEmail)!;
+    const createdAt = new Date(`${c.openedAt}T09:00:00Z`);
+
+    const existing = await db.matter.findUnique({ where: { reference } });
+    if (existing) continue; // idempotent re-run — seeded cases are never edited by the seed itself
+
+    const matter = await db.matter.create({
+      data: {
+        reference,
+        title: c.title,
+        categoryId: category.id,
+        matterTypeId: matterType.id,
+        ucaaRole: c.ucaaRole,
+        priority: c.priority,
+        status: c.status ?? "OPEN",
+        currentStageId: stage.id,
+        forumId: forum?.id ?? null,
+        courtCaseNo: c.courtCaseNo ?? null,
+        eccmisNo: c.eccmisNo ?? null,
+        judge: c.judge ?? null,
+        amountClaimed: c.amountClaimed ?? null,
+        amountAgainst: c.amountAgainst ?? null,
+        causeOfActionDate: c.causeOfActionDate ? new Date(c.causeOfActionDate) : null,
+        referralNote: c.referralNote ?? null,
+        createdById: adminId,
+        createdAt,
+        lastActivityAt: new Date(`${c.lastActivityAt}T09:00:00Z`),
+        closedAt: c.closedAt ? new Date(`${c.closedAt}T09:00:00Z`) : null,
+        closedById: c.closedAt ? adminId : null,
+      },
+    });
+
+    await db.matterStage.create({ data: { matterId: matter.id, stageTemplateId: stage.id, movedById: adminId, enteredAt: createdAt, note: "Case opened" } });
+    await db.matterAssignment.create({ data: { matterId: matter.id, userId: leadId, role: AssignmentRole.LEAD, assignedById: adminId, assignedAt: createdAt } });
+    for (const email of c.supportEmails ?? []) {
+      await db.matterAssignment.create({ data: { matterId: matter.id, userId: lawyersByEmail.get(email)!, role: AssignmentRole.SUPPORT, assignedById: adminId, assignedAt: createdAt } });
+    }
+    for (const p of c.opposing ?? []) {
+      await db.party.create({ data: { matterId: matter.id, name: p.name, kind: PartyKind.OPPOSING, counselName: p.counselName ?? null, counselFirm: p.counselFirm ?? null } });
+    }
+  }
+
+  // Keep the shared counter ahead of every number this seed used, so the wizard's next
+  // real case this year doesn't collide with a seeded reference. Never move it backwards —
+  // a real case created between seed runs may have already advanced it further.
+  for (const [key, nextNumber] of referenceCounters) {
+    const [prefix, yearStr] = key.split(":");
+    const year = Number(yearStr);
+    const current = await db.referenceCounter.findUnique({ where: { prefix_year: { prefix, year } } });
+    const next = Math.max(current?.next ?? 1, nextNumber);
+    await db.referenceCounter.upsert({
+      where: { prefix_year: { prefix, year } },
+      update: { next },
+      create: { prefix, year, next },
+    });
+  }
+}
+
 async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? crypto.randomBytes(9).toString("base64url");
   const adminUser = await db.user.upsert({ where: { email: admin.email }, update: {}, create: admin });
@@ -303,8 +641,11 @@ async function main() {
 
   await seedReferenceData();
 
+  const lawyersByEmail = new Map(lawyerUsers.map((u) => [u.email, u.id]));
+  await seedCases(lawyersByEmail, adminUser.id);
+
   await db.auditLog.create({
-    data: { userId: null, action: "seed.run", entity: "System", after: { phase: 2, users: lawyers.length + 1 } },
+    data: { userId: null, action: "seed.run", entity: "System", after: { phase: 4, users: lawyers.length + 1, cases: CASE_SEEDS.length } },
   });
 
   console.log(`\nSeeded Admin: ${adminUser.email}`);
@@ -315,6 +656,7 @@ async function main() {
     if (!hasAccount) await sendActivationLink(u.id, u.email, u.name, u.isNew);
     else console.log(`  ${u.email} → already activated`);
   }
+  console.log(`\nSeeded ${CASE_SEEDS.length} cases (skipping any that already exist from a previous run).`);
 }
 
 main()

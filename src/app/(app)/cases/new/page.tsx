@@ -1,19 +1,26 @@
-import { FilePlus2 } from "lucide-react";
-import { ComingSoon } from "@/components/app/coming-soon";
+import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { WizardForm } from "./wizard-form";
+import { loadDraft, getAssignableLawyers } from "./actions";
 
 export const metadata = { title: "New case" };
 
-export default async function Page() {
+export default async function NewCasePage() {
   await requireRole("ADMIN");
+
+  const [categories, matterTypes, forums, lawyers, draft] = await Promise.all([
+    db.category.findMany({ where: { isActive: true }, orderBy: { order: "asc" }, select: { id: true, name: true } }),
+    db.matterType.findMany({
+      where: { isActive: true, isSubProcess: false },
+      orderBy: { order: "asc" },
+      select: { id: true, name: true, referencePrefix: true, stages: { where: { isActive: true }, orderBy: { order: "asc" }, select: { id: true, name: true } } },
+    }),
+    db.forum.findMany({ where: { isActive: true }, orderBy: { order: "asc" }, select: { id: true, name: true, level: true, division: true } }),
+    getAssignableLawyers(),
+    loadDraft(),
+  ]);
+
   return (
-    <ComingSoon
-      title="New case"
-      description="Open a matter and assign the legal team."
-      icon={FilePlus2}
-      emptyTitle="The new-case wizard isn't built yet"
-      emptyDescription="A 5-step wizard will cover basics, forum, parties, facts and value, and assignment."
-      phase={4}
-    />
+    <WizardForm categories={categories} matterTypes={matterTypes} forums={forums} lawyers={lawyers} initialDraft={draft} />
   );
 }
