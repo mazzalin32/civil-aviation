@@ -22,12 +22,12 @@ export function Field({
         {label}
       </label>
       {children}
-      {hint && !error && <p className="m-0 text-xs text-text-muted">{hint}</p>}
-      {error && (
-        <p className="m-0 text-xs text-danger" role="alert">
-          {error}
-        </p>
-      )}
+      {/* Always reserved, even when empty — a hint/error on only one field in a row otherwise
+          leaves that field taller than its neighbour, so the row's bottom edge looks uneven
+          right before the next section starts. */}
+      <p className={cn("m-0 min-h-[16px] text-xs", error ? "text-danger" : "text-text-muted")} role={error ? "alert" : undefined}>
+        {error || hint || " "}
+      </p>
     </div>
   );
 }
