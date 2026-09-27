@@ -26,7 +26,7 @@ The seed prints the Admin's temporary password and a live activation link for ea
 | Service | URL |
 |---|---|
 | App | http://localhost:3000 |
-| Mailpit (catches dev email) | http://localhost:8025 |
+| Mailpit (catches dev email) | http://localhost:8026 |
 | Postgres | localhost:**5460** (clear of the other local Postgres ports, 5432–5445) |
 
 ## Checks

@@ -76,3 +76,12 @@ Admin: temporary password → forced change → rejected on a breached password 
 
 ### Verified
 Full click-through against a running server and real database: added, renamed and deactivated a category (with reorder buttons); viewed matter types and drilled into Civil litigation's 11-stage lifecycle; edited a reminder rule's schedule and confirmed the change persisted; loaded every settings tab with zero console/page errors. Confirmed the seed is idempotent — re-running it twice produces the same row counts, no duplicates.
+
+## Phase 2 follow-up — settings table design feedback (2026-09-27)
+
+### Changed
+- Settings tabs redesigned as a single horizontal row of underline tabs above the content, instead of a vertical column down the side — frees the width for the table and matches the case-page mockup's tab style. Dropped the outer "Settings" heading, which just repeated what the top bar and each tab's own title already say.
+- Every settings table (categories, forums, event/document types, outcomes, matter types, lifecycle stages) now has a single "⋯" action menu per row instead of a row of separate icon buttons — Edit, Move up/down, and Deactivate/Reactivate (in red) all live in one dropdown. Much less clutter, especially on narrower screens.
+
+### Fixed
+- Local Mailpit clashed with another project's on ports 1025/8025; moved ours to 1026/8026 in `docker-compose.yml`, `.env(.example)`, the seed script and the README.

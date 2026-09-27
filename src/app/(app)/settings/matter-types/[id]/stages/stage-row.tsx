@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, Check, Pencil, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Check, CheckCircle2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { cn } from "@/lib/utils";
 
 export type StageRow = {
@@ -96,21 +97,22 @@ export function StageRowItem({
       <td className="border-b border-border px-4 py-2.5">
         <Badge tone={stage.isActive ? "success" : "neutral"}>{stage.isActive ? "Active" : "Deactivated"}</Badge>
       </td>
-      <td className="border-b border-border px-4 py-2.5">
-        <div className="flex items-center justify-end gap-1">
-          <Button size="icon" aria-label="Move up" disabled={!canMoveUp || pending} onClick={() => startTransition(() => moveAction("up"))}>
-            <ArrowUp className="size-4" />
-          </Button>
-          <Button size="icon" aria-label="Move down" disabled={!canMoveDown || pending} onClick={() => startTransition(() => moveAction("down"))}>
-            <ArrowDown className="size-4" />
-          </Button>
-          <Button size="icon" aria-label="Edit" onClick={() => setEditing(true)}>
-            <Pencil className="size-4" />
-          </Button>
-          <Button size="sm" onClick={() => startTransition(() => toggleActiveAction(!stage.isActive))} disabled={pending}>
-            {stage.isActive ? "Deactivate" : "Reactivate"}
-          </Button>
-        </div>
+      <td className="border-b border-border px-4 py-2.5 text-right">
+        <RowActionsMenu
+          actions={[
+            { label: "Edit", icon: Pencil, onClick: () => setEditing(true) },
+            { label: "Move up", icon: ArrowUp, disabled: !canMoveUp || pending, onClick: () => startTransition(() => moveAction("up")) },
+            { label: "Move down", icon: ArrowDown, disabled: !canMoveDown || pending, onClick: () => startTransition(() => moveAction("down")) },
+            { kind: "separator" },
+            {
+              label: stage.isActive ? "Deactivate" : "Reactivate",
+              icon: stage.isActive ? Ban : CheckCircle2,
+              danger: stage.isActive,
+              disabled: pending,
+              onClick: () => startTransition(() => toggleActiveAction(!stage.isActive)),
+            },
+          ]}
+        />
       </td>
     </tr>
   );

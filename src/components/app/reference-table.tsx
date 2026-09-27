@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, Check, Pencil, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Check, CheckCircle2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { cn } from "@/lib/utils";
 
 export type FieldSpec =
@@ -183,35 +184,31 @@ function Row({
       <td className="border-b border-border px-4 py-2.5">
         <Badge tone={item.isActive ? "success" : "neutral"}>{item.isActive ? "Active" : "Deactivated"}</Badge>
       </td>
-      <td className="border-b border-border px-4 py-2.5">
-        <div className="flex items-center justify-end gap-1">
-          {moveAction && (
-            <>
-              <Button
-                size="icon"
-                aria-label="Move up"
-                disabled={!canMoveUp || pending}
-                onClick={() => startTransition(() => moveAction(item.id, "up"))}
-              >
-                <ArrowUp className="size-4" />
-              </Button>
-              <Button
-                size="icon"
-                aria-label="Move down"
-                disabled={!canMoveDown || pending}
-                onClick={() => startTransition(() => moveAction(item.id, "down"))}
-              >
-                <ArrowDown className="size-4" />
-              </Button>
-            </>
-          )}
-          <Button size="icon" aria-label="Edit" onClick={onEdit}>
-            <Pencil className="size-4" />
-          </Button>
-          <Button size="sm" onClick={() => startTransition(() => toggleActiveAction(item.id, !item.isActive))} disabled={pending}>
-            {item.isActive ? "Deactivate" : "Reactivate"}
-          </Button>
-        </div>
+      <td className="border-b border-border px-4 py-2.5 text-right">
+        <RowActionsMenu
+          actions={[
+            { label: "Edit", icon: Pencil, onClick: onEdit },
+            ...(moveAction
+              ? ([
+                  { label: "Move up", icon: ArrowUp, disabled: !canMoveUp || pending, onClick: () => startTransition(() => moveAction(item.id, "up")) },
+                  {
+                    label: "Move down",
+                    icon: ArrowDown,
+                    disabled: !canMoveDown || pending,
+                    onClick: () => startTransition(() => moveAction(item.id, "down")),
+                  },
+                ] as const)
+              : []),
+            { kind: "separator" },
+            {
+              label: item.isActive ? "Deactivate" : "Reactivate",
+              icon: item.isActive ? Ban : CheckCircle2,
+              danger: item.isActive,
+              disabled: pending,
+              onClick: () => startTransition(() => toggleActiveAction(item.id, !item.isActive)),
+            },
+          ]}
+        />
       </td>
     </tr>
   );

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Check, ListTree, Pencil, X } from "lucide-react";
+import { Ban, Check, CheckCircle2, ListTree, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { cn } from "@/lib/utils";
 import { toggleMatterTypeActive, updateMatterType } from "./actions";
 
@@ -77,12 +78,19 @@ export function MatterTypeRowItem({ item }: { item: MatterTypeRow }) {
           >
             <ListTree className="size-3.5" /> {item.stageCount} stage{item.stageCount === 1 ? "" : "s"}
           </Link>
-          <Button size="icon" aria-label="Edit" onClick={() => setEditing(true)}>
-            <Pencil className="size-4" />
-          </Button>
-          <Button size="sm" onClick={() => startTransition(() => toggleMatterTypeActive(item.id, !item.isActive))} disabled={pending}>
-            {item.isActive ? "Deactivate" : "Reactivate"}
-          </Button>
+          <RowActionsMenu
+            actions={[
+              { label: "Edit", icon: Pencil, onClick: () => setEditing(true) },
+              { kind: "separator" },
+              {
+                label: item.isActive ? "Deactivate" : "Reactivate",
+                icon: item.isActive ? Ban : CheckCircle2,
+                danger: item.isActive,
+                disabled: pending,
+                onClick: () => startTransition(() => toggleMatterTypeActive(item.id, !item.isActive)),
+              },
+            ]}
+          />
         </div>
       </td>
     </tr>

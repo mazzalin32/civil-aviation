@@ -54,13 +54,14 @@ services:
     volumes:
       - clamdata:/var/lib/clamav
 
-  # Dev mail catcher: every email the app sends shows up at http://localhost:8025. Replace with real SMTP in production.
+  # Dev mail catcher: every email the app sends shows up at http://localhost:8026. Replace with real SMTP in production.
+  # Non-default ports — 1025/8025 clash with another local project's Mailpit.
   mailpit:
     image: axllent/mailpit:latest
     restart: unless-stopped
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "${SMTP_PORT:-1026}:1025"
+      - "8026:8025"
 
   app:
     profiles: ["app"]

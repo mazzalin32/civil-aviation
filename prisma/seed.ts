@@ -5,7 +5,7 @@
  *
  * Phase 1: the Admin gets a real temporary password (must change at first login);
  * each lawyer gets a live activation link, emailed via Mailpit — check
- * http://localhost:8025 after running this, or read the link printed below.
+ * http://localhost:8026 after running this, or read the link printed below.
  * Phase 2: Admin Settings reference data (categories, matter types & lifecycle
  * stages, forums, event/document types, outcomes, reminder rules) — spec §5.13.
  */
@@ -19,7 +19,7 @@ import { PrismaClient, Role } from "../src/generated/prisma/client";
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 const mail = nodemailer.createTransport({
   host: process.env.SMTP_HOST ?? "localhost",
-  port: Number(process.env.SMTP_PORT ?? 1025),
+  port: Number(process.env.SMTP_PORT ?? 1026),
 });
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 const ACTIVATION_HOURS = 72;
@@ -309,7 +309,7 @@ async function main() {
 
   console.log(`\nSeeded Admin: ${adminUser.email}`);
   if (!hadAdminAccount) console.log(`  Temporary password: ${adminPassword}  (must change at first login)`);
-  console.log(`\nActivation links (also sent to Mailpit — http://localhost:8025):`);
+  console.log(`\nActivation links (also sent to Mailpit — http://localhost:8026):`);
   for (const u of lawyerUsers) {
     const hasAccount = await db.account.findFirst({ where: { userId: u.id, providerId: "credential" } });
     if (!hasAccount) await sendActivationLink(u.id, u.email, u.name, u.isNew);
