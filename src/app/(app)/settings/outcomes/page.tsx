@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/app/page-header";
+import { AddReferenceButton } from "@/components/app/add-reference-button";
 import { ReferenceTable } from "@/components/app/reference-table";
 import { createOutcome, deleteOutcome, moveOutcome, toggleOutcomeActive, updateOutcome } from "./actions";
 
@@ -12,11 +13,13 @@ export default async function OutcomesPage() {
 
   return (
     <>
-      <PageHeader title="Outcomes" description="Recorded when a case closes, and used in the outcomes report." />
+      <PageHeader
+        title="Outcomes"
+        description="Recorded when a case closes, and used in the outcomes report."
+        actions={<AddReferenceButton label="Add outcome" panelTitle="Add outcome" createAction={createOutcome} />}
+      />
       <ReferenceTable
         items={outcomes.map((o) => ({ id: o.id, name: o.name, isActive: o.isActive, extra: {} }))}
-        addLabel="Add outcome"
-        createAction={createOutcome}
         updateAction={updateOutcome}
         toggleActiveAction={toggleOutcomeActive}
         deleteAction={deleteOutcome}

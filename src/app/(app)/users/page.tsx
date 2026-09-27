@@ -8,9 +8,10 @@ import { UserRowItem } from "./user-row";
 
 export const metadata = { title: "Users" };
 
-export default async function UsersPage() {
+export default async function UsersPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
   await requireRole("ADMIN");
   const me = await getCurrentUser();
+  const { new: openAdd } = await searchParams;
 
   const users = await db.user.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
@@ -19,9 +20,12 @@ export default async function UsersPage() {
 
   return (
     <>
-      <PageHeader title="Users" description="Lawyer accounts: invite, edit, deactivate, and manage sessions." />
+      <PageHeader
+        title="Users"
+        description="Lawyer accounts: invite, edit, deactivate, and manage sessions."
+        actions={<AddLawyer autoOpen={openAdd === "1"} />}
+      />
       <Card>
-        <AddLawyer />
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>

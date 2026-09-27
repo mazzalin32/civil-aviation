@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/app/page-header";
+import { AddReferenceButton } from "@/components/app/add-reference-button";
 import { ReferenceTable, type FieldSpec } from "@/components/app/reference-table";
 import { CHIP_COLORS } from "@/lib/validation/settings";
 import { createCategory, deleteCategory, moveCategory, toggleCategoryActive, updateCategory } from "./actions";
@@ -20,12 +21,11 @@ export default async function CategoriesPage() {
       <PageHeader
         title="Categories"
         description="What a matter is about (Debt Recovery, Employment, …). Drives reports; every matter also has a matter type that picks its lifecycle."
+        actions={<AddReferenceButton label="Add category" panelTitle="Add category" fields={fields} createAction={createCategory} />}
       />
       <ReferenceTable
         items={categories.map((c) => ({ id: c.id, name: c.name, isActive: c.isActive, extra: { color: c.color } }))}
         fields={fields}
-        addLabel="Add category"
-        createAction={createCategory}
         updateAction={updateCategory}
         toggleActiveAction={toggleCategoryActive}
         deleteAction={deleteCategory}

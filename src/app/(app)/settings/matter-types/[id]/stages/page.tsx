@@ -25,15 +25,19 @@ export default async function StagesPage({ params }: { params: Promise<{ id: str
       <Link href="/settings/matter-types" className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-text-muted hover:text-text">
         <ArrowLeft className="size-3.5" /> Matter types
       </Link>
-      <div className="mb-6">
-        <h1 className="m-0 font-serif text-[22px] font-semibold">{matterType.name} — lifecycle stages</h1>
-        <p className="mt-1 mb-0 text-[13px] text-text-muted">
-          The order a matter moves through. Editing this applies to new matters only; existing matters keep the stage
-          they&apos;re on (spec §5.13).
-        </p>
+      <div className="mb-6 flex flex-wrap items-end gap-4">
+        <div>
+          <h1 className="m-0 font-serif text-[22px] font-semibold">{matterType.name} — lifecycle stages</h1>
+          <p className="mt-1 mb-0 text-[13px] text-text-muted">
+            The order a matter moves through. Editing this applies to new matters only; existing matters keep the
+            stage they&apos;re on (spec §5.13).
+          </p>
+        </div>
+        <div className="ml-auto">
+          <AddStage createAction={createStage.bind(null, matterTypeId)} />
+        </div>
       </div>
       <Card>
-        <AddStage createAction={createStage.bind(null, matterTypeId)} />
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">
             <thead>

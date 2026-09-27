@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Plus } from "lucide-react";
+import { Bell } from "lucide-react";
 import type { CurrentUser } from "@/lib/session";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { MobileNav } from "./mobile-nav";
 import { titleFor } from "./nav-config";
 import { SearchTrigger } from "./search-trigger";
@@ -20,13 +18,8 @@ export function TopBar({ user }: { user: CurrentUser }) {
       <div className="min-w-0 truncate text-[13px] text-text-muted">{title}</div>
       <div className="ml-auto flex items-center gap-3">
         <SearchTrigger />
-        {user.role === "ADMIN" && (
-          // Wizard arrives in Phase 4.
-          <Link href="/cases/new" className={cn(buttonVariants({ variant: "primary" }))}>
-            <Plus />
-            <span className="hidden sm:inline">New case</span>
-          </Link>
-        )}
+        {/* "New case" lives on the Cases page itself and the sidebar's quick-add — having it
+            here too, on every page, was one add entry point too many. */}
         <Button size="icon" aria-label="Notifications" title="Notifications and mentions (Phase 8)">
           <Bell className="size-[18px]" strokeWidth={1.8} />
         </Button>

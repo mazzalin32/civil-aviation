@@ -10,6 +10,7 @@ export function ComingSoon({
   emptyTitle,
   emptyDescription,
   phase,
+  actions,
 }: {
   title: string;
   description: string;
@@ -17,10 +18,11 @@ export function ComingSoon({
   emptyTitle: string;
   emptyDescription: string;
   phase: number;
+  actions?: React.ReactNode;
 }) {
   return (
     <>
-      <PageHeader title={title} description={description} />
+      <PageHeader title={title} description={description} actions={actions} />
       <EmptyState icon={icon} title={emptyTitle} description={`${emptyDescription} (Built in phase ${phase}.)`} />
     </>
   );

@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Field } from "@/components/ui/field";
+import { SlideOver } from "@/components/ui/slide-over";
 import { createMatterType } from "./actions";
 
 export function AddMatterType({ isSubProcess }: { isSubProcess: boolean }) {
-  const [adding, setAdding] = useState(false);
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
 
@@ -16,40 +18,45 @@ export function AddMatterType({ isSubProcess }: { isSubProcess: boolean }) {
     startTransition(async () => {
       const result = await createMatterType(formData);
       if (result?.error) return setError(result.error);
-      setAdding(false);
+      setOpen(false);
     });
   }
 
-  if (!adding) {
-    return (
-      <div className="border-b border-border p-3">
-        <Button size="sm" onClick={() => setAdding(true)}>
-          <Plus className="size-4" /> {isSubProcess ? "Add sub-process template" : "Add matter type"}
-        </Button>
-      </div>
-    );
-  }
+  const label = isSubProcess ? "Add sub-process template" : "Add matter type";
 
   return (
-    <div className="border-b border-border bg-surface-muted p-3">
-      <form action={create} className="flex flex-wrap items-start gap-2">
-        <input type="hidden" name="isSubProcess" value={isSubProcess ? "on" : ""} />
-        <div className="min-w-[160px] flex-1">
-          <Input name="name" placeholder="Name" className="h-9" required autoFocus />
-          {error && <p className="m-0 mt-1 text-xs text-danger">{error}</p>}
-        </div>
-        {!isSubProcess && <Input name="referencePrefix" placeholder="Prefix e.g. LIT" className="h-9 w-32" />}
-        <select name="closurePolicy" defaultValue="ADMIN_APPROVAL" className="h-9 rounded-none border border-border bg-surface px-2 text-sm">
-          <option value="ADMIN_APPROVAL">Admin approves closure</option>
-          <option value="LAWYER_CLOSES">Lawyer closes directly</option>
-        </select>
-        <Button type="submit" size="sm" variant="primary" disabled={pending}>
-          <Check className="size-4" /> Add
-        </Button>
-        <Button type="button" size="sm" onClick={() => setAdding(false)} disabled={pending}>
-          <X className="size-4" /> Cancel
-        </Button>
-      </form>
-    </div>
+    <>
+      <Button variant="primary" onClick={() => setOpen(true)}>
+        <Plus className="size-4" /> {label}
+      </Button>
+      <SlideOver open={open} onClose={() => setOpen(false)} title={label}>
+        <form action={create} className="grid gap-4">
+          <input type="hidden" name="isSubProcess" value={isSubProcess ? "on" : ""} />
+          {error && <p className="m-0 text-xs text-danger">{error}</p>}
+          <Field label="Name" htmlFor="mt-name">
+            <Input id="mt-name" name="name" required autoFocus />
+          </Field>
+          {!isSubProcess && (
+            <Field label="Reference prefix" htmlFor="mt-prefix" hint="e.g. LIT → UCAA/LIT/2026/0042">
+              <Input id="mt-prefix" name="referencePrefix" placeholder="LIT" />
+            </Field>
+          )}
+          <Field label="Closure policy" htmlFor="mt-policy">
+            <select id="mt-policy" name="closurePolicy" defaultValue="ADMIN_APPROVAL" className="h-10 w-full rounded-none border border-border bg-surface px-3 text-sm">
+              <option value="ADMIN_APPROVAL">Admin approves closure</option>
+              <option value="LAWYER_CLOSES">Lawyer closes directly</option>
+            </select>
+          </Field>
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" variant="primary" disabled={pending}>
+              {pending ? "Adding…" : "Add"}
+            </Button>
+            <Button type="button" onClick={() => setOpen(false)} disabled={pending}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </SlideOver>
+    </>
   );
 }

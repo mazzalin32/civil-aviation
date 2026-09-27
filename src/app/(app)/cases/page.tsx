@@ -1,5 +1,7 @@
-import { BriefcaseBusiness } from "lucide-react";
+import Link from "next/link";
+import { BriefcaseBusiness, Plus } from "lucide-react";
 import { ComingSoon } from "@/components/app/coming-soon";
+import { buttonVariants } from "@/components/ui/button";
 import { requireRole } from "@/lib/authz";
 
 export const metadata = { title: "Cases" };
@@ -19,6 +21,13 @@ export default async function Page() {
           : "Cases the Head of Legal assigns to you will appear here, with their stage and next date."
       }
       phase={4}
+      actions={
+        admin && (
+          <Link href="/cases/new" className={buttonVariants({ variant: "primary" })}>
+            <Plus className="size-4" /> New case
+          </Link>
+        )
+      }
     />
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, Ban, Check, CheckCircle2, Pencil, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, CheckCircle2, Pencil, Trash2, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -22,11 +22,10 @@ export type ReferenceItem = {
 
 type ActionResult = { error?: string } | void;
 
+/** The add trigger lives in the page's own PageHeader now (see AddReferenceButton) — this is just the table. */
 export function ReferenceTable({
   items,
   fields = [],
-  addLabel,
-  createAction,
   updateAction,
   toggleActiveAction,
   deleteAction,
@@ -34,23 +33,15 @@ export function ReferenceTable({
 }: {
   items: ReferenceItem[];
   fields?: FieldSpec[];
-  addLabel: string;
-  createAction: (formData: FormData) => Promise<ActionResult>;
   updateAction: (formData: FormData) => Promise<ActionResult>;
   toggleActiveAction: (id: string, isActive: boolean) => Promise<void>;
   deleteAction?: (id: string) => Promise<{ error?: string } | void>;
   moveAction?: (id: string, direction: "up" | "down") => Promise<void>;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
 
   return (
     <Card>
-      <div className="flex items-center justify-between border-b border-border p-3">
-        <Button size="sm" onClick={() => setAdding((v) => !v)} disabled={adding}>
-          + {addLabel}
-        </Button>
-      </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13.5px]">
           <thead>
@@ -66,7 +57,6 @@ export function ReferenceTable({
             </tr>
           </thead>
           <tbody>
-            {adding && <AddRow fields={fields} createAction={createAction} onDone={() => setAdding(false)} />}
             {items.map((item, i) => (
               <Row
                 key={item.id}
@@ -91,13 +81,14 @@ export function ReferenceTable({
   );
 }
 
-function ExtraFieldInput({ field, defaultValue }: { field: FieldSpec; defaultValue?: string }) {
+export function ExtraFieldInput({ field, defaultValue, id }: { field: FieldSpec; defaultValue?: string; id?: string }) {
   if (field.type === "select") {
     return (
       <select
+        id={id}
         name={field.key}
         defaultValue={defaultValue ?? field.options[0]?.value}
-        className="h-9 w-full rounded-none border border-border bg-surface px-2 text-sm"
+        className="h-10 w-full rounded-none border border-border bg-surface px-3 text-sm"
       >
         {field.options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -107,7 +98,7 @@ function ExtraFieldInput({ field, defaultValue }: { field: FieldSpec; defaultVal
       </select>
     );
   }
-  return <Input name={field.key} defaultValue={defaultValue} placeholder={field.placeholder} className="h-9" />;
+  return <Input id={id} name={field.key} defaultValue={defaultValue} placeholder={field.placeholder} />;
 }
 
 function Row({
@@ -222,52 +213,6 @@ function Row({
             ...(deleteAction ? [{ label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: onDelete }] : []),
           ]}
         />
-      </td>
-    </tr>
-  );
-}
-
-function AddRow({
-  fields,
-  createAction,
-  onDone,
-}: {
-  fields: FieldSpec[];
-  createAction: (formData: FormData) => Promise<ActionResult>;
-  onDone: () => void;
-}) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string>();
-
-  function create(formData: FormData) {
-    setError(undefined);
-    startTransition(async () => {
-      const result = await createAction(formData);
-      if (result?.error) return setError(result.error);
-      onDone();
-    });
-  }
-
-  return (
-    <tr className="bg-surface-muted">
-      <td className="px-4 py-2" colSpan={fields.length + 3}>
-        <form action={create} className="flex flex-wrap items-start gap-2">
-          <div className="min-w-[160px] flex-1">
-            <Input name="name" placeholder="Name" className="h-9" required autoFocus />
-            {error && <p className="m-0 mt-1 text-xs text-danger">{error}</p>}
-          </div>
-          {fields.map((f) => (
-            <div key={f.key} className="min-w-[140px]">
-              <ExtraFieldInput field={f} />
-            </div>
-          ))}
-          <Button type="submit" size="sm" variant="primary" disabled={pending}>
-            <Check className="size-4" /> Add
-          </Button>
-          <Button type="button" size="sm" onClick={onDone} disabled={pending}>
-            <X className="size-4" /> Cancel
-          </Button>
-        </form>
       </td>
     </tr>
   );

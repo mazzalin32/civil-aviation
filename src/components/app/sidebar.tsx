@@ -11,6 +11,7 @@ import {
   ChevronsRight,
   FileCheck2,
   LayoutGrid,
+  Plus,
   Scale,
   Settings,
   SquareCheckBig,
@@ -120,20 +121,36 @@ export function Sidebar({ user }: { user: CurrentUser }) {
           const Icon = ICONS[item.icon];
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "group relative flex items-center gap-2.5 rounded-control px-2.5 py-2 font-medium text-on-primary/75 transition-colors hover:bg-on-primary/10 hover:text-on-primary",
-                active && "bg-on-primary/15 text-on-primary hover:bg-on-primary/15",
-                collapsed && "justify-center px-0",
+            <div key={item.href} className="flex items-center gap-0.5">
+              <Link
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "group relative flex flex-1 items-center gap-2.5 rounded-control px-2.5 py-2 font-medium text-on-primary/75 transition-colors hover:bg-on-primary/10 hover:text-on-primary",
+                  active && "bg-on-primary/15 text-on-primary hover:bg-on-primary/15",
+                  collapsed && "justify-center px-0",
+                )}
+              >
+                <Icon className="size-[18px] shrink-0" strokeWidth={1.8} />
+                {!collapsed && item.label}
+                <Tooltip label={item.label} collapsed={collapsed} />
+              </Link>
+              {item.quickAdd && !collapsed && (
+                <Link
+                  href={item.quickAdd.href}
+                  aria-label={item.quickAdd.label}
+                  className="group relative grid size-8 shrink-0 place-items-center rounded-control text-on-primary/60 hover:bg-on-primary/10 hover:text-on-primary"
+                >
+                  <Plus className="size-4" strokeWidth={1.8} />
+                  <span
+                    role="tooltip"
+                    className="pointer-events-none absolute left-full ml-2 z-20 whitespace-nowrap rounded-md bg-text px-2 py-1 text-xs text-bg opacity-0 shadow-pop transition-opacity group-hover:opacity-100"
+                  >
+                    {item.quickAdd.label}
+                  </span>
+                </Link>
               )}
-            >
-              <Icon className="size-[18px] shrink-0" strokeWidth={1.8} />
-              {!collapsed && item.label}
-              <Tooltip label={item.label} collapsed={collapsed} />
-            </Link>
+            </div>
           );
         })}
       </nav>

@@ -58,19 +58,23 @@ export default async function MatterTypesPage() {
       />
       <div className="grid gap-8">
         <section>
-          <h2 className="mb-3 text-sm font-semibold">Matter types</h2>
-          <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="m-0 text-sm font-semibold">Matter types</h2>
             <AddMatterType isSubProcess={false} />
+          </div>
+          <Card>
             <Table items={matterTypes} />
           </Card>
         </section>
         <section>
-          <h2 className="mb-1 text-sm font-semibold">Sub-process templates</h2>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="m-0 text-sm font-semibold">Sub-process templates</h2>
+            <AddMatterType isSubProcess={true} />
+          </div>
           <p className="mt-0 mb-3 text-xs text-text-muted">
             Run inside a matter with their own mini-lifecycle — an application, appeal, execution or taxation of costs.
           </p>
           <Card>
-            <AddMatterType isSubProcess={true} />
             <Table items={subProcesses} />
           </Card>
         </section>

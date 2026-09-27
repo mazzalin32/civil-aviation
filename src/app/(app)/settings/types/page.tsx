@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/app/page-header";
+import { AddReferenceButton } from "@/components/app/add-reference-button";
 import { ReferenceTable } from "@/components/app/reference-table";
 import {
   createDocumentFolder,
@@ -29,11 +30,12 @@ export default async function TypesPage() {
       <PageHeader title="Event & document types" description="What can be logged on a case timeline, and the folders documents sort into." />
       <div className="grid gap-8">
         <section>
-          <h2 className="mb-3 text-sm font-semibold">Timeline event types</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="m-0 text-sm font-semibold">Timeline event types</h2>
+            <AddReferenceButton label="Add event type" panelTitle="Add event type" createAction={createEventType} />
+          </div>
           <ReferenceTable
             items={eventTypes.map((e) => ({ id: e.id, name: e.name, isActive: e.isActive, extra: {} }))}
-            addLabel="Add event type"
-            createAction={createEventType}
             updateAction={updateEventType}
             toggleActiveAction={toggleEventTypeActive}
             deleteAction={deleteEventType}
@@ -41,11 +43,12 @@ export default async function TypesPage() {
           />
         </section>
         <section>
-          <h2 className="mb-3 text-sm font-semibold">Document folders</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="m-0 text-sm font-semibold">Document folders</h2>
+            <AddReferenceButton label="Add folder" panelTitle="Add document folder" createAction={createDocumentFolder} />
+          </div>
           <ReferenceTable
             items={folders.map((f) => ({ id: f.id, name: f.name, isActive: f.isActive, extra: {} }))}
-            addLabel="Add folder"
-            createAction={createDocumentFolder}
             updateAction={updateDocumentFolder}
             toggleActiveAction={toggleDocumentFolderActive}
             deleteAction={deleteDocumentFolder}

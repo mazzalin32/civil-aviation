@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { PageHeader } from "@/components/app/page-header";
+import { AddReferenceButton } from "@/components/app/add-reference-button";
 import { ReferenceTable, type FieldSpec } from "@/components/app/reference-table";
 import { createForum, deleteForum, moveForum, toggleForumActive, updateForum } from "./actions";
 
@@ -30,7 +31,11 @@ export default async function ForumsPage() {
 
   return (
     <>
-      <PageHeader title="Courts & forums" description="The Court/Forum dropdown in the case wizard and forum tab." />
+      <PageHeader
+        title="Courts & forums"
+        description="The Court/Forum dropdown in the case wizard and forum tab."
+        actions={<AddReferenceButton label="Add court / forum" panelTitle="Add court / forum" fields={fields} createAction={createForum} />}
+      />
       <ReferenceTable
         items={forums.map((f) => ({
           id: f.id,
@@ -39,8 +44,6 @@ export default async function ForumsPage() {
           extra: { level: f.level, division: f.division ?? "", location: f.location ?? "" },
         }))}
         fields={fields}
-        addLabel="Add court / forum"
-        createAction={createForum}
         updateAction={updateForum}
         toggleActiveAction={toggleForumActive}
         deleteAction={deleteForum}

@@ -109,3 +109,14 @@ Created a test category, deleted it through the real UI (confirmed the browser d
 
 ### Verified
 Full browser click-through against the running app: created a lawyer, confirmed the invite email actually arrived in Mailpit, confirmed the new account shows "Invited" with a cert-expiry warning, edited their title, ran "sign out all sessions", deactivated (with the confirmation dialog) and reactivated, and confirmed the Admin's own account can't be deactivated (button disabled). Zero console/page errors throughout.
+
+## Phase 3 follow-up — slide-over add forms, sidebar quick-add (2026-09-27)
+
+### Changed
+- Every "Add" form (categories, forums, event/document types, outcomes, matter types, lifecycle stages, lawyers) now opens as a right-side slide-over panel with a blue header, triggered by a primary blue button in the page's own header — instead of an inline form that pushed the table down. Closes on Escape or clicking outside.
+- New shared `src/components/ui/slide-over.tsx` and `src/components/app/add-reference-button.tsx` (the generic version used by the five simple settings tables).
+- Removed "+ New case" from the top bar — it only ever made sense on the Cases page, not floating on every screen. It now lives as a real button on the Cases page itself.
+- Added a small "+" quick-add icon next to **Cases** and **Users** in the sidebar, so adding one is one click from anywhere, without visiting the list first. Cases' "+" goes straight to the (multi-step, so it gets a full page, not a drawer) New Case wizard; Users' "+" opens the Add lawyer panel directly via `/users?new=1`.
+
+### Verified
+Full browser click-through: sidebar "+" opens the Add lawyer panel and creates a real lawyer; Categories' "Add" opens its panel, Escape closes it; the top bar no longer shows "New case" anywhere, and the Cases page has its own. Zero console/page errors.

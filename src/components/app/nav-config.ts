@@ -11,7 +11,13 @@ export type NavIcon =
   | "import"
   | "settings";
 
-export type NavItem = { href: string; label: string; icon: NavIcon };
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: NavIcon;
+  /** A "+" next to the link, for jumping straight to adding one without visiting the list first. */
+  quickAdd?: { href: string; label: string };
+};
 
 /** Sidebar navigation per role — PROJECT_SPEC.md §10 "Layout". */
 export const NAV: Record<Role, NavItem[]> = {
@@ -23,10 +29,10 @@ export const NAV: Record<Role, NavItem[]> = {
   ],
   ADMIN: [
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-    { href: "/cases", label: "Cases", icon: "cases" },
+    { href: "/cases", label: "Cases", icon: "cases", quickAdd: { href: "/cases/new", label: "New case" } },
     { href: "/calendar", label: "Calendar", icon: "calendar" },
     { href: "/closure-requests", label: "Closure requests", icon: "closure" },
-    { href: "/users", label: "Users", icon: "users" },
+    { href: "/users", label: "Users", icon: "users", quickAdd: { href: "/users?new=1", label: "Add lawyer" } },
     { href: "/reports", label: "Reports", icon: "reports" },
     { href: "/import", label: "Import", icon: "import" },
     { href: "/settings", label: "Settings", icon: "settings" },
