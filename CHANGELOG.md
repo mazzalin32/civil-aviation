@@ -94,3 +94,18 @@ Full click-through against a running server and real database: added, renamed an
 
 ### Verified
 Created a test category, deleted it through the real UI (confirmed the browser dialog, confirmed the row disappeared entirely rather than just greying out) — checked with a live browser session against the running app, not just code review.
+
+## Phase 3 — Users (2026-09-27)
+
+### Added
+- `/users`: list every lawyer (and the Admin), invite a new lawyer, edit their details, deactivate/reactivate, resend a pending invite, and force sign-out of all their sessions.
+- No schema changes — everything needed was already on `User` from Phase 0.
+- Inviting a lawyer reuses the exact same reset-password email as `/forgot-password` (spec §15 decision) — no separate invite mechanism to maintain.
+- Status is computed, not stored: **Invited** (account exists, never activated) vs **Active** (has signed in and set a password) vs **Deactivated**.
+- Practising certificate expiry gets a visual badge — amber within 60 days, red once expired — reusing the "Practising certificate expiring" reminder trigger seeded in Phase 2.
+- Deactivating a lawyer revokes every session immediately (FLOWS §19); "Sign out all sessions" does the same without deactivating the account (e.g. a lost laptop).
+- Users are never hard-deleted (CLAUDE.md) — no Delete option here, deactivate is the only removal path. An Admin can't deactivate their own account.
+- Deliberately **not built yet**: "reassign all of a departing lawyer's cases." There's no `Matter` table until Phase 4, so there's nothing to reassign — this arrives as part of Phase 4's deactivation flow instead of being faked now.
+
+### Verified
+Full browser click-through against the running app: created a lawyer, confirmed the invite email actually arrived in Mailpit, confirmed the new account shows "Invited" with a cert-expiry warning, edited their title, ran "sign out all sessions", deactivated (with the confirmation dialog) and reactivated, and confirmed the Admin's own account can't be deactivated (button disabled). Zero console/page errors throughout.

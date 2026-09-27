@@ -1,0 +1,113 @@
+"use server";
+
+import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { requireRole } from "@/lib/authz";
+import { writeAudit } from "@/lib/audit";
+import { Role } from "@/generated/prisma/client";
+import { createLawyerSchema, updateLawyerSchema } from "@/lib/validation/users";
+
+async function reload() {
+  revalidatePath("/users");
+}
+
+function fields(data: { phone?: string; title?: string; department?: string; practisingCertNo?: string; certExpiry: Date | null }) {
+  return {
+    phone: data.phone || null,
+    title: data.title || null,
+    department: data.department || null,
+    practisingCertNo: data.practisingCertNo || null,
+    certExpiry: data.certExpiry,
+  };
+}
+
+/** Creates the account and sends the same invite-link email as forgot-password (spec §15). */
+export async function createLawyer(formData: FormData) {
+  const admin = await requireRole("ADMIN");
+  const parsed = createLawyerSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+    title: formData.get("title"),
+    department: formData.get("department"),
+    practisingCertNo: formData.get("practisingCertNo"),
+    certExpiry: formData.get("certExpiry"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
+
+  const existing = await db.user.findUnique({ where: { email: parsed.data.email } });
+  if (existing) return { error: "Someone with this email already has an account." };
+
+  const created = await db.user.create({
+    data: { name: parsed.data.name, email: parsed.data.email, role: Role.LAWYER, ...fields(parsed.data) },
+  });
+  await writeAudit({ userId: admin.id, action: "user.create", entity: "User", entityId: created.id, after: { name: created.name, email: created.email } });
+
+  await auth.api.requestPasswordReset({ body: { email: created.email, redirectTo: "/activate" }, headers: await headers(), asResponse: false });
+  await writeAudit({ userId: admin.id, action: "user.invite.sent", entity: "User", entityId: created.id });
+
+  await reload();
+}
+
+/** Resends the same invite/reset link — useful if the first one expired or was missed. */
+export async function resendInvite(id: string) {
+  const admin = await requireRole("ADMIN");
+  const user = await db.user.findUnique({ where: { id } });
+  if (!user) return;
+  await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/activate" }, headers: await headers(), asResponse: false });
+  await writeAudit({ userId: admin.id, action: "user.invite.resent", entity: "User", entityId: id });
+  await reload();
+}
+
+export async function updateLawyer(formData: FormData) {
+  const admin = await requireRole("ADMIN");
+  const parsed = updateLawyerSchema.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    phone: formData.get("phone"),
+    title: formData.get("title"),
+    department: formData.get("department"),
+    practisingCertNo: formData.get("practisingCertNo"),
+    certExpiry: formData.get("certExpiry"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
+
+  const { id, name, ...rest } = parsed.data;
+  const before = await db.user.findUnique({ where: { id } });
+  const updated = await db.user.update({ where: { id }, data: { name, ...fields(rest) } });
+  await writeAudit({ userId: admin.id, action: "user.update", entity: "User", entityId: id, before, after: updated });
+  await reload();
+}
+
+/**
+ * Deactivate/reactivate. Never a hard delete (CLAUDE.md). Deactivating also revokes
+ * every session, per FLOWS §19. Reassigning their open matters happens here too from
+ * Phase 4 on — there's nothing to reassign until Matter exists.
+ */
+export async function toggleUserActive(id: string, isActive: boolean) {
+  const admin = await requireRole("ADMIN");
+  if (id === admin.id) return { error: "You can't deactivate your own account." };
+
+  const before = await db.user.findUnique({ where: { id } });
+  const updated = await db.user.update({ where: { id }, data: { isActive } });
+  if (!isActive) await db.session.deleteMany({ where: { userId: id } });
+  await writeAudit({
+    userId: admin.id,
+    action: isActive ? "user.reactivate" : "user.deactivate",
+    entity: "User",
+    entityId: id,
+    before,
+    after: updated,
+  });
+  await reload();
+}
+
+/** "Sign out all sessions" — e.g. a lost laptop (FLOWS §19). Doesn't deactivate the account. */
+export async function signOutAllSessions(id: string) {
+  const admin = await requireRole("ADMIN");
+  await db.session.deleteMany({ where: { userId: id } });
+  await writeAudit({ userId: admin.id, action: "user.sessions.revoked", entity: "User", entityId: id });
+  await reload();
+}
