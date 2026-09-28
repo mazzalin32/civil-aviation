@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { generateReference } from "@/lib/reference";
+import { notify } from "@/lib/notify";
 import { createMatterSchema, type WizardData } from "@/lib/validation/matter";
 
 export async function loadDraft(): Promise<WizardData | null> {
@@ -141,5 +142,20 @@ export async function createMatter(raw: unknown): Promise<CreateResult> {
   });
 
   revalidatePath("/cases");
+
+  const assignedIds = [assign.leadUserId, ...assign.supportUserIds.filter((id) => id !== assign.leadUserId)];
+  for (const userId of assignedIds) {
+    const role = userId === assign.leadUserId ? "Lead Counsel" : "Support";
+    await notify({
+      userId,
+      type: "CASE_ASSIGNED",
+      matterId: matter.id,
+      payload: { reference: matter.reference, title: basics.title, role },
+      subject: `You've been assigned ${basics.title}`,
+      message: `You've been assigned "${basics.title}" (${matter.reference}) as ${role}.`,
+      url: `/cases/${matter.id}`,
+    });
+  }
+
   return { matterId: matter.id, reference: matter.reference };
 }

@@ -5,6 +5,7 @@ import { AssignmentRole } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireMatterAccess } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
+import { notify } from "@/lib/notify";
 import {
   moveStageSchema,
   addEventSchema,
@@ -67,6 +68,19 @@ export async function moveStage(raw: unknown): Promise<ActionResult> {
     });
     await writeAudit({ userId: user.id, action: "matter.stage.move", entity: "Matter", entityId: matterId, before: { stage: fromName }, after: { stage: target.name } }, tx);
   });
+
+  const team = await db.matterAssignment.findMany({ where: { matterId, removedAt: null }, select: { userId: true } });
+  for (const { userId } of team) {
+    await notify({
+      userId,
+      type: "STAGE_OR_CLOSURE_CHANGED",
+      matterId,
+      payload: { title: matter.title, from: fromName, to: target.name },
+      subject: `Stage changed: ${matter.title}`,
+      message: `"${matter.title}" moved from ${fromName} to ${target.name}.`,
+      url: `/cases/${matterId}`,
+    });
+  }
 
   reload(matterId);
 }
@@ -212,6 +226,21 @@ export async function reassign(raw: unknown): Promise<ActionResult> {
     });
     await writeAudit({ userId: user.id, action: "matter.reassign", entity: "Matter", entityId: matterId, after: { leadUserId, supportUserIds: [...desiredSupportIds] } }, tx);
   });
+
+  const matterForNotify = await db.matter.findUniqueOrThrow({ where: { id: matterId }, select: { title: true, reference: true } });
+  const newlyAssigned = [leadUserId, ...desiredSupportIds].filter((id) => !current.some((a) => a.userId === id && a.removedAt === null));
+  for (const userId of newlyAssigned) {
+    const role = userId === leadUserId ? "Lead Counsel" : "Support";
+    await notify({
+      userId,
+      type: "CASE_ASSIGNED",
+      matterId,
+      payload: { reference: matterForNotify.reference, title: matterForNotify.title, role },
+      subject: `You've been assigned ${matterForNotify.title}`,
+      message: `You've been assigned "${matterForNotify.title}" (${matterForNotify.reference}) as ${role}.`,
+      url: `/cases/${matterId}`,
+    });
+  }
 
   reload(matterId);
 }

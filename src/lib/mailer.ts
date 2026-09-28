@@ -58,6 +58,15 @@ export async function sendPasswordChangedEmail(to: string, name: string) {
   );
 }
 
+/** Every notification email shares this shape — subject/message/url are built per trigger by src/lib/notify.ts callers. */
+export async function sendNotificationEmail(to: string, name: string, subject: string, message: string, url?: string) {
+  await send(
+    to,
+    subject,
+    layout(subject, `<p style="margin:0 0 8px;">Hello ${name},</p><p style="margin:0 0 8px;">${message}</p>${url ? button(url, "Open") : ""}`),
+  );
+}
+
 export async function sendAccountLockedEmail(to: string, lockedUserName: string, lockedUserEmail: string) {
   await send(
     to,

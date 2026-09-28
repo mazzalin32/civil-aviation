@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireMatterAccess } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
+import { notify } from "@/lib/notify";
 import { encryptFile, sha256Hex } from "@/lib/documents/encryption";
 import { putObject, deleteObject } from "@/lib/documents/storage";
 import { scanBuffer } from "@/lib/documents/virus-scan";
@@ -96,6 +97,19 @@ export async function uploadDocument(formData: FormData): Promise<ActionResult> 
 
     return doc;
   });
+
+  const team = await db.matterAssignment.findMany({ where: { matterId, removedAt: null, userId: { not: user.id } }, select: { userId: true } });
+  for (const { userId } of team) {
+    await notify({
+      userId,
+      type: "DOCUMENT_UPLOADED",
+      matterId,
+      payload: { name: file.name },
+      subject: "Document uploaded",
+      message: `${user.name} uploaded "${file.name}".`,
+      url: `/cases/${matterId}?tab=documents`,
+    });
+  }
 
   revalidatePath(`/cases/${matterId}`);
   return document ? undefined : { error: "Upload failed." };

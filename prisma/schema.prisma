@@ -74,11 +74,13 @@ model User {
   documentVersions    DocumentVersion[]
   documentAccessLogs  DocumentAccessLog[]
 
-  personalCalendarEntries CalendarEntry[] @relation("PersonalCalendarEntries")
-  assignedCalendarEntries CalendarEntry[] @relation("AssignedCalendarEntries")
-  outcomesRecorded        CalendarEntry[] @relation("OutcomeRecordedEntries")
-  tasksAssigned           Task[]          @relation("TasksAssigned")
-  tasksCreated            Task[]          @relation("TasksCreated")
+  personalCalendarEntries CalendarEntry[]          @relation("PersonalCalendarEntries")
+  assignedCalendarEntries CalendarEntry[]          @relation("AssignedCalendarEntries")
+  outcomesRecorded        CalendarEntry[]          @relation("OutcomeRecordedEntries")
+  tasksAssigned           Task[]                   @relation("TasksAssigned")
+  tasksCreated            Task[]                   @relation("TasksCreated")
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@index([role, isActive])
   @@index([importBatchId])
@@ -295,6 +297,38 @@ model NotificationRule {
   offsets  Int[] // days before (positive) / after (negative) the trigger date; 0 = same day
   channels String[] // "IN_APP" | "EMAIL"
   mutable  Boolean  @default(true) // false = lawyer can't turn this one off (spec §5.9)
+
+  preferences NotificationPreference[]
+}
+
+/// One in-app (+ optionally emailed) notification (spec §5.9, FLOWS §12).
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // matches NotificationRule.trigger
+  matterId  String?
+  matter    Matter?   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  payload   Json
+  readAt    DateTime?
+  emailedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+/// Per-user mute for a mutable NotificationRule (spec §5.9) — absence of a row means "on"
+/// for both channels, so muting is opt-in and a new rule defaults to enabled for everyone.
+model NotificationPreference {
+  userId String
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   String
+  rule   NotificationRule @relation(fields: [type], references: [trigger], onDelete: Cascade)
+  inApp  Boolean          @default(true)
+  email  Boolean          @default(true)
+
+  @@id([userId, type])
 }
 
 /// Tracks the next case number per prefix+year (used from Phase 4 to generate references).
@@ -394,6 +428,7 @@ model Matter {
   documents       Document[]
   calendarEntries CalendarEntry[]
   tasks           Task[]
+  notifications   Notification[]
 
   @@index([status, priority])
   @@index([categoryId])

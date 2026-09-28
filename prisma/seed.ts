@@ -23,6 +23,8 @@ const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.
 const mail = nodemailer.createTransport({
   host: process.env.SMTP_HOST ?? "localhost",
   port: Number(process.env.SMTP_PORT ?? 1026),
+  secure: Number(process.env.SMTP_PORT) === 465,
+  auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } : undefined,
 });
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 const ACTIVATION_HOURS = 72;
@@ -59,13 +61,22 @@ async function sendActivationLink(userId: string, email: string, name: string, i
 
   const url = `${APP_URL}/activate?token=${token}`;
   const subject = isFirstInvite ? "Set up your CAA Legal account" : "Set your CAA Legal password";
-  await mail.sendMail({
-    from: "CAA Legal <no-reply@caa.go.ug>",
-    to: email,
-    subject,
-    html: `<p>Hello ${name},</p><p><a href="${url}">${subject}</a></p><p>Valid ${ACTIVATION_HOURS} hours, single use.</p>`,
-  });
   console.log(`  ${email} → ${url}`);
+  // Don't let a slow/unreachable SMTP server (e.g. this sandbox's outbound network) block
+  // the rest of the seed — the link above is printed either way and still works.
+  try {
+    await Promise.race([
+      mail.sendMail({
+        from: process.env.MAIL_FROM ?? "CAA Legal <no-reply@caa.go.ug>",
+        to: email,
+        subject,
+        html: `<p>Hello ${name},</p><p><a href="${url}">${subject}</a></p><p>Valid ${ACTIVATION_HOURS} hours, single use.</p>`,
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("SMTP timeout")), 8000)),
+    ]);
+  } catch (err) {
+    console.log(`    (email not sent — ${(err as Error).message}; the link above still works)`);
+  }
 }
 
 // --- Phase 2: Admin Settings defaults (spec §5.13, §6) ---
