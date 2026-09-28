@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { FolderOpen, CalendarClock, ListChecks, MessagesSquare } from "lucide-react";
+import { CalendarClock, ListChecks, MessagesSquare } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireMatterAccess } from "@/lib/authz";
 import { EmptyState } from "@/components/app/empty-state";
@@ -11,6 +11,7 @@ import { TimelineTab } from "./tabs/timeline-tab";
 import { PartiesTab } from "./tabs/parties-tab";
 import { NotesTab } from "./tabs/notes-tab";
 import { ActivityTab } from "./tabs/activity-tab";
+import { DocumentsTab } from "./tabs/documents-tab";
 
 export const metadata = { title: "Case" };
 
@@ -58,16 +59,25 @@ export default async function CasePage({
   ]);
 
   const eventTypes = await db.eventType.findMany({ where: { isActive: true }, orderBy: { order: "asc" } });
+  const [documentsRaw, folders] = await Promise.all([
+    db.document.findMany({
+      where: { matterId: id },
+      include: { folder: true, uploadedBy: { select: { name: true } }, currentVersion: true, _count: { select: { versions: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.documentFolder.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
+  ]);
 
   let activity: { id: string; action: string; createdAt: Date; before: unknown; after: unknown; user: { name: string } | null }[] = [];
   if (tab === "activity") {
     const eventIds = events.map((e) => e.id);
     const partyIds = matter.parties.map((p) => p.id);
     const noteIds = notesRaw.map((n) => n.id);
+    const documentIds = documentsRaw.map((d) => d.id);
     activity = await db.auditLog.findMany({
       where: {
-        entity: { in: ["Matter", "Event", "Note", "Party", "SummaryVersion"] },
-        entityId: { in: [id, ...eventIds, ...partyIds, ...noteIds, ...summaryVersionIds.map((s) => s.id)] },
+        entity: { in: ["Matter", "Event", "Note", "Party", "SummaryVersion", "Document"] },
+        entityId: { in: [id, ...eventIds, ...partyIds, ...noteIds, ...summaryVersionIds.map((s) => s.id), ...documentIds] },
       },
       include: { user: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
@@ -142,7 +152,13 @@ export default async function CasePage({
       <TabStrip
         matterId={matter.id}
         active={tab}
-        counts={{ timeline: events.length, parties: matter.parties.length, notes: notesRaw.length, activity: tab === "activity" ? activity.length : undefined }}
+        counts={{
+          timeline: events.length,
+          documents: documentsRaw.filter((d) => !d.deletedAt).length,
+          parties: matter.parties.length,
+          notes: notesRaw.length,
+          activity: tab === "activity" ? activity.length : undefined,
+        }}
       />
 
       {tab === "timeline" && (
@@ -165,7 +181,29 @@ export default async function CasePage({
           isAdmin={isAdmin}
         />
       )}
-      {tab === "documents" && <EmptyState icon={FolderOpen} title="Documents" description="Secure document upload, versions and viewer arrive in Phase 6." />}
+      {tab === "documents" && (
+        <DocumentsTab
+          matterId={matter.id}
+          folders={folders.map((f) => ({ id: f.id, name: f.name }))}
+          events={events.map((e) => ({ id: e.id, title: e.title }))}
+          matterConfidentiality={matter.confidentiality}
+          isAdmin={isAdmin}
+          documents={documentsRaw.map((d) => ({
+            id: d.id,
+            name: d.name,
+            folderId: d.folderId,
+            folderName: d.folder.name,
+            tags: d.tags,
+            confidentiality: d.confidentiality,
+            currentVersionId: d.currentVersionId,
+            versionCount: d._count.versions,
+            size: d.currentVersion?.size ?? null,
+            uploadedByName: d.uploadedBy.name,
+            uploadedAt: d.currentVersion?.uploadedAt.toISOString() ?? null,
+            deletedAt: d.deletedAt ? d.deletedAt.toISOString() : null,
+          }))}
+        />
+      )}
       {tab === "hearings" && <EmptyState icon={CalendarClock} title="Hearings & deadlines" description="Calendar, hearing outcomes and deadline tracking arrive in Phase 7." />}
       {tab === "tasks" && <EmptyState icon={ListChecks} title="Tasks" description="Checklist items with assignees and due dates arrive in Phase 7." />}
       {tab === "discussion" && <EmptyState icon={MessagesSquare} title="Discussion" description="The per-case chat thread arrives in Phase 9." />}

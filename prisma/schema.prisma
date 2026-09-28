@@ -60,15 +60,18 @@ model User {
   importBatchesCreated    ImportBatch[] @relation("BatchCreatedBy")
   importBatchesRolledBack ImportBatch[] @relation("BatchRolledBackBy")
 
-  mattersCreated      Matter[]           @relation("MatterCreatedBy")
-  mattersClosed       Matter[]           @relation("MatterClosedBy")
-  matterAssignments   MatterAssignment[] @relation("MatterAssignee")
-  matterAssignmentsBy MatterAssignment[] @relation("MatterAssignedBy")
+  mattersCreated      Matter[]            @relation("MatterCreatedBy")
+  mattersClosed       Matter[]            @relation("MatterClosedBy")
+  matterAssignments   MatterAssignment[]  @relation("MatterAssignee")
+  matterAssignmentsBy MatterAssignment[]  @relation("MatterAssignedBy")
   matterStagesMoved   MatterStage[]
   wizardDraft         WizardDraft?
   eventsCreated       Event[]
   summaryVersions     SummaryVersion[]
   notes               Note[]
+  documentsUploaded   Document[]
+  documentVersions    DocumentVersion[]
+  documentAccessLogs  DocumentAccessLog[]
 
   @@index([role, isActive])
   @@index([importBatchId])
@@ -260,6 +263,8 @@ model DocumentFolder {
   name     String  @unique
   order    Int     @default(0)
   isActive Boolean @default(true)
+
+  documents Document[]
 }
 
 /// Matter outcome (Won, Lost, Settled, …).
@@ -377,6 +382,7 @@ model Matter {
   events          Event[]
   summaryVersions SummaryVersion[]
   notes           Note[]
+  documents       Document[]
 
   @@index([status, priority])
   @@index([categoryId])
@@ -463,6 +469,8 @@ model Event {
   createdBy   User      @relation(fields: [createdById], references: [id])
   createdAt   DateTime  @default(now())
 
+  documentLinks EventDocument[]
+
   @@index([matterId, date])
 }
 
@@ -495,6 +503,99 @@ model Note {
   createdAt DateTime @default(now())
 
   @@index([matterId])
+}
+
+enum ScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  ERROR
+}
+
+enum DocumentAction {
+  VIEW
+  DOWNLOAD
+  PRINT
+  SHARE
+}
+
+/// A document in a matter's Documents tab (spec §5.7 tab 2, §9). The file bytes never sit in
+/// this row — only metadata; content lives in DocumentVersion, encrypted, in private storage.
+model Document {
+  id               String           @id @default(cuid())
+  matterId         String
+  matter           Matter           @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  folderId         String
+  folder           DocumentFolder   @relation(fields: [folderId], references: [id])
+  name             String
+  tags             String[]
+  confidentiality  Confidentiality  @default(NORMAL) // inherits the matter's by default, editable per document
+  currentVersionId String?          @unique
+  currentVersion   DocumentVersion? @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  uploadedById     String
+  uploadedBy       User             @relation(fields: [uploadedById], references: [id])
+  createdAt        DateTime         @default(now())
+  deletedAt        DateTime? // soft delete only (CLAUDE.md) — Admin can restore within the retention period
+  deletedById      String?
+
+  versions   DocumentVersion[]   @relation("DocumentVersions")
+  accessLogs DocumentAccessLog[]
+  eventLinks EventDocument[]
+
+  @@index([matterId, deletedAt])
+  @@index([folderId])
+}
+
+/// One uploaded revision of a Document — versions are never overwritten (CLAUDE.md, spec §9).
+/// Re-uploading the same file name creates the next version; old ones stay downloadable.
+model DocumentVersion {
+  id               String     @id @default(cuid())
+  documentId       String
+  document         Document   @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  version          Int
+  storageKey       String // where the encrypted bytes live (local path or object-storage key)
+  sha256           String // hash of the plaintext, proves the file wasn't altered
+  mimeType         String
+  size             Int
+  encryptedDataKey String // this version's AES data key, wrapped by the server master key
+  iv               String // AES-GCM nonce used to encrypt the file bytes
+  authTag          String // AES-GCM auth tag, verifies the ciphertext on decrypt
+  scanStatus       ScanStatus @default(PENDING)
+  scanDetail       String? // virus name if infected, or why a scan was skipped/failed — never silent
+  extractedText    String? // plain text pulled from the file for later search (Phase 11+)
+  uploadedById     String
+  uploadedBy       User       @relation(fields: [uploadedById], references: [id])
+  uploadedAt       DateTime   @default(now())
+
+  currentFor Document? @relation("CurrentVersion")
+
+  @@unique([documentId, version])
+}
+
+/// Every view/download/print is logged (spec §9) — visible to Admin, feeds unusual-activity
+/// alerts in a later phase.
+model DocumentAccessLog {
+  id         String         @id @default(cuid())
+  documentId String
+  document   Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User           @relation(fields: [userId], references: [id])
+  action     DocumentAction
+  ip         String?
+  at         DateTime       @default(now())
+
+  @@index([documentId, at])
+  @@index([userId, at])
+}
+
+/// Links a document as evidence to a timeline event — blocks deletion without Admin (spec §7).
+model EventDocument {
+  eventId    String
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, documentId])
 }
 
 /// Append-only. The app never updates or deletes rows (enforced with DB privileges in Phase 13).

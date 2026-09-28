@@ -15,6 +15,16 @@ const schema = z.object({
   MAIL_FROM: z.string().default("CAA Legal <no-reply@caa.go.ug>"),
   // TEMPORARY, testing only — spec requires 2FA on every account. Must be true before go-live.
   REQUIRE_2FA: z.stringbool().default(true),
+  // Private storage root for encrypted document bytes — never served directly (spec §9).
+  DOCUMENT_STORAGE_DIR: z.string().default("./storage/documents"),
+  // 32-byte base64 master key wrapping each file's per-document data key (envelope encryption).
+  // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+  DOCUMENT_MASTER_KEY: z.string().min(1, "Set DOCUMENT_MASTER_KEY — see .env.example"),
+  CLAMAV_HOST: z.string().default("localhost"),
+  CLAMAV_PORT: z.coerce.number().default(3310),
+  // TEMPORARY, testing only — spec requires every upload virus-scanned before use. Must be
+  // true before go-live; false only lets local dev work without a running clamd.
+  REQUIRE_VIRUS_SCAN: z.stringbool().default(true),
 });
 
 export const env = schema.parse(process.env);

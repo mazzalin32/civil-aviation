@@ -15,6 +15,15 @@ const LABELS: Record<string, string> = {
   "matter.hold": "Put on hold",
   "matter.resume": "Resumed",
   "matter.export": "Exported",
+  "document.upload": "Document uploaded",
+  "document.version.add": "New document version uploaded",
+  "document.delete": "Document deleted",
+  "document.restore": "Document restored",
+  "document.purge": "Document permanently deleted",
+  "document.upload.infected": "Upload blocked — virus scan flagged the file",
+  "document.view": "Document viewed",
+  "document.download": "Document downloaded",
+  "document.print": "Document printed",
 };
 
 export type ActivityRow = { id: string; action: string; by: string; at: string; before?: unknown; after?: unknown };

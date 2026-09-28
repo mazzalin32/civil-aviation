@@ -22,9 +22,13 @@ services:
       timeout: 5s
       retries: 10
 
-  # S3-compatible private object storage for encrypted documents (Phase 6).
-  # NOTE: MinIO no longer publishes images on Docker Hub; the image is chosen in Phase 6
-  # (candidates: SeaweedFS, Garage, RustFS, or a pinned MinIO build). Off by default until then.
+  # S3-compatible private object storage for encrypted documents — not wired up yet.
+  # NOTE: MinIO's Docker Hub image now requires a paid login, and pulling the open
+  # alternative (chrislusf/seaweedfs) didn't complete in this environment either (network,
+  # not a code issue). Phase 6 shipped with encrypted local filesystem storage instead
+  # (DOCUMENT_STORAGE_DIR, src/lib/documents/storage.ts) so document upload/download/
+  # encryption/scanning all work today; swapping in real object storage later only means
+  # rewriting that one file and enabling this service. Off by default until then.
   minio:
     profiles: ["storage"]
     image: minio/minio:latest

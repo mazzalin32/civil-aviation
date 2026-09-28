@@ -13,13 +13,16 @@ Node.js 24, npm, Docker Desktop.
 
 ## Run locally
 ```bash
-cp .env.example .env          # then edit if needed
-docker compose up -d          # Postgres + Mailpit (storage and ClamAV profiles join in Phase 6)
+cp .env.example .env          # then edit if needed — set DOCUMENT_MASTER_KEY (Phase 6)
+docker compose up -d                          # Postgres + Mailpit
+docker compose --profile scan up -d clamav    # virus scanning (Phase 6) — first start takes a few minutes
 npm install
 npm run db:migrate            # create/upgrade the database
 npm run db:seed               # first Admin + sample lawyers
 npm run dev                   # http://localhost:3000
 ```
+
+Documents are stored encrypted on the local filesystem for now (`DOCUMENT_STORAGE_DIR`, default `./storage/documents`) — real S3-compatible object storage (the `minio` service, `--profile storage`) isn't wired up yet; see the comment above that service in `docker-compose.yml`. Without `clamav` running, set `REQUIRE_VIRUS_SCAN=false` in `.env` for local testing — every upload still records why scanning was skipped.
 
 The seed prints the Admin's temporary password and a live activation link for each lawyer (also sent to Mailpit). Sign in as the Admin, change the password, then set up 2FA — every account requires it.
 

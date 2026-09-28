@@ -44,3 +44,6 @@ next-env.d.ts
 
 # prisma generated client
 /src/generated
+
+# locally stored encrypted documents (Phase 6 dev fallback — never committed)
+/storage
