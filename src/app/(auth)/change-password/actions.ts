@@ -33,8 +33,21 @@ export async function changePasswordAction(_prev: ChangePasswordState, formData:
       headers: await headers(),
       asResponse: false,
     });
-  } catch {
-    return { fieldErrors: { currentPassword: "That's not your current password." } };
+  } catch (err) {
+    // Better Auth throws for several distinct reasons here — wrong current password, but
+    // also the haveIBeenPwned plugin's breach-check network call failing, or a genuinely
+    // reused/compromised new password. Blaming "current password" for all of them made a
+    // real failure (e.g. an outbound network hiccup) look identical to a typo, with no way
+    // to tell them apart. Logging the real error and matching on its actual message instead.
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("changePasswordAction failed:", message);
+    if (/current.*password|invalid.*password/i.test(message)) {
+      return { fieldErrors: { currentPassword: "That's not your current password." } };
+    }
+    if (/compromised|breach|pwned/i.test(message)) {
+      return { fieldErrors: { password: "This password has appeared in a public data breach. Choose a different one." } };
+    }
+    return { error: "Couldn't change your password right now — please try again in a moment." };
   }
 
   await db.user.update({ where: { id: user.id }, data: { mustChangePassword: false, passwordChangedAt: new Date() } });
