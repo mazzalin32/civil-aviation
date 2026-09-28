@@ -44,6 +44,7 @@ model User {
   // Preferences
   digestEnabled      Boolean   @default(false)
   theme              String    @default("system") // system | light | dark
+  icsToken           String?   @unique // long-lived token for the .ics calendar subscription URL
   lastLoginAt        DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -72,6 +73,12 @@ model User {
   documentsUploaded   Document[]
   documentVersions    DocumentVersion[]
   documentAccessLogs  DocumentAccessLog[]
+
+  personalCalendarEntries CalendarEntry[] @relation("PersonalCalendarEntries")
+  assignedCalendarEntries CalendarEntry[] @relation("AssignedCalendarEntries")
+  outcomesRecorded        CalendarEntry[] @relation("OutcomeRecordedEntries")
+  tasksAssigned           Task[]          @relation("TasksAssigned")
+  tasksCreated            Task[]          @relation("TasksCreated")
 
   @@index([role, isActive])
   @@index([importBatchId])
@@ -241,7 +248,8 @@ model Forum {
   order    Int     @default(0)
   isActive Boolean @default(true)
 
-  matters Matter[]
+  matters         Matter[]
+  calendarEntries CalendarEntry[]
 
   @@unique([name])
 }
@@ -254,7 +262,8 @@ model EventType {
   order    Int     @default(0)
   isActive Boolean @default(true)
 
-  events Event[]
+  events        Event[]
+  deadlineRules DeadlineRule[]
 }
 
 /// Document tab folder (Pleadings, Evidence, Correspondence, Court Orders, Submissions, Internal Memos).
@@ -383,6 +392,8 @@ model Matter {
   summaryVersions SummaryVersion[]
   notes           Note[]
   documents       Document[]
+  calendarEntries CalendarEntry[]
+  tasks           Task[]
 
   @@index([status, priority])
   @@index([categoryId])
@@ -596,6 +607,102 @@ model EventDocument {
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@id([eventId, documentId])
+}
+
+enum CalendarKind {
+  HEARING
+  MENTION
+  MEDIATION
+  JUDGMENT
+  DEADLINE
+  PERSONAL
+}
+
+enum EntryStatus {
+  OPEN
+  DONE
+  NA
+}
+
+enum CalendarOutcomeType {
+  PROCEEDED
+  ADJOURNED
+  RULING
+  DIRECTIONS
+}
+
+/// One dated item on a calendar (spec §5.8) — hearings, deadlines, mediation sessions,
+/// judgment dates and personal entries (leave, training). Tasks are NOT duplicated in here;
+/// the calendar UI merges CalendarEntry with Task(dueAt) at render time (spec §7 data model).
+model CalendarEntry {
+  id                  String               @id @default(cuid())
+  matterId            String?
+  matter              Matter?              @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  userId              String? // set for PERSONAL entries only (leave, training) — not tied to a case
+  user                User?                @relation("PersonalCalendarEntries", fields: [userId], references: [id])
+  kind                CalendarKind
+  title               String
+  startsAt            DateTime
+  endsAt              DateTime?
+  forumId             String?
+  forum               Forum?               @relation(fields: [forumId], references: [id])
+  courtroom           String?
+  purpose             String?
+  isCritical          Boolean              @default(false)
+  assigneeId          String?
+  assignee            User?                @relation("AssignedCalendarEntries", fields: [assigneeId], references: [id])
+  status              EntryStatus          @default(OPEN)
+  naReason            String?
+  outcomeType         CalendarOutcomeType?
+  outcomeNote         String?
+  adjournmentReason   String?
+  outcomeRecordedAt   DateTime?
+  outcomeRecordedById String?
+  outcomeRecordedBy   User?                @relation("OutcomeRecordedEntries", fields: [outcomeRecordedById], references: [id])
+  nextEntryId         String?              @unique // set on the OLD entry once an adjournment creates its replacement
+  nextEntry           CalendarEntry?       @relation("Adjournment", fields: [nextEntryId], references: [id])
+  previousEntry       CalendarEntry?       @relation("Adjournment")
+  createdAt           DateTime             @default(now())
+
+  tasksSourced Task[]
+
+  @@index([matterId])
+  @@index([assigneeId, startsAt])
+  @@index([userId, startsAt])
+}
+
+/// A checklist item (spec §5.7 tab 4) — always tied to a matter, unlike a personal calendar entry.
+model Task {
+  id            String         @id @default(cuid())
+  matterId      String
+  matter        Matter         @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  title         String
+  assigneeId    String
+  assignee      User           @relation("TasksAssigned", fields: [assigneeId], references: [id])
+  dueAt         DateTime
+  doneAt        DateTime?
+  status        EntryStatus    @default(OPEN)
+  naReason      String?
+  sourceEntryId String? // set when a hearing outcome's "directions" created this task
+  sourceEntry   CalendarEntry? @relation(fields: [sourceEntryId], references: [id])
+  createdById   String
+  createdBy     User           @relation("TasksCreated", fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now())
+
+  @@index([matterId])
+  @@index([assigneeId, dueAt])
+}
+
+/// Admin-configured: when a timeline event of this type is logged, or a hearing outcome of
+/// this kind is recorded, suggest a deadline offsetDays later (spec §5.13, FLOWS §6 & §7).
+model DeadlineRule {
+  id                 String    @id @default(cuid())
+  triggerEventTypeId String
+  triggerEventType   EventType @relation(fields: [triggerEventTypeId], references: [id])
+  title              String
+  offsetDays         Int
+  isCritical         Boolean   @default(false)
+  isActive           Boolean   @default(true)
 }
 
 /// Append-only. The app never updates or deletes rows (enforced with DB privileges in Phase 13).

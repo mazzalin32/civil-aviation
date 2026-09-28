@@ -226,6 +226,15 @@ const NOTIFICATION_RULES: { trigger: string; label: string; offsets: number[]; c
   { trigger: "SUSPICIOUS_ACTIVITY", label: "Suspicious activity (mass download, failed logins)", offsets: [0], channels: ["EMAIL"], mutable: false },
 ];
 
+// Illustrative starting points (spec §5.13/§5.7 example: "judgment logged → suggests Notice
+// of appeal due in N days") — the Admin is expected to review and adjust actual limitation
+// periods for their jurisdiction; nothing legal is hard-coded into the app itself (CLAUDE.md).
+const DEADLINE_RULES: { trigger: string; title: string; offsetDays: number; isCritical: boolean }[] = [
+  { trigger: "Judgment / order", title: "Notice of appeal due", offsetDays: 14, isCritical: true },
+  { trigger: "Ruling", title: "Comply with ruling", offsetDays: 30, isCritical: false },
+  { trigger: "Filing", title: "Awaiting response", offsetDays: 15, isCritical: false },
+];
+
 async function seedReferenceData() {
   for (const c of CATEGORIES) {
     await db.category.upsert({ where: { name: c.name }, update: {}, create: c });
@@ -271,6 +280,11 @@ async function seedReferenceData() {
   }
   for (const r of NOTIFICATION_RULES) {
     await db.notificationRule.upsert({ where: { trigger: r.trigger }, update: {}, create: r });
+  }
+  for (const r of DEADLINE_RULES) {
+    const eventType = await db.eventType.findUniqueOrThrow({ where: { name: r.trigger } });
+    const existing = await db.deadlineRule.findFirst({ where: { title: r.title, triggerEventTypeId: eventType.id } });
+    if (!existing) await db.deadlineRule.create({ data: { title: r.title, offsetDays: r.offsetDays, isCritical: r.isCritical, triggerEventTypeId: eventType.id } });
   }
 }
 
@@ -536,9 +550,14 @@ const CASE_SEEDS: CaseSeed[] = [
 /** Phase 5 demo content for the mockup case (docs/design/case-page.html) — a real summary,
  * timeline and note so the Case Page isn't an empty shell the first time it's opened. */
 async function seedNileHorizonDetail(matterId: string, adminId: string, leadId: string) {
-  const already = await db.event.count({ where: { matterId } });
-  if (already > 0) return; // idempotent re-run
+  const alreadyHasEvents = await db.event.count({ where: { matterId } });
+  if (alreadyHasEvents === 0) await seedNileHorizonPhase5Content(matterId, adminId, leadId);
 
+  const alreadyHasCalendar = await db.calendarEntry.count({ where: { matterId } });
+  if (alreadyHasCalendar === 0) await seedNileHorizonPhase7Content(matterId, adminId, leadId);
+}
+
+async function seedNileHorizonPhase5Content(matterId: string, adminId: string, leadId: string) {
   const typeIdByName = new Map((await db.eventType.findMany({ select: { id: true, name: true } })).map((t) => [t.name, t.id]));
   const typeId = (name: string) => typeIdByName.get(name)!;
 
@@ -582,6 +601,25 @@ async function seedNileHorizonDetail(matterId: string, adminId: string, leadId: 
       body: "Head of Legal approved settling for no less than 85% of the principal, with interest waived only if paid within 12 months.",
     },
   });
+}
+
+// Phase 7 demo content — matches the mockup's "Deadlines" card and "Next date" fact exactly.
+async function seedNileHorizonPhase7Content(matterId: string, adminId: string, leadId: string) {
+  const carol = await db.user.findUnique({ where: { email: "carol.atim@caa.go.ug" } });
+  await db.calendarEntry.create({
+    data: {
+      matterId,
+      kind: "MEDIATION",
+      title: "Second mediation session",
+      startsAt: new Date("2026-10-02T10:00:00Z"),
+      purpose: "Respond to the defendant's 24-month payment-plan proposal",
+      assigneeId: leadId,
+    },
+  });
+  if (carol) {
+    await db.task.create({ data: { matterId, title: "Finance reconciliation", assigneeId: carol.id, dueAt: new Date("2026-10-02T09:00:00Z"), createdById: adminId } });
+  }
+  await db.task.create({ data: { matterId, title: "Witness statements", assigneeId: leadId, dueAt: new Date("2026-10-24T09:00:00Z"), createdById: adminId } });
 }
 
 async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {

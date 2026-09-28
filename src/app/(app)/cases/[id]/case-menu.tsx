@@ -10,11 +10,15 @@ export function CaseMenu({
   isAdmin,
   status,
   onReassign,
+  onScheduleHearing,
+  onAddDeadline,
 }: {
   matterId: string;
   isAdmin: boolean;
   status: "OPEN" | "ON_HOLD" | "CLOSURE_REQUESTED" | "CLOSED";
   onReassign: () => void;
+  onScheduleHearing: () => void;
+  onAddDeadline: () => void;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -37,8 +41,8 @@ export function CaseMenu({
     <RowActionsMenu
       label="More actions"
       actions={[
-        { label: "Schedule hearing (Phase 7)", icon: CalendarClock, disabled: true, onClick: () => {} },
-        { label: "Add deadline (Phase 7)", icon: Clock, disabled: true, onClick: () => {} },
+        { label: "Schedule hearing", icon: CalendarClock, onClick: onScheduleHearing },
+        { label: "Add deadline", icon: Clock, onClick: onAddDeadline },
         { label: "New application (later)", icon: FilePlus2, disabled: true, onClick: () => {} },
         { kind: "separator" },
         ...(isAdmin ? [{ label: "Reassign", icon: UserCog, onClick: onReassign }] : []),

@@ -83,6 +83,14 @@ export const reminderRuleSchema = z.object({
   channels: z.array(z.enum(["IN_APP", "EMAIL"])).min(1, "Choose at least one channel"),
 });
 
+export const deadlineRuleSchema = z.object({
+  id: z.string().optional(),
+  name, // the rule's own short title, e.g. "Notice of appeal due"
+  triggerEventTypeId: z.string().min(1, "Choose a trigger event type"),
+  offsetDays: z.coerce.number().int(),
+  isCritical: z.enum(["true", "false"]).transform((v) => v === "true"),
+});
+
 export const reorderSchema = z.object({
   ids: z.array(z.string().min(1)).min(1),
 });

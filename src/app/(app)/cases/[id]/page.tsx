@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CalendarClock, ListChecks, MessagesSquare } from "lucide-react";
+import { MessagesSquare } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireMatterAccess } from "@/lib/authz";
 import { EmptyState } from "@/components/app/empty-state";
@@ -12,6 +12,8 @@ import { PartiesTab } from "./tabs/parties-tab";
 import { NotesTab } from "./tabs/notes-tab";
 import { ActivityTab } from "./tabs/activity-tab";
 import { DocumentsTab } from "./tabs/documents-tab";
+import { HearingsTab, type HearingRow } from "./tabs/hearings-tab";
+import { TasksTab } from "./tabs/tasks-tab";
 
 export const metadata = { title: "Case" };
 
@@ -59,13 +61,16 @@ export default async function CasePage({
   ]);
 
   const eventTypes = await db.eventType.findMany({ where: { isActive: true }, orderBy: { order: "asc" } });
-  const [documentsRaw, folders] = await Promise.all([
+  const [documentsRaw, folders, calendarEntries, tasksRaw, forums] = await Promise.all([
     db.document.findMany({
       where: { matterId: id },
       include: { folder: true, uploadedBy: { select: { name: true } }, currentVersion: true, _count: { select: { versions: true } } },
       orderBy: { createdAt: "desc" },
     }),
     db.documentFolder.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
+    db.calendarEntry.findMany({ where: { matterId: id }, orderBy: { startsAt: "desc" } }),
+    db.task.findMany({ where: { matterId: id }, include: { assignee: { select: { name: true } } }, orderBy: { dueAt: "asc" } }),
+    db.forum.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
   ]);
 
   let activity: { id: string; action: string; createdAt: Date; before: unknown; after: unknown; user: { name: string } | null }[] = [];
@@ -126,6 +131,7 @@ export default async function CasePage({
           stages: matter.matterType.stages.map((s) => ({ id: s.id, name: s.name, order: s.order, requiredFields: s.requiredFields })),
           currentStageId: matter.currentStageId,
           lawyers: lawyers.map((l) => ({ id: l.id, name: l.name, title: l.title, workload: l._count.matterAssignments })),
+          forums: forums.map((f) => ({ id: f.id, name: f.name })),
         }}
       />
 
@@ -155,6 +161,8 @@ export default async function CasePage({
         counts={{
           timeline: events.length,
           documents: documentsRaw.filter((d) => !d.deletedAt).length,
+          hearings: calendarEntries.length,
+          tasks: tasksRaw.length,
           parties: matter.parties.length,
           notes: notesRaw.length,
           activity: tab === "activity" ? activity.length : undefined,
@@ -204,8 +212,38 @@ export default async function CasePage({
           }))}
         />
       )}
-      {tab === "hearings" && <EmptyState icon={CalendarClock} title="Hearings & deadlines" description="Calendar, hearing outcomes and deadline tracking arrive in Phase 7." />}
-      {tab === "tasks" && <EmptyState icon={ListChecks} title="Tasks" description="Checklist items with assignees and due dates arrive in Phase 7." />}
+      {tab === "hearings" && (
+        <HearingsTab
+          entries={calendarEntries.map((e) => ({
+            id: e.id,
+            kind: e.kind as HearingRow["kind"],
+            title: e.title,
+            startsAt: e.startsAt.toISOString(),
+            status: e.status,
+            outcomeType: e.outcomeType,
+            outcomeNote: e.outcomeNote,
+            isCritical: e.isCritical,
+            courtroom: e.courtroom,
+            purpose: e.purpose,
+          }))}
+        />
+      )}
+      {tab === "tasks" && (
+        <TasksTab
+          matterId={matter.id}
+          teamMembers={team}
+          tasks={tasksRaw.map((t) => ({
+            id: t.id,
+            title: t.title,
+            assigneeId: t.assigneeId,
+            assigneeName: t.assignee.name,
+            dueAt: t.dueAt.toISOString(),
+            doneAt: t.doneAt ? t.doneAt.toISOString() : null,
+            status: t.status,
+            naReason: t.naReason,
+          }))}
+        />
+      )}
       {tab === "discussion" && <EmptyState icon={MessagesSquare} title="Discussion" description="The per-case chat thread arrives in Phase 9." />}
     </>
   );

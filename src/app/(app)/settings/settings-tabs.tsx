@@ -11,6 +11,7 @@ const TABS = [
   { href: "/settings/types", label: "Event & document types" },
   { href: "/settings/outcomes", label: "Outcomes" },
   { href: "/settings/reminders", label: "Reminder schedules" },
+  { href: "/settings/deadline-rules", label: "Deadline rules" },
 ];
 
 export function SettingsTabs() {
