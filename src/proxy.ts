@@ -11,8 +11,9 @@ import { env } from "@/lib/env";
  *   1. mustChangePassword  — the seeded Admin's temporary password (spec §5.1)
  *   2. !twoFactorEnabled   — mandatory 2FA, including after an Admin-triggered reset (FLOWS §19)
  * Both redirect to their own page until satisfied, so a partly-onboarded session can
- * never reach case data. Gate 2 is switched off by REQUIRE_2FA=false while testing —
- * spec requires 2FA on every account, so this must be true again before go-live.
+ * never reach case data. Both are switched off by REQUIRE_PASSWORD_CHANGE=false /
+ * REQUIRE_2FA=false while testing — spec requires both on every account, so these must be
+ * true again before go-live.
  */
 const PUBLIC_PATHS = ["/login", "/forgot-password", "/activate", "/2fa"];
 
@@ -36,7 +37,7 @@ export async function proxy(request: NextRequest) {
   // API routes get a session check but never an HTML redirect — a fetch caller can't
   // follow one anyway, and every action file re-checks the same flags itself.
   if (!pathname.startsWith("/api/")) {
-    if (user.mustChangePassword && pathname !== "/change-password") {
+    if (env.REQUIRE_PASSWORD_CHANGE && user.mustChangePassword && pathname !== "/change-password") {
       return NextResponse.redirect(new URL("/change-password", request.url));
     }
     if (env.REQUIRE_2FA && !user.mustChangePassword && !user.twoFactorEnabled && pathname !== "/2fa/setup") {

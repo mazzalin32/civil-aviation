@@ -15,6 +15,9 @@ const schema = z.object({
   MAIL_FROM: z.string().default("CAA Legal <no-reply@caa.go.ug>"),
   // TEMPORARY, testing only — spec requires 2FA on every account. Must be true before go-live.
   REQUIRE_2FA: z.stringbool().default(true),
+  // TEMPORARY, testing only — spec requires the seeded Admin's temp password be changed at
+  // first login (§5.1). Must be true before go-live.
+  REQUIRE_PASSWORD_CHANGE: z.stringbool().default(true),
   // Private storage root for encrypted document bytes — never served directly (spec §9).
   DOCUMENT_STORAGE_DIR: z.string().default("./storage/documents"),
   // 32-byte base64 master key wrapping each file's per-document data key (envelope encryption).
