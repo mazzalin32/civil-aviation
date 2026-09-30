@@ -6,6 +6,16 @@ export function formatDate(date: Date, options: Intl.DateTimeFormatOptions = { d
   return new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, ...options }).format(date);
 }
 
+/** Time-of-day greeting in Kampala, using the person's first name. */
+export function greetingFor(date: Date, fullName: string) {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: APP_TIME_ZONE, hour: "numeric", hourCycle: "h23" }).format(date),
+  );
+  const first = fullName.trim().split(/\s+/)[0] || fullName;
+  const hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  return `${hello}, ${first}`;
+}
+
 /** Money is stored as integer UGX. */
 export function formatUGX(amount: number | bigint) {
   return `UGX ${new Intl.NumberFormat(APP_LOCALE, { maximumFractionDigits: 0 }).format(amount)}`;

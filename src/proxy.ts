@@ -49,5 +49,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth).*)"],
+  // Static files in /public (logo, fonts, etc.) never carry a session — without this,
+  // an unauthenticated <img> request for one gets 307'd to /login (found via the broken
+  // logo on the login page itself, which obviously can't be behind auth).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|ttf)$).*)"],
 };

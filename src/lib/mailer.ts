@@ -35,6 +35,23 @@ async function send(to: string, subject: string, html: string) {
   await transport.sendMail({ from: env.MAIL_FROM, to, subject, html });
 }
 
+/** Pitch prototype: lawyer can sign in immediately with the shared password (no activate link). */
+export async function sendLawyerReadyEmail(to: string, name: string, password: string) {
+  const loginUrl = `${env.APP_URL}/login`;
+  await send(
+    to,
+    "Your CAA Legal account is ready",
+    layout(
+      `Hello ${name},`,
+      `<p style="margin:0 0 12px;">You have been invited to CAA Legal. Sign in with:</p>
+      <p style="margin:0 0 8px;font-size:14px;"><strong>Email:</strong> ${to}</p>
+      <p style="margin:0 0 16px;font-size:14px;"><strong>Password:</strong> ${password}</p>
+      ${button(loginUrl, "Sign in")}
+      <p style="margin:0;font-size:13px;color:#6B6760;">This is a shared prototype password so the team can try the product quickly.</p>`,
+    ),
+  );
+}
+
 /** Both the first-time invite and every later "forgot password" send this same email (spec §15). */
 export async function sendResetPasswordEmail(to: string, name: string, url: string) {
   await send(

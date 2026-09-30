@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireMatterAccess } from "@/lib/authz";
+import { requireMatterAccess, requireMatterEdit } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { encryptFile, sha256Hex } from "@/lib/documents/encryption";
@@ -19,7 +19,10 @@ export async function uploadDocument(formData: FormData): Promise<ActionResult> 
     folderId: formData.get("folderId"),
     confidentiality: formData.get("confidentiality"),
     tags: formData.get("tags"),
-    linkedEventId: formData.get("linkedEventId"),
+    // A form that never renders this field (e.g. the org-wide Documents page, which has
+    // no single timeline to link into) gets `null` from FormData, not `undefined` — and
+    // zod's .optional() only accepts the latter, so this coalesces to keep it optional.
+    linkedEventId: formData.get("linkedEventId") ?? undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, folderId, confidentiality, tags, linkedEventId } = parsed.data;
@@ -112,11 +115,12 @@ export async function uploadDocument(formData: FormData): Promise<ActionResult> 
   }
 
   revalidatePath(`/cases/${matterId}`);
+  revalidatePath("/documents");
   return document ? undefined : { error: "Upload failed." };
 }
 
 export async function deleteDocument(matterId: string, documentId: string): Promise<ActionResult> {
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
   const linked = await db.eventDocument.findFirst({ where: { documentId } });
   if (linked && user.role !== "ADMIN") return { error: "Only an Admin can delete a document linked to a timeline event as evidence." };
 

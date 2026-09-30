@@ -22,7 +22,20 @@ export type TaskRow = {
   naReason: string | null;
 };
 
-export function TasksTab({ matterId, tasks, teamMembers }: { matterId: string; tasks: TaskRow[]; teamMembers: { id: string; name: string }[] }) {
+export function TasksTab({
+  matterId,
+  tasks,
+  teamMembers,
+  currentUserId,
+  canMutate,
+}: {
+  matterId: string;
+  tasks: TaskRow[];
+  teamMembers: { id: string; name: string }[];
+  currentUserId: string;
+  /** Case Lead or Admin — can assign new tasks and manage anyone's (reopen/NA/delete). */
+  canMutate: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
 
@@ -64,6 +77,7 @@ export function TasksTab({ matterId, tasks, teamMembers }: { matterId: string; t
 
   return (
     <div className="grid gap-6">
+      {canMutate && (
       <form action={submitNew} className="flex flex-wrap items-end gap-2 rounded-card border border-border p-4">
         {error && <p className="m-0 w-full text-xs text-danger">{error}</p>}
         <div className="min-w-[220px] flex-1">
@@ -88,6 +102,7 @@ export function TasksTab({ matterId, tasks, teamMembers }: { matterId: string; t
           <Plus className="size-4" /> Add task
         </Button>
       </form>
+      )}
 
       {tasks.length === 0 ? (
         <p className="m-0 text-[13px] text-text-muted">No tasks yet.</p>
@@ -95,15 +110,17 @@ export function TasksTab({ matterId, tasks, teamMembers }: { matterId: string; t
         <div className="grid gap-2">
           {[...open, ...done].map((t) => {
             const overdue = t.status === "OPEN" && new Date(t.dueAt) < new Date();
+            const canToggle = canMutate || t.assigneeId === currentUserId;
             return (
               <div key={t.id} className="flex items-center gap-3 rounded-card border border-border p-3">
                 <button
                   type="button"
-                  onClick={() => (t.status === "OPEN" ? onComplete(t) : onReopen(t))}
-                  disabled={pending}
+                  onClick={() => canToggle && (t.status === "OPEN" ? onComplete(t) : onReopen(t))}
+                  disabled={pending || !canToggle}
                   className={cn(
                     "grid size-5 shrink-0 place-items-center rounded-full border-2",
                     t.status === "DONE" ? "border-success bg-success text-on-primary" : "border-border",
+                    !canToggle && "cursor-default",
                   )}
                   aria-label={t.status === "OPEN" ? "Mark done" : "Reopen"}
                 >
@@ -118,13 +135,15 @@ export function TasksTab({ matterId, tasks, teamMembers }: { matterId: string; t
                 </div>
                 {overdue && <Badge tone="danger">Overdue</Badge>}
                 {t.status === "NA" && <Badge tone="neutral">N/A</Badge>}
+                {(canMutate || t.assigneeId === currentUserId) && (
                 <RowActionsMenu
                   actions={[
                     ...(t.status === "OPEN" ? [{ label: "Mark not applicable", icon: Ban, onClick: () => onNA(t) }] : []),
                     ...(t.status !== "OPEN" ? [{ label: "Reopen", icon: RotateCcw, onClick: () => onReopen(t) }] : []),
-                    { label: "Delete", icon: Trash2, danger: true, onClick: () => onDelete(t) },
+                    ...(canMutate ? [{ label: "Delete", icon: Trash2, danger: true, onClick: () => onDelete(t) }] : []),
                   ]}
                 />
+                )}
               </div>
             );
           })}

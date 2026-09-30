@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
@@ -27,7 +28,16 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
   // Fetching first (rather than letting Better Auth do it alone) is what lets us apply
   // our own lockout policy — Better Auth has no built-in lockout concept.
-  const user = await db.user.findUnique({ where: { email } });
+  let user;
+  try {
+    user = await db.user.findUnique({ where: { email } });
+  } catch (err) {
+    if (isPrismaRequestError(err)) {
+      console.error("loginAction: database unavailable", err);
+      return { error: "Sign-in is temporarily unavailable. Make sure Postgres is running (`docker compose up -d`), then try again." };
+    }
+    throw err;
+  }
   if (!user || !user.isActive) return { error: GENERIC_ERROR };
 
   if (isLocked(user)) {
@@ -71,4 +81,12 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 /** redirect() throws internally; never treat that as a real error. */
 function isRedirectError(err: unknown): boolean {
   return typeof err === "object" && err !== null && "digest" in err && String((err as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT");
+}
+
+function isPrismaRequestError(err: unknown): boolean {
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError ||
+    err instanceof Prisma.PrismaClientUnknownRequestError ||
+    err instanceof Prisma.PrismaClientInitializationError
+  );
 }

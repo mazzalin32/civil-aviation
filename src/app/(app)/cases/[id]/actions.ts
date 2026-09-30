@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { AssignmentRole } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireMatterAccess } from "@/lib/authz";
+import { requireMatterEdit } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import {
@@ -34,7 +34,7 @@ export async function moveStage(raw: unknown): Promise<ActionResult> {
   const parsed = moveStageSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, stageTemplateId, note, fields } = parsed.data;
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   const matter = await db.matter.findUniqueOrThrow({ where: { id: matterId }, include: { currentStage: true } });
   const target = await db.stageTemplate.findUniqueOrThrow({ where: { id: stageTemplateId } });
@@ -89,7 +89,7 @@ export async function addEvent(raw: unknown): Promise<ActionResult> {
   const parsed = addEventSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, typeId, title, description, date } = parsed.data;
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   await db.$transaction(async (tx) => {
     const event = await tx.event.create({
@@ -106,7 +106,7 @@ export async function updateSummary(raw: unknown): Promise<ActionResult> {
   const parsed = updateSummarySchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, body } = parsed.data;
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   await db.$transaction(async (tx) => {
     const version = await tx.summaryVersion.create({ data: { matterId, body, authorId: user.id } });
@@ -121,7 +121,7 @@ export async function addNote(raw: unknown): Promise<ActionResult> {
   const parsed = noteSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, body, isPrivate } = parsed.data;
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   const note = await db.note.create({ data: { matterId, body, isPrivate, authorId: user.id } });
   await writeAudit({ userId: user.id, action: "matter.note.add", entity: "Note", entityId: note.id });
@@ -132,7 +132,7 @@ export async function updateNote(raw: unknown): Promise<ActionResult> {
   const parsed = updateNoteSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, id, body, isPrivate } = parsed.data;
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   const existing = await db.note.findUniqueOrThrow({ where: { id } });
   if (existing.authorId !== user.id && user.role !== "ADMIN") return { error: "Only the author or an Admin can edit this note." };
@@ -143,7 +143,7 @@ export async function updateNote(raw: unknown): Promise<ActionResult> {
 }
 
 export async function deleteNote(matterId: string, id: string): Promise<ActionResult> {
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
   const existing = await db.note.findUniqueOrThrow({ where: { id } });
   if (existing.authorId !== user.id && user.role !== "ADMIN") return { error: "Only the author or an Admin can delete this note." };
 
@@ -156,7 +156,7 @@ export async function addParty(raw: unknown): Promise<ActionResult> {
   const parsed = partyFormSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, name, kind, counselName, counselFirm, email, phone, address, department } = parsed.data;
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   const party = await db.party.create({
     data: { matterId, name, kind, counselName: counselName || null, counselFirm: counselFirm || null, email: email || null, phone: phone || null, address: address || null, department: department || null },
@@ -170,7 +170,7 @@ export async function updateParty(raw: unknown): Promise<ActionResult> {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, id, name, kind, counselName, counselFirm, email, phone, address, department } = parsed.data;
   if (!id) return { error: "Missing party id." };
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   await db.party.update({
     where: { id },
@@ -181,7 +181,7 @@ export async function updateParty(raw: unknown): Promise<ActionResult> {
 }
 
 export async function removeParty(matterId: string, id: string): Promise<ActionResult> {
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
   await db.party.delete({ where: { id } });
   await writeAudit({ userId: user.id, action: "matter.party.remove", entity: "Party", entityId: id });
   reload(matterId);
@@ -191,7 +191,7 @@ export async function reassign(raw: unknown): Promise<ActionResult> {
   const parsed = reassignSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, leadUserId, supportUserIds, reason } = parsed.data;
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   const current = await db.matterAssignment.findMany({ where: { matterId, removedAt: null } });
   const currentLead = current.find((a) => a.role === "LEAD");
@@ -249,7 +249,7 @@ export async function putOnHold(raw: unknown): Promise<ActionResult> {
   const parsed = holdSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, reason } = parsed.data;
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
 
   const matter = await db.matter.findUniqueOrThrow({ where: { id: matterId } });
   if (matter.status !== "OPEN") return { error: "Only an open case can be put on hold." };
@@ -263,7 +263,7 @@ export async function putOnHold(raw: unknown): Promise<ActionResult> {
 }
 
 export async function resumeCase(matterId: string): Promise<ActionResult> {
-  const user = await requireMatterAccess(matterId);
+  const user = await requireMatterEdit(matterId);
   const matter = await db.matter.findUniqueOrThrow({ where: { id: matterId } });
   if (matter.status !== "ON_HOLD") return { error: "Only a case on hold can be resumed." };
 

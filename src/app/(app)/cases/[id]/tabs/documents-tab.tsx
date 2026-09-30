@@ -37,6 +37,8 @@ export function DocumentsTab({
   events,
   matterConfidentiality,
   isAdmin,
+  canUpload,
+  canMutate,
 }: {
   matterId: string;
   documents: DocRow[];
@@ -44,6 +46,10 @@ export function DocumentsTab({
   events: { id: string; title: string }[];
   matterConfidentiality: "NORMAL" | "CONFIDENTIAL" | "HIGHLY_CONFIDENTIAL";
   isAdmin: boolean;
+  /** Anyone can upload a supporting document, even off the case team (prototype: org-wide). */
+  canUpload: boolean;
+  /** Deleting requires being on the case team (Lead/Support) or Admin. */
+  canMutate: boolean;
 }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -73,9 +79,11 @@ export function DocumentsTab({
 
   return (
     <div className="grid gap-6">
-      <Button type="button" variant="primary" className="justify-self-start" onClick={() => setUploadOpen(true)}>
-        <Plus className="size-4" /> Upload document
-      </Button>
+      {canUpload && (
+        <Button type="button" variant="primary" className="justify-self-start" onClick={() => setUploadOpen(true)}>
+          <Plus className="size-4" /> Upload document
+        </Button>
+      )}
 
       {active.length === 0 ? (
         <p className="m-0 text-[13px] text-text-muted">No documents uploaded yet.</p>
@@ -124,7 +132,7 @@ export function DocumentsTab({
                       )}
                     </>
                   )}
-                  <RowActionsMenu actions={[{ label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: () => onDelete(d) }]} />
+                  {canMutate && <RowActionsMenu actions={[{ label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: () => onDelete(d) }]} />}
                 </div>
               ))}
             </div>

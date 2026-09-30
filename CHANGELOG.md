@@ -1,5 +1,71 @@
 # Changelog
 
+## Documents page: real upload, sort, sample files (2026-09-30, latest)
+
+### Added
+- "Upload document" button on `/documents` — a real upload (encrypted, virus-scanned, same pipeline as a case's Documents tab), just with a Case picker up front since this page isn't scoped to one matter.
+- Sort control (Latest first / Name A–Z) on the library.
+- Seed now creates 4 real sample documents (encrypted + written to disk, not fake UI rows) across a few cases, so the library shows real file icon + filename + case + folder + size instead of an empty state.
+
+### Fixed
+- `uploadDocument`'s validation broke for any form that doesn't render a `linkedEventId` field (like the new global upload dialog, which has no single timeline to link into) — `FormData.get()` returns `null` for a missing field, and zod's `.optional()` only accepts `undefined`, so it failed with "Invalid input" every time. Coalesced `null` to `undefined` before validating.
+
+## Sidebar/dashboard cleanup, logo placement (2026-09-30, later still)
+
+### Changed
+- Sidebar nav is one flat list again — dropped the Workspace/Case management/Reporting section headers, matches the "everyone sees it all, no artificial grouping" prototype feel.
+- Sidebar brand mark now uses the actual CAA logo image instead of a generic icon.
+- Login screen no longer repeats the logo on the white side — it only appears once, on the blue panel.
+- Dashboard greeting is just "Good morning/afternoon/evening, {name}" — dropped the descriptive subtitle under it.
+
+### Fixed
+- The "Matters by stage" and "Matters by risk" dashboard cards had a too-short fixed height (`h-[180px]`) for their content (count label + bar/donut + caption line), so the content overflowed past the card's top padding — it looked like the first bar's count label was misaligned/overlapping the card subtitle, when every bar was actually at an identical position (confirmed via bounding-box measurement); the real bug was the container being shorter than what it holds, not a per-item offset. Fixed by sizing the container to fit its content properly.
+
+## Pitch prototype: new nav pages, login redesign (2026-09-30, later)
+
+### Added
+- **Documents** (`/documents`): org-wide, read-through library across every matter's documents, searchable by name/case, with view/download links back into the case's Documents tab. Uploading still happens from the case page.
+- **Law Firms & Counsel** (`/law-firms`): directory of outside firms/counsel — new `LawFirm` model, anyone can add/edit, Admin can deactivate.
+- **Links** (`/links`): quick-reference links to statutes/court portals, grouped by category — new `ResourceLink` model.
+- **Group Chat** (`/chat`): org-wide chat separate from each case's own discussion thread — new `GroupMessage` model. Call buttons, attach and voice-note are UI-only for this prototype (no calling backend), and say so when clicked rather than doing nothing.
+- Seed now adds two sample law firms, three sample links, and one starter group-chat message so these pages aren't empty on a fresh seed.
+
+### Fixed
+- Every sidebar link now resolves — previously Documents/Law Firms & Counsel/Links/Group Chat were in the nav but 404'd, and Reports was Admin-only despite being in every role's nav.
+- A stale dev server process (holding an old, pre-migration Prisma Client in memory) was serving a generic error page for the new routes; restarting it after `prisma generate` picks up the new models.
+
+## Login redesign to match reference (2026-09-30)
+
+### Changed
+- Rebuilt the login screen around the reference the client provided: large circular seal-style badge on the brand panel, "Welcome to CAA Legal / Case & Matter Management" heading with the logo above it on the white side, uppercase primary button, and inputs that only tint on the bottom border when focused (no ring/glow).
+- Auth pages now force the light design tokens regardless of the browser/OS's dark-mode preference — there's no signed-in user yet to have picked a theme, and a dark browser was rendering the whole login page dark, which is what looked "not white" before this fix.
+
+## Pitch prototype: org-wide visibility, nav overhaul (2026-09-30)
+
+### Changed
+- **Org-wide read access**: any lawyer can now open any case (not just ones they're assigned to) — `canAccessMatter` always allows read. Editing case data (stage, parties, summary, notes, timeline events, closure) is still limited to the case's Lead/Support or Admin, via new `canEditMatter`/`requireMatterEdit`.
+- **Document uploads are org-wide**: any lawyer can upload a supporting document to any case regardless of assignment (`canUploadDocument`); deleting still requires Lead/Support/Admin.
+- **Task assignment**: only a case's Lead (or Admin) can create/delete/reassign tasks (`canAssignTasks`/`requireTaskAssign`); the task's own assignee can still mark their own task done/reopened even off the case team.
+- `/cases` drops the "My cases" (assigned-only) filter for lawyers — everyone sees the full case list, matching the new org-wide model.
+- Sidebar rebuilt with grouped sections (Workspace / Case management / Reporting), a live open-tasks badge, and the same nav for every role (Admin gets an extra Administration section). Hearings, Parties, Audit Trail and Import dropped from the nav.
+- Login screen: wider brand panel, placeholder-only fields (no visible labels) matching the reference look the client pointed to.
+
+### Fixed
+- `proxy.ts`'s route matcher didn't exclude public static files (images, fonts) — an unauthenticated request for the login page's own logo was 307'd to `/login`, breaking the image. Matcher now excludes common static asset extensions.
+
+## Prototype dashboard (2026-09-29)
+
+### Added
+- Shared **Dashboard** for Admin and lawyers: greeting, KPI cards, matters-by-stage, matters-by-risk, cases needing attention, and deadlines requiring action. Widgets are clickable (cases, calendar, tasks, reports). Admin sees the whole portfolio; a lawyer sees only assigned matters. **New case** stays Admin-only.
+- Per-case **Discussion** chat — the one place lawyers can write as well as view. `MatterMessage` table + audit on every post.
+- `/tasks` is a real list (open tasks, overdue highlighted) for both roles, linked from the dashboard.
+- Prototype lawyer login: `DEMO_LOGIN_PASSWORD` (currently `12345678`). Invited lawyers get that password by email and can sign in immediately with their email. Seeded lawyers use the same password.
+
+### Changed
+- Lawyers land on `/dashboard` (same layout as Admin). `/my-day` redirects there.
+- On a case, lawyers are view-only (no add event, move stage, upload, task CRUD, notes, summary edit). Admin still does those actions.
+- Case tabs: **Parties** removed; **Hearings & deadlines** is now **Deadlines** only.
+
 ## Phase 0 — Setup (2026-09-26)
 
 ### Added

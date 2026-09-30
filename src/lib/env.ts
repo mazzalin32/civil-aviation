@@ -15,6 +15,9 @@ const schema = z.object({
   MAIL_FROM: z.string().default("CAA Legal <no-reply@caa.go.ug>"),
   // TEMPORARY, testing only — spec requires 2FA on every account. Must be true before go-live.
   REQUIRE_2FA: z.stringbool().default(true),
+  // Shared password for every lawyer on this prototype (invite email + login). Leave empty
+  // to keep the real invite-link / pick-your-own-password flow.
+  DEMO_LOGIN_PASSWORD: z.string().optional(),
   // TEMPORARY, testing only — spec requires the seeded Admin's temp password be changed at
   // first login (§5.1). Must be true before go-live.
   REQUIRE_PASSWORD_CHANGE: z.stringbool().default(true),

@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/authz";
 export const metadata = { title: "Reports" };
 
 export default async function Page() {
-  await requireRole("ADMIN");
+  await requireRole();
   return (
     <ComingSoon
       title="Reports"

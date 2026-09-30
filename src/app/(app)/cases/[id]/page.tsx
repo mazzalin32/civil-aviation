@@ -1,19 +1,17 @@
 import { notFound } from "next/navigation";
-import { MessagesSquare } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireMatterAccess } from "@/lib/authz";
-import { EmptyState } from "@/components/app/empty-state";
+import { requireMatterAccess, canEditMatter, canAssignTasks } from "@/lib/authz";
 import { CaseHeader } from "./header";
 import { LifecycleTracker, type TrackerStage } from "./lifecycle-tracker";
 import { CatchUpPanel } from "./catch-up-panel";
 import { TabStrip, type TabKey } from "./tabs/tab-strip";
 import { TimelineTab } from "./tabs/timeline-tab";
-import { PartiesTab } from "./tabs/parties-tab";
 import { NotesTab } from "./tabs/notes-tab";
 import { ActivityTab } from "./tabs/activity-tab";
 import { DocumentsTab } from "./tabs/documents-tab";
 import { HearingsTab, type HearingRow } from "./tabs/hearings-tab";
 import { TasksTab } from "./tabs/tasks-tab";
+import { DiscussionTab } from "./tabs/discussion-tab";
 
 export const metadata = { title: "Case" };
 
@@ -29,6 +27,8 @@ export default async function CasePage({
   const sp = await searchParams;
   const tab = (typeof sp.tab === "string" ? sp.tab : "timeline") as TabKey;
   const isAdmin = me.role === "ADMIN";
+  const canEdit = await canEditMatter(me.id, me.role, id);
+  const canAssign = await canAssignTasks(me.id, me.role, id);
 
   const matter = await db.matter.findUnique({
     where: { id },
@@ -43,7 +43,7 @@ export default async function CasePage({
   });
   if (!matter) notFound();
 
-  const [stageMoves, events, latestSummary, summaryVersionIds, notesRaw, lawyers] = await Promise.all([
+  const [stageMoves, events, latestSummary, summaryVersionIds, notesRaw, lawyers, messages] = await Promise.all([
     db.matterStage.findMany({ where: { matterId: id }, orderBy: { enteredAt: "asc" } }),
     db.event.findMany({ where: { matterId: id }, include: { type: true, createdBy: { select: { name: true } } }, orderBy: { date: "desc" } }),
     db.summaryVersion.findFirst({ where: { matterId: id }, orderBy: { createdAt: "desc" }, include: { author: { select: { name: true } } } }),
@@ -57,6 +57,11 @@ export default async function CasePage({
       where: { role: "LAWYER", isActive: true },
       select: { id: true, name: true, title: true, _count: { select: { matterAssignments: { where: { removedAt: null, matter: { status: { in: ["OPEN", "ON_HOLD"] } } } } } } },
       orderBy: { name: "asc" },
+    }),
+    db.matterMessage.findMany({
+      where: { matterId: id },
+      include: { author: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "asc" },
     }),
   ]);
 
@@ -127,6 +132,7 @@ export default async function CasePage({
           forumName: matter.forum?.name ?? null,
           team,
           isAdmin,
+          canMutate: canEdit,
           eventTypes: eventTypes.map((t) => ({ id: t.id, name: t.name })),
           stages: matter.matterType.stages.map((s) => ({ id: s.id, name: s.name, order: s.order, requiredFields: s.requiredFields })),
           currentStageId: matter.currentStageId,
@@ -152,6 +158,13 @@ export default async function CasePage({
             lastActivityAt: matter.lastActivityAt.toISOString(),
           }}
           team={team}
+          canMutate={canEdit}
+          deadlines={calendarEntries
+            .filter((e) => e.kind === "DEADLINE" && e.status === "OPEN")
+            .slice()
+            .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+            .slice(0, 4)
+            .map((e) => ({ id: e.id, title: e.title, dueAt: e.startsAt.toISOString(), isCritical: e.isCritical }))}
         />
       </div>
 
@@ -161,9 +174,9 @@ export default async function CasePage({
         counts={{
           timeline: events.length,
           documents: documentsRaw.filter((d) => !d.deletedAt).length,
-          hearings: calendarEntries.length,
+          hearings: calendarEntries.filter((e) => e.kind === "DEADLINE").length,
           tasks: tasksRaw.length,
-          parties: matter.parties.length,
+          discussion: messages.length,
           notes: notesRaw.length,
           activity: tab === "activity" ? activity.length : undefined,
         }}
@@ -175,12 +188,12 @@ export default async function CasePage({
           typeNames={eventTypes.map((t) => t.name)}
         />
       )}
-      {tab === "parties" && <PartiesTab matterId={matter.id} parties={matter.parties} />}
       {tab === "notes" && (
         <NotesTab
           matterId={matter.id}
           notes={notesRaw.map((n) => ({ id: n.id, body: n.body, isPrivate: n.isPrivate, authorId: n.author.id, authorName: n.author.name, updatedAt: n.updatedAt.toISOString() }))}
           currentUserId={me.id}
+          canMutate={canEdit}
         />
       )}
       {tab === "activity" && (
@@ -196,6 +209,8 @@ export default async function CasePage({
           events={events.map((e) => ({ id: e.id, title: e.title }))}
           matterConfidentiality={matter.confidentiality}
           isAdmin={isAdmin}
+          canUpload
+          canMutate={canEdit}
           documents={documentsRaw.map((d) => ({
             id: d.id,
             name: d.name,
@@ -214,7 +229,10 @@ export default async function CasePage({
       )}
       {tab === "hearings" && (
         <HearingsTab
-          entries={calendarEntries.map((e) => ({
+          canMutate={isAdmin}
+          entries={calendarEntries
+            .filter((e) => e.kind === "DEADLINE")
+            .map((e) => ({
             id: e.id,
             kind: e.kind as HearingRow["kind"],
             title: e.title,
@@ -231,7 +249,9 @@ export default async function CasePage({
       {tab === "tasks" && (
         <TasksTab
           matterId={matter.id}
-          teamMembers={team}
+          currentUserId={me.id}
+          canMutate={canAssign}
+          teamMembers={lawyers.map((l) => ({ id: l.id, name: l.name }))}
           tasks={tasksRaw.map((t) => ({
             id: t.id,
             title: t.title,
@@ -244,7 +264,19 @@ export default async function CasePage({
           }))}
         />
       )}
-      {tab === "discussion" && <EmptyState icon={MessagesSquare} title="Discussion" description="The per-case chat thread arrives in Phase 9." />}
+      {tab === "discussion" && (
+        <DiscussionTab
+          matterId={matter.id}
+          currentUserId={me.id}
+          messages={messages.map((m) => ({
+            id: m.id,
+            body: m.body,
+            createdAt: m.createdAt.toISOString(),
+            authorId: m.author.id,
+            authorName: m.author.name,
+          }))}
+        />
+      )}
     </>
   );
 }

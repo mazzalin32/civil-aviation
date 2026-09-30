@@ -14,10 +14,40 @@
  */
 import "dotenv/config";
 import crypto from "node:crypto";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 import nodemailer from "nodemailer";
 import { PrismaClient, Role, AssignmentRole, PartyKind } from "../src/generated/prisma/client";
+
+// Reimplemented here rather than imported from src/lib/documents/* — those are "server-only"
+// and throw outside a Next.js server context (this is a plain tsx script). Same envelope
+// AES-256-GCM scheme as src/lib/documents/encryption.ts, so the real download route can
+// decrypt whatever this seeds.
+function seedEncryptFile(plaintext: Buffer) {
+  const masterKey = Buffer.from(process.env.DOCUMENT_MASTER_KEY!, "base64");
+  const dataKey = crypto.randomBytes(32);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", dataKey, iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  const keyIv = crypto.randomBytes(12);
+  const keyCipher = crypto.createCipheriv("aes-256-gcm", masterKey, keyIv);
+  const wrappedKey = Buffer.concat([keyCipher.update(dataKey), keyCipher.final()]);
+  const keyAuthTag = keyCipher.getAuthTag();
+  const encryptedDataKey = Buffer.concat([keyIv, keyAuthTag, wrappedKey]).toString("base64");
+
+  return { ciphertext, encryptedDataKey, iv: iv.toString("base64"), authTag: authTag.toString("base64") };
+}
+
+async function seedPutObject(key: string, data: Buffer) {
+  const root = path.resolve(process.env.DOCUMENT_STORAGE_DIR ?? "./storage/documents");
+  const full = path.resolve(root, key);
+  await fs.mkdir(path.dirname(full), { recursive: true });
+  await fs.writeFile(full, data);
+}
 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
 const mail = nodemailer.createTransport({
@@ -720,6 +750,86 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
   }
 }
 
+/** A few Law Firms / Links / a group chat message so the pitch prototype's newer pages
+ *  (org-wide, not tied to a matter) aren't empty on a fresh seed. Guarded by name/title
+ *  so reseeding doesn't duplicate them. */
+async function seedPitchExtras(adminId: string, firstLawyerId: string) {
+  const firms: { name: string; contactName: string; phone: string; email: string }[] = [
+    { name: "Katende, Ssempebwa & Co. Advocates", contactName: "Ms. Harriet Nabirye", phone: "+256 414 342 634", email: "info@ksadvocates.co.ug" },
+    { name: "MMAKS Advocates", contactName: "Mr. Timothy Kanyerezi", phone: "+256 417 701 000", email: "info@mmaks.co.ug" },
+  ];
+  for (const f of firms) {
+    const existing = await db.lawFirm.findFirst({ where: { name: f.name } });
+    if (!existing) await db.lawFirm.create({ data: { ...f, addedById: adminId } });
+  }
+
+  const links: { title: string; url: string; category: string }[] = [
+    { title: "The Judicature Act", url: "https://ulii.org/akn/ug/act/1996/13", category: "Statutes" },
+    { title: "Civil Procedure Rules", url: "https://ulii.org/akn/ug/act/si/1971/48", category: "Statutes" },
+    { title: "Judiciary e-Filing (ECCMIS)", url: "https://eccmis.judiciary.go.ug", category: "Court portals" },
+    { title: "Uganda Legal Information Institute (ULII)", url: "https://ulii.org", category: "Legal research" },
+    { title: "International Civil Aviation Organization (ICAO)", url: "https://www.icao.int", category: "Aviation" },
+    { title: "Google", url: "https://www.google.com", category: "Tools" },
+    { title: "WhatsApp Web", url: "https://web.whatsapp.com", category: "Tools" },
+  ];
+  for (const l of links) {
+    const existing = await db.resourceLink.findFirst({ where: { title: l.title } });
+    if (!existing) await db.resourceLink.create({ data: { ...l, addedById: adminId } });
+  }
+
+  const groupMessageCount = await db.groupMessage.count();
+  if (groupMessageCount === 0) {
+    await db.groupMessage.create({
+      data: { authorId: firstLawyerId, body: "Welcome to the department group chat — post updates that affect everyone here." },
+    });
+  }
+
+  // A few real documents (encrypted + written to disk, same as a live upload) so the
+  // Documents library shows what a document actually looks like, not an empty state.
+  const documentCount = await db.document.count();
+  if (documentCount === 0 && process.env.DOCUMENT_MASTER_KEY) {
+    const sampleMatters = await db.matter.findMany({ take: 3, orderBy: { createdAt: "asc" }, select: { id: true } });
+    const folderByName = new Map((await db.documentFolder.findMany({ select: { id: true, name: true } })).map((f) => [f.name, f.id]));
+    // .txt + text/plain (not .pdf) so "View" actually opens correctly instead of a
+    // mismatched-mimetype preview — the list only ever shows a generic file icon anyway.
+    const samples: { matterIndex: number; folder: string; name: string; body: string }[] = [
+      { matterIndex: 0, folder: "Pleadings", name: "Plaint.txt", body: "Sample plaint document — pitch prototype placeholder content." },
+      { matterIndex: 0, folder: "Evidence", name: "Witness statement - A. Nakato.txt", body: "Sample witness statement — pitch prototype placeholder content." },
+      { matterIndex: 1, folder: "Correspondence", name: "Letter to opposing counsel.txt", body: "Sample correspondence — pitch prototype placeholder content." },
+      { matterIndex: 2, folder: "Court Orders", name: "Scheduling order.txt", body: "Sample court order — pitch prototype placeholder content." },
+    ];
+    for (const s of samples) {
+      const matterId = sampleMatters[s.matterIndex]?.id;
+      const folderId = folderByName.get(s.folder);
+      if (!matterId || !folderId) continue;
+
+      const plaintext = Buffer.from(s.body, "utf8");
+      const encrypted = seedEncryptFile(plaintext);
+      const document = await db.document.create({
+        data: { matterId, folderId, name: s.name, tags: [], confidentiality: "NORMAL", uploadedById: adminId },
+      });
+      const storageKey = `${document.id}/v1`;
+      await seedPutObject(storageKey, encrypted.ciphertext);
+      const version = await db.documentVersion.create({
+        data: {
+          documentId: document.id,
+          version: 1,
+          storageKey,
+          sha256: crypto.createHash("sha256").update(plaintext).digest("hex"),
+          mimeType: "text/plain",
+          size: plaintext.length,
+          encryptedDataKey: encrypted.encryptedDataKey,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          scanStatus: "CLEAN",
+          uploadedById: adminId,
+        },
+      });
+      await db.document.update({ where: { id: document.id }, data: { currentVersionId: version.id } });
+    }
+  }
+}
+
 async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? crypto.randomBytes(9).toString("base64url");
   const adminUser = await db.user.upsert({ where: { email: admin.email }, update: {}, create: admin });
@@ -754,6 +864,7 @@ async function main() {
 
   const lawyersByEmail = new Map(lawyerUsers.map((u) => [u.email, u.id]));
   await seedCases(lawyersByEmail, adminUser.id);
+  await seedPitchExtras(adminUser.id, lawyerUsers[0]?.id ?? adminUser.id);
 
   await db.auditLog.create({
     data: { userId: null, action: "seed.run", entity: "System", after: { phase: 4, users: lawyers.length + 1, cases: CASE_SEEDS.length } },
@@ -761,11 +872,43 @@ async function main() {
 
   console.log(`\nSeeded Admin: ${adminUser.email}`);
   if (!hadAdminAccount) console.log(`  Temporary password: ${adminPassword}  (must change at first login)`);
-  console.log(`\nActivation links (also sent to Mailpit — http://localhost:8026):`);
-  for (const u of lawyerUsers) {
-    const hasAccount = await db.account.findFirst({ where: { userId: u.id, providerId: "credential" } });
-    if (!hasAccount) await sendActivationLink(u.id, u.email, u.name, u.isNew);
-    else console.log(`  ${u.email} → already activated`);
+
+  const demoPassword = process.env.DEMO_LOGIN_PASSWORD?.trim();
+  if (demoPassword) {
+    const hashed = await hashPassword(demoPassword);
+    console.log(`\nPrototype lawyer login — password for every lawyer: ${demoPassword}`);
+    for (const u of lawyerUsers) {
+      const hasAccount = await db.account.findFirst({ where: { userId: u.id, providerId: "credential" } });
+      if (hasAccount) {
+        await db.account.update({ where: { id: hasAccount.id }, data: { password: hashed } });
+      } else {
+        await db.account.create({
+          data: { userId: u.id, providerId: "credential", accountId: u.id, password: hashed },
+        });
+      }
+      await db.user.update({ where: { id: u.id }, data: { emailVerified: true, mustChangePassword: false } });
+      console.log(`  ${u.email}`);
+      try {
+        await Promise.race([
+          mail.sendMail({
+            from: process.env.MAIL_FROM ?? "CAA Legal <no-reply@caa.go.ug>",
+            to: u.email,
+            subject: "Your CAA Legal account is ready",
+            html: `<p>Hello ${u.name},</p><p>Sign in at ${APP_URL}/login</p><p>Email: ${u.email}<br>Password: ${demoPassword}</p>`,
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("SMTP timeout")), 8000)),
+        ]);
+      } catch (err) {
+        console.log(`    (email not sent — ${(err as Error).message})`);
+      }
+    }
+  } else {
+    console.log(`\nActivation links (also sent to Mailpit — http://localhost:8026):`);
+    for (const u of lawyerUsers) {
+      const hasAccount = await db.account.findFirst({ where: { userId: u.id, providerId: "credential" } });
+      if (!hasAccount) await sendActivationLink(u.id, u.email, u.name, u.isNew);
+      else console.log(`  ${u.email} → already activated`);
+    }
   }
   console.log(`\nSeeded ${CASE_SEEDS.length} cases (skipping any that already exist from a previous run).`);
 }

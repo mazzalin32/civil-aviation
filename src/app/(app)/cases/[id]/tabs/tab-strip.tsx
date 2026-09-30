@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export type TabKey = "timeline" | "documents" | "hearings" | "tasks" | "discussion" | "parties" | "notes" | "activity";
+export type TabKey = "timeline" | "documents" | "hearings" | "tasks" | "discussion" | "notes" | "activity";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "timeline", label: "Timeline" },
   { key: "documents", label: "Documents" },
-  { key: "hearings", label: "Hearings & deadlines" },
+  { key: "hearings", label: "Deadlines" },
   { key: "tasks", label: "Tasks" },
   { key: "discussion", label: "Discussion" },
-  { key: "parties", label: "Parties" },
   { key: "notes", label: "Notes" },
   { key: "activity", label: "Activity" },
 ];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { CalendarClock, Clock, FilePlus2, Pause, Play, UserCog, XCircle } from "lucide-react";
+import { Clock, FilePlus2, Pause, Play, UserCog, XCircle } from "lucide-react";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { putOnHold, resumeCase } from "./actions";
 
@@ -10,14 +10,12 @@ export function CaseMenu({
   isAdmin,
   status,
   onReassign,
-  onScheduleHearing,
   onAddDeadline,
 }: {
   matterId: string;
   isAdmin: boolean;
   status: "OPEN" | "ON_HOLD" | "CLOSURE_REQUESTED" | "CLOSED";
   onReassign: () => void;
-  onScheduleHearing: () => void;
   onAddDeadline: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -41,7 +39,6 @@ export function CaseMenu({
     <RowActionsMenu
       label="More actions"
       actions={[
-        { label: "Schedule hearing", icon: CalendarClock, onClick: onScheduleHearing },
         { label: "Add deadline", icon: Clock, onClick: onAddDeadline },
         { label: "New application (later)", icon: FilePlus2, disabled: true, onClick: () => {} },
         { kind: "separator" },

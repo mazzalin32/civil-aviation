@@ -24,14 +24,14 @@ export type HearingRow = {
   purpose: string | null;
 };
 
-export function HearingsTab({ entries }: { entries: HearingRow[] }) {
+export function HearingsTab({ entries, canMutate }: { entries: HearingRow[]; canMutate: boolean }) {
   const [recording, setRecording] = useState<OutcomeEntry | null>(null);
   // A snapshot taken once when this component first mounts is fine here — it only needs to
   // be "roughly now" for the overdue/needs-outcome check below, not stable across re-renders.
   const [now] = useState(() => Date.now());
 
   if (entries.length === 0) {
-    return <p className="m-0 text-[13px] text-text-muted">No hearings or deadlines scheduled yet — use the ⋯ menu above to add one.</p>;
+    return <p className="m-0 text-[13px] text-text-muted">No deadlines scheduled yet.</p>;
   }
 
   return (
@@ -65,7 +65,7 @@ export function HearingsTab({ entries }: { entries: HearingRow[] }) {
                 </p>
               )}
             </div>
-            {needsOutcome && (
+            {canMutate && needsOutcome && (
               <Button type="button" size="sm" variant="primary" onClick={() => setRecording({ id: e.id, title: e.title, kind: e.kind, startsAt: e.startsAt })}>
                 Record outcome
               </Button>

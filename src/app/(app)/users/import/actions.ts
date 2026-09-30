@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { Role } from "@/generated/prisma/client";
+import { demoLoginPassword, setDemoLoginPassword } from "@/lib/demo-login";
+import { sendLawyerReadyEmail } from "@/lib/mailer";
 import { detectColumns, parseWorkbookToGrid, validateMappedRows, type ColumnMapping, type ParsedRow } from "./parse";
 
 export type PreviewResult =
@@ -79,7 +81,13 @@ export async function confirmImport(rows: ParsedRow[]): Promise<ConfirmResult | 
       },
     });
     createdIds.push(user.id);
-    await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/activate" }, headers: hdrs, asResponse: false });
+    const shared = demoLoginPassword();
+    if (shared) {
+      await setDemoLoginPassword(user.id);
+      await sendLawyerReadyEmail(user.email, user.name, shared);
+    } else {
+      await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/activate" }, headers: hdrs, asResponse: false });
+    }
   }
 
   const createdRowNumbers = new Set(toCreate.map((r) => r.row));

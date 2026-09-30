@@ -8,6 +8,8 @@ import { requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { Role } from "@/generated/prisma/client";
 import { createLawyerSchema, updateLawyerSchema } from "@/lib/validation/users";
+import { demoLoginPassword, setDemoLoginPassword } from "@/lib/demo-login";
+import { sendLawyerReadyEmail } from "@/lib/mailer";
 
 async function reload() {
   revalidatePath("/users");
@@ -23,7 +25,17 @@ function fields(data: { phone?: string; title?: string; department?: string; pra
   };
 }
 
-/** Creates the account and sends the same invite-link email as forgot-password (spec §15). */
+async function sendInvite(user: { id: string; email: string; name: string }) {
+  const shared = demoLoginPassword();
+  if (shared) {
+    await setDemoLoginPassword(user.id);
+    await sendLawyerReadyEmail(user.email, user.name, shared);
+    return;
+  }
+  await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/activate" }, headers: await headers(), asResponse: false });
+}
+
+/** Creates the account and sends the invite (shared prototype password, or the real reset link). */
 export async function createLawyer(formData: FormData) {
   const admin = await requireRole("ADMIN");
   const parsed = createLawyerSchema.safeParse({
@@ -45,7 +57,7 @@ export async function createLawyer(formData: FormData) {
   });
   await writeAudit({ userId: admin.id, action: "user.create", entity: "User", entityId: created.id, after: { name: created.name, email: created.email } });
 
-  await auth.api.requestPasswordReset({ body: { email: created.email, redirectTo: "/activate" }, headers: await headers(), asResponse: false });
+  await sendInvite(created);
   await writeAudit({ userId: admin.id, action: "user.invite.sent", entity: "User", entityId: created.id });
 
   await reload();
@@ -56,7 +68,7 @@ export async function resendInvite(id: string) {
   const admin = await requireRole("ADMIN");
   const user = await db.user.findUnique({ where: { id } });
   if (!user) return;
-  await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/activate" }, headers: await headers(), asResponse: false });
+  await sendInvite(user);
   await writeAudit({ userId: admin.id, action: "user.invite.resent", entity: "User", entityId: id });
   await reload();
 }

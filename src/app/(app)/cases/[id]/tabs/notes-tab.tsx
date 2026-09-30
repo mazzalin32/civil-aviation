@@ -10,7 +10,17 @@ import { addNote, deleteNote, updateNote } from "../actions";
 
 export type NoteRow = { id: string; body: string; isPrivate: boolean; authorId: string; authorName: string; updatedAt: string };
 
-export function NotesTab({ matterId, notes, currentUserId }: { matterId: string; notes: NoteRow[]; currentUserId: string }) {
+export function NotesTab({
+  matterId,
+  notes,
+  currentUserId,
+  canMutate,
+}: {
+  matterId: string;
+  notes: NoteRow[];
+  currentUserId: string;
+  canMutate: boolean;
+}) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
@@ -43,6 +53,7 @@ export function NotesTab({ matterId, notes, currentUserId }: { matterId: string;
     <div className="grid gap-4">
       {error && <p className="m-0 text-[13px] text-danger">{error}</p>}
 
+      {canMutate && (
       <form action={submitNew} className="grid gap-2 rounded-card border border-border p-4">
         <textarea
           name="body"
@@ -61,6 +72,7 @@ export function NotesTab({ matterId, notes, currentUserId }: { matterId: string;
           </Button>
         </div>
       </form>
+      )}
 
       {notes.length === 0 ? (
         <p className="m-0 text-[13px] text-text-muted">No notes yet.</p>
@@ -99,7 +111,7 @@ export function NotesTab({ matterId, notes, currentUserId }: { matterId: string;
                       </Badge>
                     )}
                     <span className="ml-auto text-xs text-text-muted">{formatDate(new Date(n.updatedAt))}</span>
-                    {n.authorId === currentUserId && (
+                    {canMutate && n.authorId === currentUserId && (
                       <RowActionsMenu
                         actions={[
                           { label: "Edit", icon: Pencil, onClick: () => setEditingId(n.id) },

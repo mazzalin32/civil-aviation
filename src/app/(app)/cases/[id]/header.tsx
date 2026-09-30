@@ -27,6 +27,7 @@ export type CaseHeaderData = {
   forumName: string | null;
   team: { id: string; name: string; role: "LEAD" | "SUPPORT" }[];
   isAdmin: boolean;
+  canMutate: boolean;
   eventTypes: { id: string; name: string }[];
   stages: { id: string; name: string; order: number; requiredFields: string[] }[];
   currentStageId: string | null;
@@ -35,7 +36,7 @@ export type CaseHeaderData = {
 };
 
 export function CaseHeader({ data }: { data: CaseHeaderData }) {
-  const [dialog, setDialog] = useState<"event" | "moveStage" | "reassign" | "hearing" | "deadline" | null>(null);
+  const [dialog, setDialog] = useState<"event" | "moveStage" | "reassign" | "deadline" | null>(null);
   const lead = data.team.find((t) => t.role === "LEAD");
   const support = data.team.filter((t) => t.role === "SUPPORT");
 
@@ -80,26 +81,30 @@ export function CaseHeader({ data }: { data: CaseHeaderData }) {
             <Avatar key={s.id} name={s.name} seed={s.id} className="ring-2 ring-surface" />
           ))}
         </div>
-        <Button type="button" onClick={() => setDialog("event")}>
-          <CalendarPlus className="size-4" /> Add event
-        </Button>
-        <Button type="button" variant="primary" onClick={() => setDialog("moveStage")}>
-          <GitCommitHorizontal className="size-4" /> Move stage
-        </Button>
-        <CaseMenu
-          matterId={data.id}
-          isAdmin={data.isAdmin}
-          status={data.status}
-          onReassign={() => setDialog("reassign")}
-          onScheduleHearing={() => setDialog("hearing")}
-          onAddDeadline={() => setDialog("deadline")}
-        />
+        {data.canMutate && (
+          <Button type="button" onClick={() => setDialog("event")}>
+            <CalendarPlus className="size-4" /> Add event
+          </Button>
+        )}
+        {data.canMutate && (
+          <Button type="button" variant="primary" onClick={() => setDialog("moveStage")}>
+            <GitCommitHorizontal className="size-4" /> Move stage
+          </Button>
+        )}
+        {data.canMutate && (
+          <CaseMenu
+            matterId={data.id}
+            isAdmin={data.isAdmin}
+            status={data.status}
+            onReassign={() => setDialog("reassign")}
+            onAddDeadline={() => setDialog("deadline")}
+          />
+        )}
       </div>
 
       <AddEventDialog matterId={data.id} eventTypes={data.eventTypes} open={dialog === "event"} onClose={() => setDialog(null)} />
       <MoveStageDialog matterId={data.id} stages={data.stages} currentStageId={data.currentStageId} open={dialog === "moveStage"} onClose={() => setDialog(null)} />
       <ReassignDialog matterId={data.id} lawyers={data.lawyers} currentLeadId={lead?.id} currentSupportIds={support.map((s) => s.id)} open={dialog === "reassign"} onClose={() => setDialog(null)} />
-      <ScheduleEntryDialog matterId={data.id} kind="HEARING" forums={data.forums} team={data.team} open={dialog === "hearing"} onClose={() => setDialog(null)} />
       <ScheduleEntryDialog matterId={data.id} kind="DEADLINE" forums={data.forums} team={data.team} open={dialog === "deadline"} onClose={() => setDialog(null)} />
     </section>
   );

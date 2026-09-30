@@ -81,6 +81,10 @@ model User {
   tasksCreated            Task[]                   @relation("TasksCreated")
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
+  matterMessages          MatterMessage[]          @relation("MatterMessages")
+  groupMessages           GroupMessage[]
+  lawFirmsAdded           LawFirm[]
+  resourceLinksAdded      ResourceLink[]
 
   @@index([role, isActive])
   @@index([importBatchId])
@@ -429,6 +433,7 @@ model Matter {
   calendarEntries CalendarEntry[]
   tasks           Task[]
   notifications   Notification[]
+  messages        MatterMessage[]
 
   @@index([status, priority])
   @@index([categoryId])
@@ -530,6 +535,20 @@ model SummaryVersion {
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
   isAiDraft Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([matterId, createdAt])
+}
+
+/// Per-case discussion thread. Lawyers and Admin can both post (prototype: the one
+/// mutation lawyers keep; everything else on a case is Admin-only).
+model MatterMessage {
+  id        String   @id @default(cuid())
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("MatterMessages", fields: [authorId], references: [id])
+  body      String
   createdAt DateTime @default(now())
 
   @@index([matterId, createdAt])
@@ -757,4 +776,52 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+/// Org-wide group chat (prototype) — separate from the per-case MatterMessage thread.
+/// Everyone in the org can read/post; attachmentUrl/voiceNoteUrl point at an uploaded
+/// asset (Phase 6's document storage), no calling backend behind the UI yet.
+model GroupMessage {
+  id             String   @id @default(cuid())
+  authorId       String
+  author         User     @relation(fields: [authorId], references: [id])
+  body           String
+  attachmentName String?
+  attachmentUrl  String?
+  voiceNoteUrl   String?
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Directory of outside law firms / counsel the department deals with (spec-adjacent —
+/// not tied to a specific matter; a Party's counselFirm is free text and stays that way).
+model LawFirm {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  addedById   String
+  addedBy     User     @relation(fields: [addedById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([isActive])
+}
+
+/// Quick-reference legal resource links (statutes, court portals, etc.) shown on the
+/// Links page — anyone can add one, Admin can remove.
+model ResourceLink {
+  id        String   @id @default(cuid())
+  title     String
+  url       String
+  category  String?
+  addedById String
+  addedBy   User     @relation(fields: [addedById], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([category])
 }

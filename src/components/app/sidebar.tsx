@@ -5,17 +5,19 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
+  Briefcase,
   BriefcaseBusiness,
   CalendarDays,
   ChevronsLeft,
   ChevronsRight,
   FileCheck2,
+  FolderOpen,
+  Link2,
   LayoutGrid,
+  MessageSquare,
   Plus,
-  Scale,
   Settings,
   SquareCheckBig,
-  Upload,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -30,10 +32,13 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   cases: BriefcaseBusiness,
   calendar: CalendarDays,
   tasks: SquareCheckBig,
+  documents: FolderOpen,
+  firms: Briefcase,
+  chat: MessageSquare,
+  links: Link2,
   closure: FileCheck2,
   users: Users,
   reports: BarChart3,
-  import: Upload,
   settings: Settings,
 };
 
@@ -52,7 +57,7 @@ function Tooltip({ label, collapsed }: { label: string; collapsed: boolean }) {
   );
 }
 
-export function Sidebar({ user }: { user: CurrentUser }) {
+export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTaskCount?: number }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -89,8 +94,9 @@ export function Sidebar({ user }: { user: CurrentUser }) {
       )}
     >
       <div className={cn("flex items-center gap-2.5", collapsed ? "justify-center px-0" : "px-2")}>
-        <div aria-hidden className="grid size-[34px] shrink-0 place-items-center rounded-control bg-on-primary/15">
-          <Scale className="size-[18px]" />
+        <div aria-hidden className="grid size-[38px] shrink-0 place-items-center rounded-control bg-white p-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/CAA-Uganda-logo-1.png" alt="" width={80} height={38} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
         </div>
         {!collapsed && (
           <div className="min-w-0 flex-1 leading-tight">
@@ -116,10 +122,11 @@ export function Sidebar({ user }: { user: CurrentUser }) {
       </button>
       <div className="mb-2 border-t border-on-primary/10" />
 
-      <nav className="grid gap-0.5">
+      <nav className="grid gap-0.5 overflow-y-auto">
         {NAV[user.role].map((item) => {
           const Icon = ICONS[item.icon];
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const badge = item.badgeKey === "openTasks" ? openTaskCount : 0;
           return (
             <div key={item.href} className="flex items-center gap-0.5">
               <Link
@@ -132,7 +139,13 @@ export function Sidebar({ user }: { user: CurrentUser }) {
                 )}
               >
                 <Icon className="size-[18px] shrink-0" strokeWidth={1.8} />
-                {!collapsed && item.label}
+                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                {badge > 0 && !collapsed && (
+                  <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-warning px-1 text-[11px] font-semibold text-on-primary tabular-nums">
+                    {badge}
+                  </span>
+                )}
+                {badge > 0 && collapsed && <span className="absolute top-1 right-1 size-2 rounded-full bg-warning" aria-hidden />}
                 <Tooltip label={item.label} collapsed={collapsed} />
               </Link>
               {item.quickAdd && !collapsed && (

@@ -23,15 +23,20 @@ export function CatchUpPanel({
   summary,
   facts,
   team,
+  canMutate,
+  deadlines,
 }: {
   matterId: string;
   summary: { body: string; authorName: string; createdAt: string } | null;
   facts: KeyFacts;
   team: { id: string; name: string; role: "LEAD" | "SUPPORT" }[];
+  canMutate: boolean;
+  deadlines: { id: string; title: string; dueAt: string; isCritical: boolean }[];
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
+  const [now] = useState(() => Date.now());
 
   function save(formData: FormData) {
     setError(undefined);
@@ -52,14 +57,18 @@ export function CatchUpPanel({
               Edited by {summary.authorName} · {formatDate(new Date(summary.createdAt))}
             </span>
           )}
-          <Button type="button" size="sm" className="ml-auto" onClick={() => setEditing(true)}>
-            <Pencil className="size-3.5" /> Edit summary
-          </Button>
+          {canMutate && (
+            <Button type="button" size="sm" className="ml-auto" onClick={() => setEditing(true)}>
+              <Pencil className="size-3.5" /> Edit summary
+            </Button>
+          )}
         </div>
         {summary ? (
           <div className="grid gap-2 text-[13.5px] whitespace-pre-wrap">{summary.body}</div>
         ) : (
-          <p className="m-0 text-[13px] text-text-muted">No summary written yet — click &quot;Edit summary&quot; to add one.</p>
+          <p className="m-0 text-[13px] text-text-muted">
+            {canMutate ? "No summary written yet — click \"Edit summary\" to add one." : "No summary written yet."}
+          </p>
         )}
       </div>
 
@@ -95,8 +104,24 @@ export function CatchUpPanel({
         </div>
 
         <div className="rounded-card border border-border bg-surface p-5 shadow-card">
-          <h2 className="m-0 mb-2 text-base font-semibold">Deadlines</h2>
-          <p className="m-0 text-[13px] text-text-muted">Hearings and deadlines arrive in Phase 7.</p>
+          <h2 className="m-0 mb-3 text-base font-semibold">Deadlines</h2>
+          {deadlines.length === 0 ? (
+            <p className="m-0 text-[13px] text-text-muted">No open deadlines on this case.</p>
+          ) : (
+            <ul className="m-0 grid list-none gap-2 p-0">
+              {deadlines.map((d) => {
+                const overdue = new Date(d.dueAt).getTime() < now;
+                return (
+                  <li key={d.id} className="flex items-center justify-between gap-2 text-[13px]">
+                    <span className="min-w-0 truncate">{d.title}</span>
+                    <Badge tone={overdue ? "danger" : d.isCritical ? "warning" : "neutral"}>
+                      {overdue ? "Overdue" : formatDate(new Date(d.dueAt))}
+                    </Badge>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         <div className="rounded-card border border-border bg-surface p-5 shadow-card">

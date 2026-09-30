@@ -16,6 +16,7 @@ export type CaseFilters = {
   ucaaRole?: string;
   valueMin?: string;
   valueMax?: string;
+  highRisk?: boolean;
   dateField: DateField;
   preset?: TimePreset;
   from?: string;
@@ -41,6 +42,7 @@ export function parseCaseFilters(sp: Record<string, string | string[] | undefine
     ucaaRole: str(sp.ucaaRole),
     valueMin: str(sp.valueMin),
     valueMax: str(sp.valueMax),
+    highRisk: str(sp.highRisk) === "1",
     dateField: (str(sp.dateField) as DateField) ?? "lastActivityAt",
     preset: str(sp.preset) as TimePreset | undefined,
     from: str(sp.from),
@@ -58,7 +60,8 @@ export function buildCaseWhere(f: CaseFilters): Prisma.MatterWhereInput {
   if (f.categoryId) where.categoryId = f.categoryId;
   if (f.matterTypeId) where.matterTypeId = f.matterTypeId;
   if (f.forumId) where.forumId = f.forumId;
-  if (f.priority) where.priority = f.priority as Prisma.EnumPriorityFilter["equals"];
+  if (f.highRisk) where.priority = { in: ["HIGH", "URGENT"] };
+  else if (f.priority) where.priority = f.priority as Prisma.EnumPriorityFilter["equals"];
   if (f.ucaaRole) where.ucaaRole = f.ucaaRole as Prisma.EnumUcaaRoleFilter["equals"];
   if (f.lawyerId) where.assignments = { some: { userId: f.lawyerId, removedAt: null } };
 

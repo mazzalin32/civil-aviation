@@ -19,11 +19,13 @@ describe("formatting", () => {
 describe("navigation", () => {
   it("sends each role to its own home", () => {
     expect(homePathFor("ADMIN")).toBe("/dashboard");
-    expect(homePathFor("LAWYER")).toBe("/my-day");
+    expect(homePathFor("LAWYER")).toBe("/dashboard");
   });
   it("keeps admin-only areas out of the lawyer nav", () => {
     const lawyerPaths = NAV.LAWYER.map((n) => n.href);
-    for (const p of ["/users", "/settings", "/reports", "/import", "/closure-requests"]) expect(lawyerPaths).not.toContain(p);
+    // Reports moved to the shared section (prototype: whole org sees the same data) —
+    // only account/settings-style admin areas stay Admin-only.
+    for (const p of ["/users", "/settings", "/closure-requests"]) expect(lawyerPaths).not.toContain(p);
   });
   it("derives the top-bar title from nested paths", () => expect(titleFor("/cases/new", "ADMIN")).toBe("Cases"));
 });

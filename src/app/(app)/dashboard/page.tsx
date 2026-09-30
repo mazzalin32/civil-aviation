@@ -1,19 +1,22 @@
-import { LayoutGrid } from "lucide-react";
-import { ComingSoon } from "@/components/app/coming-soon";
 import { requireRole } from "@/lib/authz";
+import { loadDashboard } from "@/lib/dashboard";
+import { formatDate, greetingFor } from "@/lib/time";
+import { LegalDashboard } from "@/components/app/legal-dashboard";
 
 export const metadata = { title: "Dashboard" };
 
 export default async function Page() {
-  await requireRole("ADMIN");
+  const user = await requireRole();
+  const now = new Date();
+  const data = await loadDashboard(user, now);
+
   return (
-    <ComingSoon
-      title="Dashboard"
-      description="The whole department at a glance."
-      icon={LayoutGrid}
-      emptyTitle="No cases yet"
-      emptyDescription="Open cases, hearings this week, overdue deadlines, lawyer workload and cases going cold will appear here."
-      phase={11}
+    <LegalDashboard
+      data={{
+        ...data,
+        greeting: greetingFor(now, user.name),
+        dateLabel: formatDate(now, { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+      }}
     />
   );
 }

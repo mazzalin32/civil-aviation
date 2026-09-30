@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
-import { getCurrentUser } from "@/lib/session";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
@@ -27,11 +26,10 @@ const COLUMNS: { key: SortKey | null; label: string }[] = [
 
 export default async function CasesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await requireRole();
-  const me = await getCurrentUser();
   const sp = await searchParams;
   const filters = parseCaseFilters(sp);
   const isAdmin = user.role === "ADMIN";
-  if (!isAdmin && me) filters.lawyerId = me.id;
+  // Everyone in the org sees every matter (prototype) — only case creation stays Admin-only.
   const created = typeof sp.created === "string" ? sp.created : undefined;
 
   const where = buildCaseWhere(filters);
@@ -88,7 +86,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
     categories,
     matterTypes,
     forums,
-    lawyers: isAdmin ? lawyers : [],
+    lawyers,
     stages: stageRows.map((s) => s.name),
   };
 
@@ -103,8 +101,8 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader
-        title={isAdmin ? "Cases" : "My cases"}
-        description={isAdmin ? "Every matter in the department." : "Matters you lead or support."}
+        title="Cases"
+        description="Every matter in the department."
         actions={
           isAdmin && (
             <Link href="/cases/new" className={buttonVariants({ variant: "primary" })}>

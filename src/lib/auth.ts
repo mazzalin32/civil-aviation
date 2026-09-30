@@ -6,6 +6,7 @@ import { haveIBeenPwned } from "better-auth/plugins/haveibeenpwned";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
 import { env } from "./env";
+import { demoLoginPassword } from "./demo-login";
 import { sendPasswordChangedEmail, sendResetPasswordEmail } from "./mailer";
 
 /**
@@ -26,7 +27,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     disableSignUp: true,
-    minPasswordLength: 10,
+    minPasswordLength: demoLoginPassword() ? Math.min(8, demoLoginPassword()!.length) : 10,
     resetPasswordTokenExpiresIn: 60 * 60 * 72, // 72h covers both the invite link and forgot-password
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
@@ -42,9 +43,14 @@ export const auth = betterAuth({
   },
   plugins: [
     twoFactor({ issuer: "CAA Legal" }),
-    haveIBeenPwned({
-      customPasswordCompromisedMessage: "This password has appeared in a public data breach. Choose a different one.",
-    }),
+    // The shared prototype password is in public breach lists; skip HIBP while it's in use.
+    ...(demoLoginPassword()
+      ? []
+      : [
+          haveIBeenPwned({
+            customPasswordCompromisedMessage: "This password has appeared in a public data breach. Choose a different one.",
+          }),
+        ]),
     nextCookies(), // must be last: sets Set-Cookie from within Server Actions
   ],
 });
