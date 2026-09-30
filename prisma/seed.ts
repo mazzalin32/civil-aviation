@@ -3,8 +3,8 @@
  * Deliberately self-contained: no import of src/lib/* here, since those files are
  * marked "server-only" and throw when loaded outside a Next.js server context.
  *
- * Phase 1: the Admin gets a real temporary password (must change at first login);
- * each lawyer gets a live activation link, emailed via Mailpit — check
+ * Phase 1: the Admin and sample lawyers get the development seed password;
+ * each lawyer also gets a live activation link, emailed via Mailpit — check
  * http://localhost:8026 after running this, or read the link printed below.
  * Phase 2: Admin Settings reference data (categories, matter types & lifecycle
  * stages, forums, event/document types, outcomes, reminder rules) — spec §5.13.
@@ -58,6 +58,8 @@ const mail = nodemailer.createTransport({
 });
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 const ACTIVATION_HOURS = 72;
+const demoPassword = process.env.DEMO_LOGIN_PASSWORD?.trim();
+const SEED_PASSWORD = demoPassword || process.env.SEED_PASSWORD || "CaaLegal@2026!";
 
 const monthsFromNow = (months: number) => {
   const d = new Date();
@@ -72,7 +74,7 @@ const admin = {
   role: Role.ADMIN,
   title: "Director Legal Services",
   department: "Legal",
-  mustChangePassword: true,
+  mustChangePassword: false,
 };
 
 // Sample lawyers for development and demos — replace with real accounts via Users (Phase 3) or Import (Phase 12).
@@ -831,14 +833,14 @@ async function seedPitchExtras(adminId: string, firstLawyerId: string) {
 }
 
 async function main() {
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? crypto.randomBytes(9).toString("base64url");
+  const passwordHash = await hashPassword(SEED_PASSWORD);
   const adminUser = await db.user.upsert({ where: { email: admin.email }, update: {}, create: admin });
-  const hadAdminAccount = await db.account.findFirst({ where: { userId: adminUser.id, providerId: "credential" } });
-  if (!hadAdminAccount) {
-    await db.account.create({
-      data: { userId: adminUser.id, providerId: "credential", accountId: adminUser.id, password: await hashPassword(adminPassword) },
-    });
-  }
+  await db.user.update({ where: { id: adminUser.id }, data: { mustChangePassword: false, passwordChangedAt: new Date() } });
+  await db.account.upsert({
+    where: { id: (await db.account.findFirst({ where: { userId: adminUser.id, providerId: "credential" }, select: { id: true } }))?.id ?? "missing" },
+    update: { password: passwordHash },
+    create: { userId: adminUser.id, providerId: "credential", accountId: adminUser.id, password: passwordHash },
+  });
 
   const lawyerUsers: { id: string; email: string; name: string; isNew: boolean }[] = [];
   for (const [i, l] of lawyers.entries()) {
@@ -857,6 +859,11 @@ async function main() {
         certExpiry: monthsFromNow(l.certMonths),
       },
     });
+    await db.account.upsert({
+      where: { id: (await db.account.findFirst({ where: { userId: user.id, providerId: "credential" }, select: { id: true } }))?.id ?? "missing" },
+      update: { password: passwordHash },
+      create: { userId: user.id, providerId: "credential", accountId: user.id, password: passwordHash },
+    });
     lawyerUsers.push({ id: user.id, email: user.email, name: user.name, isNew: !existing });
   }
 
@@ -871,22 +878,11 @@ async function main() {
   });
 
   console.log(`\nSeeded Admin: ${adminUser.email}`);
-  if (!hadAdminAccount) console.log(`  Temporary password: ${adminPassword}  (must change at first login)`);
-
-  const demoPassword = process.env.DEMO_LOGIN_PASSWORD?.trim();
+  console.log(`  Development password: ${SEED_PASSWORD}`);
+  console.log("  This password is assigned to the Admin and all seeded lawyers.");
   if (demoPassword) {
-    const hashed = await hashPassword(demoPassword);
-    console.log(`\nPrototype lawyer login — password for every lawyer: ${demoPassword}`);
+    console.log(`\nPrototype lawyer login — password for every lawyer: ${SEED_PASSWORD}`);
     for (const u of lawyerUsers) {
-      const hasAccount = await db.account.findFirst({ where: { userId: u.id, providerId: "credential" } });
-      if (hasAccount) {
-        await db.account.update({ where: { id: hasAccount.id }, data: { password: hashed } });
-      } else {
-        await db.account.create({
-          data: { userId: u.id, providerId: "credential", accountId: u.id, password: hashed },
-        });
-      }
-      await db.user.update({ where: { id: u.id }, data: { emailVerified: true, mustChangePassword: false } });
       console.log(`  ${u.email}`);
       try {
         await Promise.race([
@@ -901,13 +897,6 @@ async function main() {
       } catch (err) {
         console.log(`    (email not sent — ${(err as Error).message})`);
       }
-    }
-  } else {
-    console.log(`\nActivation links (also sent to Mailpit — http://localhost:8026):`);
-    for (const u of lawyerUsers) {
-      const hasAccount = await db.account.findFirst({ where: { userId: u.id, providerId: "credential" } });
-      if (!hasAccount) await sendActivationLink(u.id, u.email, u.name, u.isNew);
-      else console.log(`  ${u.email} → already activated`);
     }
   }
   console.log(`\nSeeded ${CASE_SEEDS.length} cases (skipping any that already exist from a previous run).`);

@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   // Silence Turbopack's workspace-root guess: a sibling pnpm-workspace.yaml isn't ours.
-  turbopack: { root: __dirname },
+  turbopack: { root: process.cwd() },
   // Baseline headers now; strict CSP and rate limiting land in Phase 13 (hardening).
   async headers() {
     return [
