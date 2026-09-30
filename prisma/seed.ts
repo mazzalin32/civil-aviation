@@ -57,7 +57,6 @@ const mail = nodemailer.createTransport({
   auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } : undefined,
 });
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
-const ACTIVATION_HOURS = 72;
 const demoPassword = process.env.DEMO_LOGIN_PASSWORD?.trim();
 const SEED_PASSWORD = demoPassword || process.env.SEED_PASSWORD || "CaaLegal@2026!";
 
@@ -84,32 +83,6 @@ const lawyers = [
   { name: "Carol Atim", email: "carol.atim@caa.go.ug", title: "Legal Officer", certMonths: 9 },
   { name: "David Ssemwogerere", email: "david.ssemwogerere@caa.go.ug", title: "Principal Legal Officer", certMonths: 20 },
 ];
-
-/** Hand-inserts the same row shape `auth.api.requestPasswordReset` would create. */
-async function sendActivationLink(userId: string, email: string, name: string, isFirstInvite: boolean) {
-  const token = crypto.randomBytes(24).toString("base64url");
-  const expiresAt = new Date(Date.now() + ACTIVATION_HOURS * 60 * 60 * 1000);
-  await db.verification.create({ data: { identifier: `reset-password:${token}`, value: userId, expiresAt } });
-
-  const url = `${APP_URL}/activate?token=${token}`;
-  const subject = isFirstInvite ? "Set up your CAA Legal account" : "Set your CAA Legal password";
-  console.log(`  ${email} → ${url}`);
-  // Don't let a slow/unreachable SMTP server (e.g. this sandbox's outbound network) block
-  // the rest of the seed — the link above is printed either way and still works.
-  try {
-    await Promise.race([
-      mail.sendMail({
-        from: process.env.MAIL_FROM ?? "CAA Legal <no-reply@caa.go.ug>",
-        to: email,
-        subject,
-        html: `<p>Hello ${name},</p><p><a href="${url}">${subject}</a></p><p>Valid ${ACTIVATION_HOURS} hours, single use.</p>`,
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("SMTP timeout")), 8000)),
-    ]);
-  } catch (err) {
-    console.log(`    (email not sent — ${(err as Error).message}; the link above still works)`);
-  }
-}
 
 // --- Phase 2: Admin Settings defaults (spec §5.13, §6) ---
 
