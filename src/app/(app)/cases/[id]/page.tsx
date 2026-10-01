@@ -13,6 +13,7 @@ import { DocumentsTab } from "./tabs/documents-tab";
 import { HearingsTab, type HearingRow } from "./tabs/hearings-tab";
 import { TasksTab } from "./tabs/tasks-tab";
 import { DiscussionTab } from "./tabs/discussion-tab";
+import { UCAA_POSITIONS } from "@/lib/validation/matter";
 
 export const metadata = { title: "Case" };
 
@@ -39,6 +40,7 @@ export default async function CasePage({
       matterType: { include: { stages: { where: { isActive: true }, orderBy: { order: "asc" } } } },
       currentStage: true,
       forum: true,
+      legalRecipient: { select: { name: true } },
       assignments: { where: { removedAt: null }, include: { user: { select: { id: true, name: true } } } },
       parties: { orderBy: { name: "asc" } },
     },
@@ -180,6 +182,51 @@ export default async function CasePage({
               return next ? { title: next.title, dueAt: next.startsAt.toISOString() } : null;
             })(),
           }}
+          status={{
+            status: matter.status,
+            priorityLabel: matter.priority[0] + matter.priority.slice(1).toLowerCase(),
+            confidentialityLabel: matter.confidentiality === "NORMAL" ? "Normal" : matter.confidentiality === "CONFIDENTIAL" ? "Confidential" : "Highly confidential",
+            stageName: matter.currentStage?.name ?? null,
+            stageIndex: stages.findIndex((s) => s.status === "current") + 1,
+            stageTotal: stages.length,
+            daysOpen,
+            nextDeadline: (() => {
+              const next = calendarEntries.filter((e) => e.kind === "DEADLINE" && e.status === "OPEN").sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())[0];
+              return next ? { title: next.title, dueAt: next.startsAt.toISOString() } : null;
+            })(),
+          }}
+          intake={(() => {
+            const main = matter.parties.find((p) => p.kind === "OPPOSING");
+            const response = calendarEntries.find((e) => e.kind === "DEADLINE" && e.title.startsWith("Response deadline"));
+            return {
+              description: matter.description,
+              reportedAt: matter.reportedAt?.toISOString() ?? null,
+              reportedBy: matter.reportedBy,
+              reportMethod: matter.reportMethod,
+              positionLabel: UCAA_POSITIONS.find((p) => p.value === matter.ucaaRole)?.label ?? matter.ucaaRole,
+              otherParty: main ? { name: main.name, type: main.partyType, contact: main.email ?? main.phone, address: main.address } : null,
+              otherParties: matter.parties.filter((p) => p !== main && p.kind !== "INTERNAL").map((p) => ({ name: p.name, role: p.roleInMatter ?? (p.kind === "WITNESS" ? "Witness" : null), organisation: p.organisation })),
+              serviceDirection: matter.serviceDirection ? { CAA_SERVING: "CAA is serving", CAA_SERVED: "CAA has been served", NOT_YET_SERVED: "Not yet served" }[matter.serviceDirection] : null,
+              processNature: matter.processNature,
+              issuedAt: matter.processIssuedAt?.toISOString() ?? null,
+              receivedAt: matter.processReceivedAt?.toISOString() ?? null,
+              receivedBy: matter.receivedBy,
+              recipientName: matter.legalRecipient?.name ?? null,
+              responseDeadline: response ? { dueAt: response.startsAt.toISOString(), status: response.status } : null,
+              forumName: matter.forum?.name ?? null,
+              courtStation: matter.courtStation,
+              courtCaseNo: matter.courtCaseNo,
+              filedAt: matter.filedAt?.toISOString() ?? null,
+              jurisdiction: matter.jurisdiction,
+              judge: matter.judge,
+              eccmisNo: matter.eccmisNo,
+              representationStatus: matter.representationStatus,
+              leadName: team.find((t) => t.role === "LEAD")?.name ?? null,
+              supportNames: team.filter((t) => t.role === "SUPPORT").map((t) => t.name),
+              externalCounselName: matter.externalCounselName,
+              externalCounselContact: matter.externalCounselContact,
+            };
+          })()}
           summary={latestSummary ? { body: latestSummary.body, authorName: latestSummary.author.name, createdAt: latestSummary.createdAt.toISOString() } : null}
           pinnedMessage={latestPinnedMessage ? {
             body: latestPinnedMessage.body,

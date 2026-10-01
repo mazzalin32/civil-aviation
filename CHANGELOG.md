@@ -3,6 +3,7 @@
 ## New case intake: 9-step flow (2026-10-01)
 
 ### Changed
+- **Case Overview** now shows what was captured at onboarding: a plain-language status banner (On track / Due soon / Action needed / On hold / Closure requested / Closed), quick tiles, then "How it came in", parties, service & legal process (with response-deadline countdown), court & forum, and legal representation. The written summary sits below and stays editable.
 - **New case** is now a 9-step intake with a progress rail: Matter identification → CAA position & reporting → Service / legal process → Parties → Court & judicial information → Legal representation → Matter stage → Documents → Review & submit. Our design tokens are kept; only the sequence and fields follow the intake mockups.
 - The reference is generated on submit (previewed read-only in step 1). Category and matter type are chosen in step 1 because the stage list in step 7 comes from the matter type's lifecycle.
 - The response deadline (step 3) and next action due (step 7) become real calendar DEADLINE entries; internal notes become the first case note; the responsible legal officer becomes the lead lawyer and is notified. Cases are created as Open.
