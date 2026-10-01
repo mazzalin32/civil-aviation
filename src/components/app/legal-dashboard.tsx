@@ -24,7 +24,7 @@ function KpiCard({ label, value, hint, href, tone }: DashboardData["kpis"][numbe
         <p className="m-0 text-[13px] text-text-muted">{label}</p>
         <ArrowUpRight className="size-4 text-text-muted" strokeWidth={1.8} />
       </div>
-      <p className="mt-3 mb-1 font-serif text-[32px] leading-none font-semibold tabular-nums">{String(value).padStart(2, "0")}</p>
+      <p className="mt-3 mb-1 text-[30px] leading-none font-semibold tabular-nums">{String(value).padStart(2, "0")}</p>
       <p className={cn("m-0 text-[12px]", tone === "warning" ? "text-warning" : tone === "danger" ? "text-danger" : "text-text-muted")}>
         {hint}
       </p>
@@ -33,56 +33,53 @@ function KpiCard({ label, value, hint, href, tone }: DashboardData["kpis"][numbe
 }
 
 function StageBars({ stages }: { stages: DashboardData["stages"] }) {
-  const max = Math.max(1, ...stages.map((s) => s.count));
   if (stages.length === 0) {
-    return <p className="m-0 px-6 pb-5 text-[13px] text-text-muted">No open matters to chart yet.</p>;
+    return <p className="m-0 px-6 pt-3 pb-5 text-[13px] text-text-muted">No open matters to chart yet.</p>;
   }
+  const rows = [...stages].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const max = Math.max(1, ...rows.map((s) => s.count));
   return (
-    <div className="flex h-[220px] items-end gap-2 overflow-x-auto px-6 pt-3 pb-5">
-      {stages.map((s) => (
-        <Link key={s.name} href={`/cases?stage=${encodeURIComponent(s.name)}`} className="group flex min-w-[48px] flex-1 flex-col items-center gap-2">
-          <span className="text-[11px] tabular-nums text-text-muted">{s.count}</span>
-          <span
-            className="w-full max-w-[44px] rounded-t-md bg-primary transition-opacity group-hover:opacity-80"
-            style={{ height: `${Math.max(8, (s.count / max) * 140)}px` }}
-          />
-          <span className="w-full truncate text-center text-[11px] text-text-muted" title={s.name}>
-            {s.name}
-          </span>
-        </Link>
+    <ul className="m-0 grid max-h-[300px] list-none gap-1 overflow-y-auto px-3 pt-2 pb-4">
+      {rows.map((s) => (
+        <li key={s.name}>
+          <Link
+            href={`/cases?stage=${encodeURIComponent(s.name)}`}
+            title={`${s.name}: ${s.count} matter${s.count === 1 ? "" : "s"}`}
+            className="group grid grid-cols-[minmax(96px,160px)_minmax(0,1fr)_28px] items-center gap-3 rounded-control px-3 py-1.5 hover:bg-surface-muted"
+          >
+            <span className="truncate text-[13px] text-text">{s.name}</span>
+            <span className="h-2 rounded-full bg-surface-muted group-hover:bg-border">
+              <span className="block h-full rounded-full bg-primary" style={{ width: `${Math.max(4, (s.count / max) * 100)}%` }} />
+            </span>
+            <span className="text-right text-[13px] font-medium tabular-nums">{s.count}</span>
+          </Link>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
 
-function RiskDonut({ risk }: { risk: DashboardData["risk"] }) {
+function RiskBreakdown({ risk }: { risk: DashboardData["risk"] }) {
   const total = risk.reduce((n, s) => n + s.count, 0);
-  let cursor = 0;
-  const stops: string[] = [];
-  for (const slice of risk) {
-    const pct = total === 0 ? 0 : (slice.count / total) * 100;
-    stops.push(`${RISK_COLOR[slice.key]} ${cursor}% ${cursor + pct}%`);
-    cursor += pct;
-  }
   return (
-    <div className="flex flex-wrap items-center gap-6 px-6 pt-3 pb-5">
-      <div
-        className="relative size-[140px] shrink-0 rounded-full"
-        style={{ background: total === 0 ? "var(--neutral-soft)" : `conic-gradient(${stops.join(", ")})` }}
-      >
-        <div className="absolute inset-[28px] grid place-items-center rounded-full bg-surface">
-          <div className="text-center">
-            <p className="m-0 font-serif text-[22px] leading-none font-semibold tabular-nums">{total}</p>
-            <p className="m-0 mt-1 text-[11px] text-text-muted">Total matters</p>
-          </div>
-        </div>
+    <div className="px-6 pt-3 pb-5">
+      <p className="m-0 text-[28px] leading-none font-semibold tabular-nums">{total}</p>
+      <p className="m-0 mt-1 mb-4 text-[12px] text-text-muted">Open matters</p>
+      <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-surface-muted" role="img" aria-label={risk.map((s) => `${s.key} ${s.count}`).join(", ")}>
+        {total > 0 &&
+          risk
+            .filter((s) => s.count > 0)
+            .map((s) => (
+              <span key={s.key} title={`${s.key}: ${s.count}`} style={{ width: `${(s.count / total) * 100}%`, background: RISK_COLOR[s.key] }} />
+            ))}
       </div>
-      <ul className="m-0 grid list-none gap-2 p-0 text-[13px]">
+      <ul className="m-0 mt-4 grid list-none gap-2.5 p-0 text-[13px]">
         {risk.map((s) => (
-          <li key={s.key} className="flex items-center gap-2">
+          <li key={s.key} className="flex items-center gap-2.5">
             <span className="size-2.5 rounded-full" style={{ background: RISK_COLOR[s.key] }} />
-            <span className="w-16 text-text-muted">{s.key}</span>
-            <span className="tabular-nums font-medium">{s.count}</span>
+            <span className="flex-1 text-text-muted">{s.key}</span>
+            <span className="font-medium tabular-nums">{s.count}</span>
+            <span className="w-10 text-right text-[12px] text-text-muted tabular-nums">{total === 0 ? "0%" : `${Math.round((s.count / total) * 100)}%`}</span>
           </li>
         ))}
       </ul>
@@ -132,7 +129,7 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
               <p className="m-0 mt-0.5 text-[12px] text-text-muted">Priority across open matters</p>
             </div>
           </CardHeader>
-          <RiskDonut risk={data.risk} />
+          <RiskBreakdown risk={data.risk} />
         </Card>
       </div>
 
@@ -164,7 +161,7 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
                           <span className="text-[10px] font-medium tracking-wide text-text-muted uppercase">
                             {formatDate(d, { month: "short" })}
                           </span>
-                          <span className="font-serif text-lg leading-none font-semibold tabular-nums">
+                          <span className="text-lg leading-none font-semibold tabular-nums">
                             {formatDate(d, { day: "numeric" })}
                           </span>
                         </span>

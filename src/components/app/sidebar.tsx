@@ -89,7 +89,7 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
     <aside
       aria-label="Main navigation"
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 flex-col gap-1 border-r border-on-primary/10 bg-primary px-3.5 py-5 text-on-primary lg:flex",
+        "sticky top-0 hidden h-dvh shrink-0 flex-col gap-1 overflow-hidden border-r border-on-primary/10 bg-primary px-3.5 py-4 text-on-primary lg:flex",
         collapsed ? "w-[76px]" : "w-[248px]",
       )}
     >
@@ -122,7 +122,7 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
       </button>
       <div className="mb-2 border-t border-on-primary/10" />
 
-      <nav className="grid gap-0.5 overflow-y-auto">
+      <nav className="grid gap-0.5">
         {NAV[user.role].map((item) => {
           const Icon = ICONS[item.icon];
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -133,7 +133,7 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex flex-1 items-center gap-2.5 rounded-control px-2.5 py-2 font-medium text-on-primary/75 transition-colors hover:bg-on-primary/10 hover:text-on-primary",
+                  "group relative flex flex-1 items-center gap-2.5 rounded-control px-2.5 py-[7px] font-medium text-on-primary/75 transition-colors hover:bg-on-primary/10 hover:text-on-primary",
                   active && "bg-on-primary/15 text-on-primary hover:bg-on-primary/15",
                   collapsed && "justify-center px-0",
                 )}
