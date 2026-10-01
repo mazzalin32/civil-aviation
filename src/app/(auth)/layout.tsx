@@ -42,10 +42,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </h2>
         </div>
 
-        <p style={{ fontFamily: BRAND_SERIF }} className="m-0 max-w-[34ch] text-[16px] leading-relaxed font-bold text-on-primary">
-          Private, internal system.
+        <p style={{ fontFamily: BRAND_SERIF }} className="m-0 max-w-[34ch] text-[16px] leading-[1.3] text-on-primary">
+          <span className="font-bold">Private, internal system.</span>
           <br />
-          Access is limited to Legal Department staff assigned by the Head of Legal.
+          <span className="font-normal">Access is limited to Legal Department staff assigned by the Head of Legal.</span>
         </p>
         <p style={{ fontFamily: BRAND_SERIF }} className="m-0 mt-6 text-[13px] font-normal text-on-primary/70">
           CAA Legal — Case &amp; Matter Management {new Date().getFullYear()}
