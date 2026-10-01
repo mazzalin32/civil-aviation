@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
+import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -22,7 +23,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // toggle exists in Profile & preferences. Remove data-theme="light" then.
   return (
     <html lang="en" data-theme="light" className={`${inter.variable} ${sourceSerif.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

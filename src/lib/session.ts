@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import { db } from "./db";
@@ -17,16 +18,17 @@ export type CurrentUser = {
 };
 
 /** The Better Auth session for this request, or null if signed out / expired. */
-export async function getAuthSession() {
+/** Cached per request: the layout, the page and every permission helper share ONE session lookup. */
+export const getAuthSession = cache(async () => {
   return auth.api.getSession({ headers: await headers() });
-}
+});
 
 /**
  * Our own user record for the signed-in session — role, title and the security flags
  * middleware and requireRole() gate on. A single extra query keeps those fields (which
  * Better Auth doesn't know about) as one source of truth in `User`, not duplicated.
  */
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const session = await getAuthSession();
   if (!session) return null;
 
@@ -41,8 +43,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       isActive: true,
       mustChangePassword: true,
       twoFactorEnabled: true,
+      deletedAt: true,
     },
   });
-  if (!user || !user.isActive) return null;
+  if (!user || !user.isActive || user.deletedAt) return null;
   return user;
-}
+});

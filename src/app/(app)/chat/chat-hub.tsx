@@ -31,6 +31,7 @@ import {
 import { MentionPopover, type MentionUser } from "@/app/(app)/cases/[id]/tabs/mention-popover";
 import { AttachDocumentDialog, type LinkableDocument } from "@/app/(app)/cases/[id]/tabs/attach-document-dialog";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
+import { toast, withToast } from "@/components/ui/toast";
 
 // ------------------------------------------------------------------
 // Types
@@ -313,10 +314,10 @@ export function CaseChatHub({
         if (res.data) {
           setChatData(res.data);
         } else if (res.error) {
-          window.alert(res.error);
+          toast.error(res.error);
         }
       } catch {
-        window.alert("Failed to load case chat messages.");
+        toast.error("Failed to load case chat messages.");
       } finally {
         setIsLoadingChat(false);
       }
@@ -409,9 +410,9 @@ export function CaseChatHub({
   // Pin action handler
   async function handleTogglePin(messageId: string, isPinned: boolean) {
     if (!selectedCaseId) return;
-    const res = await togglePinCaseMessage({ matterId: selectedCaseId, messageId, isPinned });
+    const res = await withToast(togglePinCaseMessage({ matterId: selectedCaseId, messageId, isPinned }), "Pin updated");
     if (res?.error) {
-      window.alert(res.error);
+      toast.error(res.error);
     }
   }
 
@@ -419,9 +420,9 @@ export function CaseChatHub({
   async function handleDeleteMessage(messageId: string) {
     if (!selectedCaseId) return;
     if (!window.confirm("Are you sure you want to remove this message?")) return;
-    const res = await deleteCaseMessage({ matterId: selectedCaseId, messageId });
+    const res = await withToast(deleteCaseMessage({ matterId: selectedCaseId, messageId }), "Message deleted");
     if (res?.error) {
-      window.alert(res.error);
+      toast.error(res.error);
     }
   }
 
@@ -591,9 +592,9 @@ export function CaseChatHub({
         fd.append("files", file);
       }
 
-      const result = await postCaseMessage(fd);
+      const result = await withToast(postCaseMessage(fd), null);
       if (result?.error) {
-        window.alert(result.error);
+        toast.error(result.error);
         return;
       }
 

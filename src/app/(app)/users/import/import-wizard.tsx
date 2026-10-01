@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { confirmImport, previewImport, revalidateGrid, type ConfirmResult } from "./actions";
 import { FIELD_KEYS, type ColumnMapping, type FieldKey, type ParsedRow } from "./parse";
+import { withToast } from "@/components/ui/toast";
 
 const FIELD_LABELS: Record<FieldKey, string> = {
   name: "Name",
@@ -59,7 +60,7 @@ export function ImportWizard() {
   function onConfirm() {
     if (step.name !== "preview") return;
     startTransition(async () => {
-      const result = await confirmImport(step.rows);
+      const result = await withToast(confirmImport(step.rows), "Users imported");
       if ("error" in result) return setError(result.error);
       setStep({ name: "result", result });
     });

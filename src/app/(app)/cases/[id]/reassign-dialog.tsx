@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { reassign } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export function ReassignDialog({
   matterId,
@@ -35,7 +36,7 @@ export function ReassignDialog({
   function submit(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await reassign({ matterId, leadUserId: leadId, supportUserIds: supportIds, reason: formData.get("reason") });
+      const result = await withToast(reassign({ matterId, leadUserId: leadId, supportUserIds: supportIds, reason: formData.get("reason") }), "Case team updated");
       if (result?.error) return setError(result.error);
       onClose();
     });

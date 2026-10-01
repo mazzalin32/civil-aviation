@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { moveStage } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export type StageOption = { id: string; name: string; order: number; requiredFields: string[] };
 
@@ -43,7 +44,7 @@ export function MoveStageDialog({
     const fields: Record<string, string> = {};
     for (const key of target?.requiredFields ?? []) fields[key] = String(formData.get(`field-${key}`) ?? "");
     startTransition(async () => {
-      const result = await moveStage({ matterId, stageTemplateId: targetId, note: formData.get("note"), fields });
+      const result = await withToast(moveStage({ matterId, stageTemplateId: targetId, note: formData.get("note"), fields }), "Stage updated");
       if (result?.error) return setError(result.error);
       onClose();
     });

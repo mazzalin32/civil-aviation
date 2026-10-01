@@ -39,7 +39,7 @@ export const auth = betterAuth({
   },
   session: {
     expiresIn: 15 * 60,
-    updateAge: 0, // refresh on every request → expiry tracks last activity, not first login
+    updateAge: 60, // extend the expiry at most once a minute (was every request = a DB write per click); idle timeout stays accurate to ±1 min
   },
   plugins: [
     twoFactor({ issuer: "CAA Legal" }),

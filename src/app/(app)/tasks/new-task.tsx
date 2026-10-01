@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SlideOver } from "@/components/ui/slide-over";
 import { addTask } from "../cases/[id]/tabs/tasks-actions";
+import { withToast } from "@/components/ui/toast";
 
 /**
  * "New task" on the Tasks page. Admins can create a task on any case; a lawyer sees only the
@@ -37,7 +38,7 @@ export function NewTask({
   function submit(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await addTask({ matterId, title: formData.get("title"), assigneeId, dueAt: formData.get("dueAt") });
+      const result = await withToast(addTask({ matterId, title: formData.get("title"), assigneeId, dueAt: formData.get("dueAt") }), "Task created");
       if (result?.error) return setError(result.error);
       setMatterId("");
       setAssigneeId("");

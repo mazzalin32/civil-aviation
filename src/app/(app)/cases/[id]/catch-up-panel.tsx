@@ -12,6 +12,7 @@ import { UCAA_POSITIONS } from "@/lib/validation/matter";
 import { updateSummary } from "./actions";
 import { ReassignDialog } from "./reassign-dialog";
 import { IntakeDetails, StatusBanner, type Intake, type StatusInfo } from "./overview-details";
+import { withToast } from "@/components/ui/toast";
 
 export type KeyFacts = {
   amountClaimed: string | null;
@@ -87,7 +88,7 @@ export function CatchUpPanel({
   function save(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await updateSummary({ matterId, body: formData.get("body") });
+      const result = await withToast(updateSummary({ matterId, body: formData.get("body") }), "Summary saved");
       if (result?.error) return setError(result.error);
       setEditing(false);
     });

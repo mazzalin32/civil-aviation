@@ -10,6 +10,7 @@ import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { formatDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { addTask, completeTask, deleteTask, markTaskNotApplicable, reopenTask } from "./tasks-actions";
+import { toast, withToast } from "@/components/ui/toast";
 
 export type TaskRow = {
   id: string;
@@ -42,33 +43,33 @@ export function TasksTab({
   function submitNew(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await addTask({ matterId, title: formData.get("title"), assigneeId: formData.get("assigneeId"), dueAt: formData.get("dueAt") });
+      const result = await withToast(addTask({ matterId, title: formData.get("title"), assigneeId: formData.get("assigneeId"), dueAt: formData.get("dueAt") }), "Task created");
       if (result?.error) setError(result.error);
     });
   }
 
   function onComplete(t: TaskRow) {
     startTransition(async () => {
-      await completeTask(matterId, t.id);
+      await withToast(completeTask(matterId, t.id), "Task completed");
     });
   }
   function onReopen(t: TaskRow) {
     startTransition(async () => {
-      await reopenTask(matterId, t.id);
+      await withToast(reopenTask(matterId, t.id), "Task reopened");
     });
   }
   function onNA(t: TaskRow) {
     const reason = window.prompt(`Why isn't "${t.title}" applicable?`);
     if (!reason) return;
     startTransition(async () => {
-      const result = await markTaskNotApplicable(matterId, t.id, { reason });
-      if (result?.error) window.alert(result.error);
+      const result = await withToast(markTaskNotApplicable(matterId, t.id, { reason }), "Task marked not applicable");
+      if (result?.error) toast.error(result.error);
     });
   }
   function onDelete(t: TaskRow) {
     if (!window.confirm(`Delete "${t.title}"?`)) return;
     startTransition(async () => {
-      await deleteTask(matterId, t.id);
+      await withToast(deleteTask(matterId, t.id), "Task deleted");
     });
   }
 

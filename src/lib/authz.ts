@@ -1,7 +1,19 @@
 import "server-only";
 import { redirect } from "next/navigation";
 import { db } from "./db";
-import { getCurrentUser, type Role } from "./session";
+import { env } from "./env";
+import { getCurrentUser, type CurrentUser, type Role } from "./session";
+
+/**
+ * The two onboarding gates every signed-in session must clear before reaching case data:
+ * a forced password change, then mandatory 2FA (both switchable off while testing via env).
+ * Enforced here and in the app layout — not in the proxy — so the proxy can stay a cheap
+ * cookie check and the user is loaded only once per request.
+ */
+export function assertOnboarded(user: CurrentUser) {
+  if (env.REQUIRE_PASSWORD_CHANGE && user.mustChangePassword) redirect("/change-password");
+  if (env.REQUIRE_2FA && !user.mustChangePassword && !user.twoFactorEnabled) redirect("/2fa/setup");
+}
 
 /**
  * The single role gate for pages and mutations (CLAUDE.md conventions). Proxy already
@@ -11,6 +23,7 @@ import { getCurrentUser, type Role } from "./session";
 export async function requireRole(...roles: Role[]) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  assertOnboarded(user);
   if (roles.length > 0 && !roles.includes(user.role)) redirect("/forbidden");
   return user;
 }
@@ -38,6 +51,7 @@ export async function canAccessMatterChat(userId: string, role: Role, matterId: 
 export async function requireMatterChatAccess(matterId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  assertOnboarded(user);
   const allowed = await canAccessMatterChat(user.id, user.role, matterId);
   if (!allowed) redirect("/forbidden");
   return user;
@@ -73,6 +87,7 @@ export function canUploadDocument(_userId: string, _role: Role, _matterId: strin
 export async function requireMatterAccess(_matterId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  assertOnboarded(user);
   return user;
 }
 
@@ -80,6 +95,7 @@ export async function requireMatterAccess(_matterId: string) {
 export async function requireMatterEdit(matterId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  assertOnboarded(user);
   const allowed = await canEditMatter(user.id, user.role, matterId);
   if (!allowed) redirect("/forbidden");
   return user;
@@ -89,6 +105,7 @@ export async function requireMatterEdit(matterId: string) {
 export async function requireTaskAssign(matterId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  assertOnboarded(user);
   const allowed = await canAssignTasks(user.id, user.role, matterId);
   if (!allowed) redirect("/forbidden");
   return user;

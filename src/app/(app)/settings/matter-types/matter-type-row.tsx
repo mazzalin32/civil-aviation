@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { cn } from "@/lib/utils";
 import { deleteMatterType, toggleMatterTypeActive, updateMatterType } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export type MatterTypeRow = {
   id: string;
@@ -29,7 +30,7 @@ export function MatterTypeRowItem({ item }: { item: MatterTypeRow }) {
     formData.set("id", item.id);
     setError(undefined);
     startTransition(async () => {
-      const result = await updateMatterType(formData);
+      const result = await withToast(updateMatterType(formData), "Changes saved");
       if (result?.error) return setError(result.error);
       setEditing(false);
     });
@@ -37,7 +38,7 @@ export function MatterTypeRowItem({ item }: { item: MatterTypeRow }) {
 
   function onDelete() {
     if (!window.confirm(`Delete "${item.name}" and its ${item.stageCount} stage(s)? This can't be undone.`)) return;
-    startTransition(() => deleteMatterType(item.id));
+    startTransition(() => withToast(deleteMatterType(item.id), "Deleted"));
   }
 
   if (editing) {
@@ -93,7 +94,7 @@ export function MatterTypeRowItem({ item }: { item: MatterTypeRow }) {
                 icon: item.isActive ? Ban : CheckCircle2,
                 danger: item.isActive,
                 disabled: pending,
-                onClick: () => startTransition(() => toggleMatterTypeActive(item.id, !item.isActive)),
+                onClick: () => startTransition(() => withToast(toggleMatterTypeActive(item.id, !item.isActive), "Status updated")),
               },
               { label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: onDelete },
             ]}

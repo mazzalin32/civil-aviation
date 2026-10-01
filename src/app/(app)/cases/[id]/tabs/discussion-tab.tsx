@@ -28,6 +28,7 @@ import {
 import { MentionPopover, type MentionUser } from "./mention-popover";
 import { AttachDocumentDialog, type LinkableDocument } from "./attach-document-dialog";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
+import { toast, withToast } from "@/components/ui/toast";
 
 // ------------------------------------------------------------------
 // Types
@@ -447,9 +448,9 @@ export function DiscussionTab({
         fd.append("files", file);
       }
 
-      const result = await postCaseMessage(fd);
+      const result = await withToast(postCaseMessage(fd), null);
       if (result.error) {
-        window.alert(result.error);
+        toast.error(result.error);
         return;
       }
 
@@ -472,8 +473,8 @@ export function DiscussionTab({
   // --- Pin/Unpin ---
   function handlePin(messageId: string, isPinned: boolean) {
     startTransition(async () => {
-      const result = await togglePinCaseMessage({ matterId, messageId, isPinned });
-      if (result.error) window.alert(result.error);
+      const result = await withToast(togglePinCaseMessage({ matterId, messageId, isPinned }), "Pin updated");
+      if (result.error) toast.error(result.error);
     });
   }
 
@@ -481,8 +482,8 @@ export function DiscussionTab({
   function handleDelete2(messageId: string) {
     if (!window.confirm("Delete this message? It will be hidden from the thread.")) return;
     startTransition(async () => {
-      const result = await deleteCaseMessage({ matterId, messageId });
-      if (result.error) window.alert(result.error);
+      const result = await withToast(deleteCaseMessage({ matterId, messageId }), "Message deleted");
+      if (result.error) toast.error(result.error);
     });
   }
 

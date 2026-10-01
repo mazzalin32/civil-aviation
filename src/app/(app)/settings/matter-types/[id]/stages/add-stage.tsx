@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
+import { withToast } from "@/components/ui/toast";
 
 export function AddStage({ createAction }: { createAction: (formData: FormData) => Promise<{ error?: string } | void> }) {
   const [open, setOpen] = useState(false);
@@ -15,7 +16,7 @@ export function AddStage({ createAction }: { createAction: (formData: FormData) 
   function create(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await createAction(formData);
+      const result = await withToast(createAction(formData), "Stage added");
       if (result?.error) return setError(result.error);
       setOpen(false);
     });

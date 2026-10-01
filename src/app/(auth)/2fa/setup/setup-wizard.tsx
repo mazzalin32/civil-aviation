@@ -10,6 +10,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { FormAlert } from "@/components/auth/form-alert";
 import { beginTwoFactorSetup, confirmTwoFactorSetup } from "./actions";
+import { toast, withToast } from "@/components/ui/toast";
 
 type Step = { name: "password" } | { name: "scan"; qrDataUrl: string; secretUri: string; backupCodes: string[] };
 
@@ -32,7 +33,7 @@ export function SetupWizard() {
   function onConfirm(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await confirmTwoFactorSetup(formData);
+      const result = await withToast(confirmTwoFactorSetup(formData), "Two-factor authentication enabled");
       if (!result.ok) return setError(result.error);
       router.push("/");
       router.refresh();
@@ -43,6 +44,7 @@ export function SetupWizard() {
     try {
       await navigator.clipboard.writeText(codes.join("\n"));
       setCopied(true);
+      toast.success("Backup codes copied");
     } catch {
       // Clipboard can be unavailable; the codes are already visible to copy by hand.
     }

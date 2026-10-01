@@ -1,5 +1,17 @@
 # Changelog
 
+## Toasts, loader, favicon, performance (2026-10-01)
+
+### Added
+- **Toasts** (top-right) for every action: success and error messages for creating, updating, deleting, assigning, uploading, inviting, etc. `withToast(action(...), "Saved")` wraps a server action and shows its returned `error` or the success message; `toast.success/error/info` work anywhere. Chat messages and draft autosaves stay silent unless they fail. Replaces the old `window.alert` popups.
+- **Loader**: the CAA logo with a thin sweeping line, shown on first load and while signing in until the dashboard is ready (`app/loading.tsx`, login overlay). Respects reduced motion.
+- **Favicon / app icons** generated from the logo (`app/favicon.ico`, `icon.png`, `apple-icon.png`).
+
+### Changed (performance)
+- The session + user lookup now runs **once per request** (React `cache`) instead of in the proxy, the layout and the page separately; the proxy is a cookie-presence check for pages (full check kept for `/api/*`). Onboarding gates (forced password change, mandatory 2FA) moved to the app layout and the permission helpers (`assertOnboarded`).
+- Session expiry now refreshes at most once a minute (`updateAge: 60`) instead of writing to the database on every request.
+- Case page loads everything in one parallel batch (was four sequential rounds) and only loads notes, documents, folders, messages and assignable people for the tab that shows them; other tabs use counts.
+
 ## Emails and tasks (2026-10-01)
 
 ### Changed

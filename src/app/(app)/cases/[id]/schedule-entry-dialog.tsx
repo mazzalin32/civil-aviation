@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { scheduleEntry } from "@/app/(app)/calendar/actions";
+import { withToast } from "@/components/ui/toast";
 
 export function ScheduleEntryDialog({
   matterId,
@@ -32,7 +33,7 @@ export function ScheduleEntryDialog({
     startTransition(async () => {
       // Only HEARING renders forumId/courtroom, only DEADLINE renders isCritical — an
       // unrendered field's formData.get() is null, which fails the (string) zod schema.
-      const result = await scheduleEntry({
+      const result = await withToast(scheduleEntry({
         matterId,
         kind,
         title: formData.get("title"),
@@ -42,7 +43,7 @@ export function ScheduleEntryDialog({
         purpose: formData.get("purpose") ?? "",
         isCritical: formData.get("isCritical") === "on",
         assigneeId: formData.get("assigneeId") ?? "",
-      });
+      }), "Added to the calendar");
       if (result?.error) return setError(result.error);
       onClose();
     });

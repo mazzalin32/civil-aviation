@@ -2,11 +2,13 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/app/sidebar";
 import { TopBar } from "@/components/app/top-bar";
 import { getCurrentUser } from "@/lib/session";
+import { assertOnboarded } from "@/lib/authz";
 import { db } from "@/lib/db";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
-  if (!user) redirect("/login"); // defensive — proxy already guarantees this
+  if (!user) redirect("/login"); // signed out, expired session, or deactivated/deleted account
+  assertOnboarded(user); // forced password change, then mandatory 2FA
 
   const openTaskCount = await db.task.count({ where: { assigneeId: user.id, status: "OPEN", matter: { deletedAt: null } } });
 

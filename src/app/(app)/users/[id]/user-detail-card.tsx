@@ -10,6 +10,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/time";
 import { resendInvite, signOutAllSessions, toggleUserActive, updateLawyer } from "../actions";
+import { toast, withToast } from "@/components/ui/toast";
 
 export type UserDetail = {
   id: string;
@@ -48,7 +49,7 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
     formData.set("id", user.id);
     setError(undefined);
     startTransition(async () => {
-      const result = await updateLawyer(formData);
+      const result = await withToast(updateLawyer(formData), "User updated");
       if (result?.error) return setError(result.error);
       setEditing(false);
       router.refresh();
@@ -110,11 +111,11 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
             <Pencil className="size-4" /> Edit
           </Button>
           {!user.hasAccount && user.isActive && (
-            <Button disabled={pending} onClick={() => startTransition(() => resendInvite(user.id))}>
+            <Button disabled={pending} onClick={() => startTransition(() => withToast(resendInvite(user.id), "Invitation sent again"))}>
               <Mail className="size-4" /> Resend invite
             </Button>
           )}
-          <Button disabled={pending} onClick={() => startTransition(() => signOutAllSessions(user.id))}>
+          <Button disabled={pending} onClick={() => startTransition(() => withToast(signOutAllSessions(user.id), "Signed out of all sessions"))}>
             <LogOut className="size-4" /> Sign out sessions
           </Button>
           <Button
@@ -123,8 +124,8 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
             onClick={() => {
               if (user.isActive && !window.confirm(`Deactivate ${user.name}? They'll be signed out everywhere immediately.`)) return;
               startTransition(async () => {
-                const result = await toggleUserActive(user.id, !user.isActive);
-                if (result?.error) window.alert(result.error);
+                const result = await withToast(toggleUserActive(user.id, !user.isActive), "User status updated");
+                if (result?.error) toast.error(result.error);
                 else router.refresh();
               });
             }}

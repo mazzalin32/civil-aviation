@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { removeParty } from "../actions";
 import { PartyFormDialog } from "./party-form-dialog";
+import { withToast } from "@/components/ui/toast";
 
 export type PartyRow = {
   id: string;
@@ -29,7 +30,7 @@ export function PartiesTab({ matterId, parties }: { matterId: string; parties: P
   function onRemove(p: PartyRow) {
     if (!window.confirm(`Remove "${p.name}"?`)) return;
     startTransition(async () => {
-      await removeParty(matterId, p.id);
+      await withToast(removeParty(matterId, p.id), "Party removed");
     });
   }
 

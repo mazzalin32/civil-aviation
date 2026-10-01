@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/field";
 import { FormSection } from "@/components/ui/form-section";
 import { SlideOver } from "@/components/ui/slide-over";
 import { createLawyer } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export function AddLawyer({ autoOpen = false }: { autoOpen?: boolean }) {
   const [open, setOpen] = useState(autoOpen);
@@ -17,7 +18,7 @@ export function AddLawyer({ autoOpen = false }: { autoOpen?: boolean }) {
   function create(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await createLawyer(formData);
+      const result = await withToast(createLawyer(formData), "Invitation sent");
       if (result?.error) return setError(result.error);
       setOpen(false);
     });

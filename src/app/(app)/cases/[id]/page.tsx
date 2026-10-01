@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Lock } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireMatterAccess, canEditMatter, canAssignTasks, canAccessMatterChat } from "@/lib/authz";
+import { requireMatterAccess } from "@/lib/authz";
 import { CaseHeader } from "./header";
 import { LifecycleTracker, type TrackerStage } from "./lifecycle-tracker";
 import { CatchUpPanel } from "./catch-up-panel";
@@ -29,71 +29,105 @@ export default async function CasePage({
   const sp = await searchParams;
   const tab = (typeof sp.tab === "string" ? sp.tab : "timeline") as TabKey;
   const isAdmin = me.role === "ADMIN";
-  const canEdit = await canEditMatter(me.id, me.role, id);
-  const canAssign = await canAssignTasks(me.id, me.role, id);
-  const canChat = await canAccessMatterChat(me.id, me.role, id);
 
-  const matter = await db.matter.findUnique({
-    where: { id },
-    include: {
-      category: true,
-      matterType: { include: { stages: { where: { isActive: true }, orderBy: { order: "asc" } } } },
-      currentStage: true,
-      forum: true,
-      legalRecipient: { select: { name: true } },
-      assignments: { where: { removedAt: null }, include: { user: { select: { id: true, name: true } } } },
-      parties: { orderBy: { name: "asc" } },
-    },
-  });
-  if (!matter || matter.deletedAt) notFound();
-
-  const [stageMoves, events, latestSummary, summaryVersionIds, notesRaw, lawyers, messages] = await Promise.all([
+  // Everything is fetched in ONE parallel batch (previously four sequential rounds), and the heavy
+  // collections are only loaded for the tab that shows them — other tabs just need a count.
+  const needDocuments = tab === "documents" || tab === "discussion";
+  const noteWhere = { matterId: id, OR: [{ isPrivate: false }, { authorId: me.id }, ...(isAdmin ? [{ isPrivate: true }] : [])] };
+  const [
+    matter,
+    stageMoves,
+    events,
+    latestSummary,
+    summaryVersionIds,
+    lawyers,
+    assignablePeople,
+    eventTypes,
+    calendarEntries,
+    tasksRaw,
+    forums,
+    notesRaw,
+    noteCount,
+    documentsRaw,
+    documentCount,
+    folders,
+    messages,
+    messageCount,
+    pinnedMessage,
+  ] = await Promise.all([
+    db.matter.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        matterType: { include: { stages: { where: { isActive: true }, orderBy: { order: "asc" } } } },
+        currentStage: true,
+        forum: true,
+        legalRecipient: { select: { name: true } },
+        assignments: { where: { removedAt: null }, include: { user: { select: { id: true, name: true } } } },
+        parties: { orderBy: { name: "asc" } },
+      },
+    }),
     db.matterStage.findMany({ where: { matterId: id }, orderBy: { enteredAt: "asc" } }),
     db.event.findMany({ where: { matterId: id }, include: { type: true, createdBy: { select: { name: true } } }, orderBy: { date: "desc" } }),
     db.summaryVersion.findFirst({ where: { matterId: id }, orderBy: { createdAt: "desc" }, include: { author: { select: { name: true } } } }),
-    db.summaryVersion.findMany({ where: { matterId: id }, select: { id: true } }),
-    db.note.findMany({
-      where: { matterId: id, OR: [{ isPrivate: false }, { authorId: me.id }, ...(isAdmin ? [{ isPrivate: true }] : [])] },
-      include: { author: { select: { id: true, name: true } } },
-      orderBy: { updatedAt: "desc" },
-    }),
+    tab === "activity" ? db.summaryVersion.findMany({ where: { matterId: id }, select: { id: true } }) : Promise.resolve([] as { id: string }[]),
     db.user.findMany({
       where: { role: "LAWYER", isActive: true },
       select: { id: true, name: true, title: true, _count: { select: { matterAssignments: { where: { removedAt: null, matter: { status: { in: ["OPEN", "ON_HOLD"] } } } } } } },
       orderBy: { name: "asc" },
     }),
-    db.matterMessage.findMany({
-      where: { matterId: id },
-      include: {
-        author: { select: { id: true, name: true } },
-        pinnedBy: { select: { id: true, name: true } },
-        attachments: true,
-        mentions: { include: { user: { select: { id: true, name: true } } } },
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-  ]);
-
-  const assignablePeople = await db.user.findMany({ where: { isActive: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } });
-  const eventTypes = await db.eventType.findMany({ where: { isActive: true }, orderBy: { order: "asc" } });
-  const [documentsRaw, folders, calendarEntries, tasksRaw, forums] = await Promise.all([
-    db.document.findMany({
-      where: { matterId: id },
-      include: { folder: true, uploadedBy: { select: { name: true } }, currentVersion: true, _count: { select: { versions: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
-    db.documentFolder.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
+    tab === "tasks" ? db.user.findMany({ where: { isActive: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([] as { id: string; name: string }[]),
+    db.eventType.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
     db.calendarEntry.findMany({ where: { matterId: id }, orderBy: { startsAt: "desc" } }),
     db.task.findMany({ where: { matterId: id }, include: { assignee: { select: { name: true } } }, orderBy: { dueAt: "asc" } }),
     db.forum.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
+    tab === "notes"
+      ? db.note.findMany({ where: noteWhere, include: { author: { select: { id: true, name: true } } }, orderBy: { updatedAt: "desc" } })
+      : Promise.resolve([] as { id: string; body: string; isPrivate: boolean; updatedAt: Date; author: { id: string; name: string } }[]),
+    db.note.count({ where: noteWhere }),
+    needDocuments
+      ? db.document.findMany({
+          where: { matterId: id },
+          include: { folder: true, uploadedBy: { select: { name: true } }, currentVersion: true, _count: { select: { versions: true } } },
+          orderBy: { createdAt: "desc" },
+        })
+      : Promise.resolve([]),
+    db.document.count({ where: { matterId: id, deletedAt: null } }),
+    tab === "documents" ? db.documentFolder.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }) : Promise.resolve([] as { id: string; name: string }[]),
+    tab === "discussion"
+      ? db.matterMessage.findMany({
+          where: { matterId: id },
+          include: {
+            author: { select: { id: true, name: true } },
+            pinnedBy: { select: { id: true, name: true } },
+            attachments: true,
+            mentions: { include: { user: { select: { id: true, name: true } } } },
+          },
+          orderBy: { createdAt: "asc" },
+        })
+      : Promise.resolve([]),
+    db.matterMessage.count({ where: { matterId: id, deletedAt: null } }),
+    db.matterMessage.findFirst({ where: { matterId: id, isPinned: true, deletedAt: null }, orderBy: { pinnedAt: "desc" }, include: { author: { select: { id: true, name: true } } } }),
   ]);
+  if (!matter || matter.deletedAt) notFound();
+
+  // Same rules as canEditMatter / canAssignTasks / canAccessMatterChat in authz.ts, derived from the
+  // assignments we already loaded instead of three more queries. The actions themselves still enforce them.
+  const myAssignment = matter.assignments.find((a) => a.userId === me.id)?.role ?? null;
+  const canEdit = isAdmin || myAssignment === "LEAD" || myAssignment === "SUPPORT";
+  const canAssign = isAdmin || myAssignment === "LEAD";
+  const canChat = isAdmin || myAssignment !== null;
 
   let activity: { id: string; action: string; createdAt: Date; before: unknown; after: unknown; user: { name: string } | null }[] = [];
   if (tab === "activity") {
     const eventIds = events.map((e) => e.id);
     const partyIds = matter.parties.map((p) => p.id);
-    const noteIds = notesRaw.map((n) => n.id);
-    const documentIds = documentsRaw.map((d) => d.id);
+    const [noteRows, documentRows] = await Promise.all([
+      db.note.findMany({ where: { matterId: id }, select: { id: true } }),
+      db.document.findMany({ where: { matterId: id }, select: { id: true } }),
+    ]);
+    const noteIds = noteRows.map((n) => n.id);
+    const documentIds = documentRows.map((d) => d.id);
     activity = await db.auditLog.findMany({
       where: {
         entity: { in: ["Matter", "Event", "Note", "Party", "SummaryVersion", "Document"] },
@@ -132,9 +166,7 @@ export default async function CasePage({
     };
   });
 
-  const latestPinnedMessage = messages
-    .filter((m) => m.isPinned && !m.deletedAt)
-    .sort((a, b) => (b.pinnedAt?.getTime() ?? b.createdAt.getTime()) - (a.pinnedAt?.getTime() ?? a.createdAt.getTime()))[0] ?? null;
+  const latestPinnedMessage = pinnedMessage;
 
   return (
     <>
@@ -176,8 +208,8 @@ export default async function CasePage({
             daysOpen,
             openTasks: tasksRaw.filter((t) => t.status === "OPEN").length,
             overdueTasks: tasksRaw.filter((t) => t.status === "OPEN" && t.dueAt.getTime() < nowMs).length,
-            documents: documentsRaw.filter((d) => !d.deletedAt).length,
-            messages: messages.filter((m) => !m.deletedAt).length,
+            documents: documentCount,
+            messages: messageCount,
             nextDeadline: (() => {
               const next = calendarEntries.filter((e) => e.kind === "DEADLINE" && e.status === "OPEN").sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())[0];
               return next ? { title: next.title, dueAt: next.startsAt.toISOString() } : null;
@@ -260,11 +292,11 @@ export default async function CasePage({
         active={tab}
         counts={{
           timeline: events.length,
-          documents: documentsRaw.filter((d) => !d.deletedAt).length,
+          documents: documentCount,
           hearings: calendarEntries.filter((e) => e.kind === "DEADLINE").length,
           tasks: tasksRaw.length,
-          discussion: messages.filter((m) => !m.deletedAt).length,
-          notes: notesRaw.length,
+          discussion: messageCount,
+          notes: noteCount,
           activity: tab === "activity" ? activity.length : undefined,
         }}
       />

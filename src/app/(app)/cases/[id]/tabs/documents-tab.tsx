@@ -9,6 +9,7 @@ import { formatDate } from "@/lib/time";
 import { deleteDocument, restoreDocument, permanentlyDeleteDocument } from "./documents-actions";
 import { UploadDocumentDialog } from "./upload-document-dialog";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
+import { withToast } from "@/components/ui/toast";
 
 export type DocRow = {
   id: string;
@@ -64,18 +65,18 @@ export function DocumentsTab({
   function onDelete(d: DocRow) {
     if (!window.confirm(`Delete "${d.name}"? An Admin can restore it later.`)) return;
     startTransition(async () => {
-      await deleteDocument(matterId, d.id);
+      await withToast(deleteDocument(matterId, d.id), "Document deleted");
     });
   }
   function onRestore(d: DocRow) {
     startTransition(async () => {
-      await restoreDocument(matterId, d.id);
+      await withToast(restoreDocument(matterId, d.id), "Document restored");
     });
   }
   function onPurge(d: DocRow) {
     if (!window.confirm(`Permanently delete "${d.name}"? This cannot be undone.`)) return;
     startTransition(async () => {
-      await permanentlyDeleteDocument(matterId, d.id);
+      await withToast(permanentlyDeleteDocument(matterId, d.id), "Document permanently deleted");
     });
   }
 

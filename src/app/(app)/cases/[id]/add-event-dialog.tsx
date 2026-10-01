@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { addEvent } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export function AddEventDialog({
   matterId,
@@ -26,13 +27,13 @@ export function AddEventDialog({
   function create(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await addEvent({
+      const result = await withToast(addEvent({
         matterId,
         typeId: formData.get("typeId"),
         title: formData.get("title"),
         description: formData.get("description"),
         date: formData.get("date"),
-      });
+      }), "Event added");
       if (result?.error) return setError(result.error);
       onClose();
     });

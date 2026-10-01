@@ -30,6 +30,7 @@ import { DocumentsStep } from "./steps/documents-step";
 import { ReviewStep } from "./steps/review-step";
 import type { StepErrors } from "./steps/shared";
 import { saveDraft, discardDraft, checkDuplicates, createMatter } from "./actions";
+import { toast, withToast } from "@/components/ui/toast";
 
 const STEPS = ["Matter identification", "CAA position & reporting", "Service / legal process", "Parties", "Court & judicial information", "Legal representation", "Matter stage", "Documents", "Review & submit"] as const;
 const LAST = STEPS.length - 1;
@@ -83,7 +84,7 @@ export function WizardForm({
     setSaving(true);
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveDraft(next).finally(() => setSaving(false));
+      withToast(saveDraft(next), null).finally(() => setSaving(false));
     }, 700);
   }
 
@@ -139,7 +140,7 @@ export function WizardForm({
         const matches = await checkDuplicates(data.court?.courtCaseNo ?? "", names);
         if (matches.length > 0) return setDuplicates(matches);
       }
-      const result = await createMatter({
+      const result = await withToast(createMatter({
         identification: identificationSchema.parse(data.identification),
         position: positionSchema.parse(data.position),
         service: serviceSchema.parse(data.service ?? {}),
@@ -147,7 +148,7 @@ export function WizardForm({
         court: courtSchema.parse(data.court ?? {}),
         representation: representationSchema.parse(data.representation),
         stage: stageSchema.parse(data.stage),
-      });
+      }), "Case created");
       if ("error" in result) return setError(result.error);
 
       // The case exists now, so the files can go through the normal encrypted, virus-scanned upload.
@@ -160,17 +161,17 @@ export function WizardForm({
         form.set("confidentiality", data.stage?.confidentiality ?? "NORMAL");
         form.set("tags", "originating process");
         form.set("file", file);
-        const res = await uploadDocument(form);
+        const res = await withToast(uploadDocument(form), "Document uploaded");
         if (res && "error" in res && res.error) failed.push(`${file.name}: ${res.error}`);
       }
-      if (failed.length > 0) window.alert(`The case ${result.reference} was created, but some documents were not uploaded:\n\n${failed.join("\n")}\n\nYou can attach them from the case's Documents tab.`);
+      if (failed.length > 0) toast.error(`The case ${result.reference} was created, but some documents were not uploaded:\n\n${failed.join("\n")}\n\nYou can attach them from the case's Documents tab.`);
       router.push(`/cases/${result.matterId}${failed.length > 0 ? "?tab=documents" : ""}`);
     });
   }
 
   async function handleDiscard() {
     if (!window.confirm("Discard this draft? Everything entered so far will be lost.")) return;
-    await discardDraft();
+    await withToast(discardDraft(), "Draft discarded");
     router.push("/cases");
   }
 
@@ -266,7 +267,7 @@ export function WizardForm({
               type="button"
               onClick={() => {
                 setSaving(true);
-                saveDraft(data).finally(() => setSaving(false));
+                withToast(saveDraft(data), null).finally(() => setSaving(false));
               }}
             >
               <Save className="size-4" /> {saving ? "Saving…" : "Save draft"}

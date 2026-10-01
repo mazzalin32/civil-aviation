@@ -186,3 +186,24 @@
     transition: none !important;
   }
 }
+
+/* Branded loader: a thin line sweeping under the logo (components/app/brand-loader.tsx). */
+@keyframes brand-loader-sweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(330%);
+  }
+}
+.brand-loader-bar {
+  animation: brand-loader-sweep 1.15s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-bar {
+    animation: none;
+    transform: none;
+    width: 100%;
+    opacity: 0.55;
+  }
+}

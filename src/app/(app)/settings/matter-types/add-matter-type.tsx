@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { createMatterType } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export function AddMatterType({ isSubProcess }: { isSubProcess: boolean }) {
   const [open, setOpen] = useState(false);
@@ -17,7 +18,7 @@ export function AddMatterType({ isSubProcess }: { isSubProcess: boolean }) {
   function create(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await createMatterType(formData);
+      const result = await withToast(createMatterType(formData), "Added");
       if (result?.error) return setError(result.error);
       setOpen(false);
     });

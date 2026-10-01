@@ -10,6 +10,7 @@ import { SlideOver } from "@/components/ui/slide-over";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { EmptyState } from "@/components/app/empty-state";
 import { saveLawFirm, setLawFirmActive } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export type LawFirmRow = {
   id: string;
@@ -42,7 +43,7 @@ export function LawFirmsView({ firms, isAdmin }: { firms: LawFirmRow[]; isAdmin:
   function submit(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await saveLawFirm({
+      const result = await withToast(saveLawFirm({
         id: editing?.id,
         name: formData.get("name"),
         contactName: formData.get("contactName"),
@@ -50,7 +51,7 @@ export function LawFirmsView({ firms, isAdmin }: { firms: LawFirmRow[]; isAdmin:
         email: formData.get("email"),
         address: formData.get("address"),
         notes: formData.get("notes"),
-      });
+      }), "Law firm saved");
       if (result?.error) return setError(result.error);
       setOpen(false);
     });
@@ -58,7 +59,7 @@ export function LawFirmsView({ firms, isAdmin }: { firms: LawFirmRow[]; isAdmin:
 
   function toggleActive(f: LawFirmRow) {
     startTransition(async () => {
-      await setLawFirmActive(f.id, !f.isActive);
+      await withToast(setLawFirmActive(f.id, !f.isActive), "Law firm updated");
     });
   }
 

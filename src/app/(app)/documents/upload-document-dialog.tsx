@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { cn } from "@/lib/utils";
 import { uploadDocument } from "../cases/[id]/tabs/documents-actions";
+import { withToast } from "@/components/ui/toast";
 
 /** Same upload as the case's Documents tab, just with a Matter picker up front — this page
  *  is a library across every case, not scoped to one, so the case has to be chosen here. */
@@ -31,7 +32,7 @@ export function UploadDocumentDialog({
   function submit(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await uploadDocument(formData);
+      const result = await withToast(uploadDocument(formData), "Document uploaded");
       if (result?.error) return setError(result.error);
       setFileName(undefined);
       onClose();

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { cn } from "@/lib/utils";
+import { withToast } from "@/components/ui/toast";
 
 export type StageRow = {
   id: string;
@@ -46,7 +47,7 @@ export function StageRowItem({
     formData.set("id", stage.id);
     setError(undefined);
     startTransition(async () => {
-      const result = await updateAction(formData);
+      const result = await withToast(updateAction(formData), "Stage updated");
       if (result?.error) return setError(result.error);
       setEditing(false);
     });
@@ -54,7 +55,7 @@ export function StageRowItem({
 
   function onDelete() {
     if (!window.confirm(`Delete stage "${stage.name}"? This can't be undone.`)) return;
-    startTransition(deleteAction);
+    startTransition(() => withToast(deleteAction(), "Stage deleted"));
   }
 
   if (editing) {
@@ -108,15 +109,15 @@ export function StageRowItem({
         <RowActionsMenu
           actions={[
             { label: "Edit", icon: Pencil, onClick: () => setEditing(true) },
-            { label: "Move up", icon: ArrowUp, disabled: !canMoveUp || pending, onClick: () => startTransition(() => moveAction("up")) },
-            { label: "Move down", icon: ArrowDown, disabled: !canMoveDown || pending, onClick: () => startTransition(() => moveAction("down")) },
+            { label: "Move up", icon: ArrowUp, disabled: !canMoveUp || pending, onClick: () => startTransition(() => withToast(moveAction("up"), "Order updated")) },
+            { label: "Move down", icon: ArrowDown, disabled: !canMoveDown || pending, onClick: () => startTransition(() => withToast(moveAction("down"), "Order updated")) },
             { kind: "separator" },
             {
               label: stage.isActive ? "Deactivate" : "Reactivate",
               icon: stage.isActive ? Ban : CheckCircle2,
               danger: stage.isActive,
               disabled: pending,
-              onClick: () => startTransition(() => toggleActiveAction(!stage.isActive)),
+              onClick: () => startTransition(() => withToast(toggleActiveAction(!stage.isActive), "Status updated")),
             },
             { label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: onDelete },
           ]}

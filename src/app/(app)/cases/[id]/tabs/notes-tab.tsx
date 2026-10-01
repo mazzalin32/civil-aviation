@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { formatDate } from "@/lib/time";
 import { addNote, deleteNote, updateNote } from "../actions";
+import { withToast } from "@/components/ui/toast";
 
 export type NoteRow = { id: string; body: string; isPrivate: boolean; authorId: string; authorName: string; updatedAt: string };
 
@@ -28,7 +29,7 @@ export function NotesTab({
   function submitNew(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await addNote({ matterId, body: formData.get("body"), isPrivate: formData.get("isPrivate") === "on" });
+      const result = await withToast(addNote({ matterId, body: formData.get("body"), isPrivate: formData.get("isPrivate") === "on" }), "Note added");
       if (result?.error) return setError(result.error);
     });
   }
@@ -36,7 +37,7 @@ export function NotesTab({
   function submitEdit(note: NoteRow, formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await updateNote({ matterId, id: note.id, body: formData.get("body"), isPrivate: formData.get("isPrivate") === "on" });
+      const result = await withToast(updateNote({ matterId, id: note.id, body: formData.get("body"), isPrivate: formData.get("isPrivate") === "on" }), "Note updated");
       if (result?.error) return setError(result.error);
       setEditingId(null);
     });
@@ -45,7 +46,7 @@ export function NotesTab({
   function onDelete(note: NoteRow) {
     if (!window.confirm("Delete this note?")) return;
     startTransition(async () => {
-      await deleteNote(matterId, note.id);
+      await withToast(deleteNote(matterId, note.id), "Note deleted");
     });
   }
 

@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/toast";
+import { withToast } from "@/components/ui/toast";
 
 export type FieldSpec =
   | { key: string; label: string; type: "text"; placeholder?: string }
@@ -131,8 +133,8 @@ function Row({
     if (!deleteAction) return;
     if (!window.confirm(`Delete "${item.name}"? This can't be undone.`)) return;
     startTransition(async () => {
-      const result = await deleteAction(item.id);
-      if (result?.error) window.alert(result.error);
+      const result = await withToast(deleteAction(item.id), "Deleted");
+      if (result?.error) toast.error(result.error);
     });
   }
 
@@ -140,7 +142,7 @@ function Row({
     formData.set("id", item.id);
     setError(undefined);
     startTransition(async () => {
-      const result = await updateAction(formData);
+      const result = await withToast(updateAction(formData), "Changes saved");
       if (result?.error) return setError(result.error);
       onSaved();
     });
@@ -189,12 +191,12 @@ function Row({
             { label: "Edit", icon: Pencil, onClick: onEdit },
             ...(moveAction
               ? ([
-                  { label: "Move up", icon: ArrowUp, disabled: !canMoveUp || pending, onClick: () => startTransition(() => moveAction(item.id, "up")) },
+                  { label: "Move up", icon: ArrowUp, disabled: !canMoveUp || pending, onClick: () => startTransition(() => withToast(moveAction(item.id, "up"), "Order updated")) },
                   {
                     label: "Move down",
                     icon: ArrowDown,
                     disabled: !canMoveDown || pending,
-                    onClick: () => startTransition(() => moveAction(item.id, "down")),
+                    onClick: () => startTransition(() => withToast(moveAction(item.id, "down"), "Order updated")),
                   },
                 ] as const)
               : []),
@@ -204,7 +206,7 @@ function Row({
               icon: item.isActive ? Ban : CheckCircle2,
               danger: item.isActive,
               disabled: pending,
-              onClick: () => startTransition(() => toggleActiveAction(item.id, !item.isActive)),
+              onClick: () => startTransition(() => withToast(toggleActiveAction(item.id, !item.isActive), "Status updated")),
             },
             ...(deleteAction ? [{ label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: onDelete }] : []),
           ]}

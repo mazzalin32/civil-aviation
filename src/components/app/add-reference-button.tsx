@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { ExtraFieldInput, type FieldSpec } from "./reference-table";
+import { withToast } from "@/components/ui/toast";
 
 /** The primary "+ Add X" button in a page's header, opening a right-side form panel. */
 export function AddReferenceButton({
@@ -27,7 +28,7 @@ export function AddReferenceButton({
   function create(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await createAction(formData);
+      const result = await withToast(createAction(formData), "Added");
       if (result?.error) return setError(result.error);
       setOpen(false);
     });

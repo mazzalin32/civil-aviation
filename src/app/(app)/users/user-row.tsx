@@ -11,6 +11,7 @@ import { Avatar } from "@/components/app/avatar";
 import { formatDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { deleteUser, resendInvite, signOutAllSessions, toggleUserActive, updateLawyer } from "./actions";
+import { toast, withToast } from "@/components/ui/toast";
 
 export type UserRowData = {
   id: string;
@@ -44,7 +45,7 @@ export function UserRowItem({ user }: { user: UserRowData }) {
     formData.set("id", user.id);
     setError(undefined);
     startTransition(async () => {
-      const result = await updateLawyer(formData);
+      const result = await withToast(updateLawyer(formData), "User updated");
       if (result?.error) return setError(result.error);
       setEditing(false);
     });
@@ -110,9 +111,9 @@ export function UserRowItem({ user }: { user: UserRowData }) {
           actions={[
             { label: "Edit", icon: Pencil, onClick: () => setEditing(true) },
             ...(!user.hasAccount && user.isActive
-              ? [{ label: "Resend invite", icon: Mail, disabled: pending, onClick: () => startTransition(() => resendInvite(user.id)) }]
+              ? [{ label: "Resend invite", icon: Mail, disabled: pending, onClick: () => startTransition(() => withToast(resendInvite(user.id), "Invitation sent again")) }]
               : []),
-            { label: "Sign out all sessions", icon: LogOut, disabled: pending, onClick: () => startTransition(() => signOutAllSessions(user.id)) },
+            { label: "Sign out all sessions", icon: LogOut, disabled: pending, onClick: () => startTransition(() => withToast(signOutAllSessions(user.id), "Signed out of all sessions")) },
             { kind: "separator" as const },
             {
               label: user.isActive ? "Deactivate" : "Reactivate",
@@ -122,8 +123,8 @@ export function UserRowItem({ user }: { user: UserRowData }) {
               onClick: () => {
                 if (user.isActive && !window.confirm(`Deactivate ${user.name}? They'll be signed out everywhere immediately.`)) return;
                 startTransition(async () => {
-                  const result = await toggleUserActive(user.id, !user.isActive);
-                  if (result?.error) window.alert(result.error);
+                  const result = await withToast(toggleUserActive(user.id, !user.isActive), "User status updated");
+                  if (result?.error) toast.error(result.error);
                 });
               },
             },
@@ -135,8 +136,8 @@ export function UserRowItem({ user }: { user: UserRowData }) {
               onClick: () => {
                 if (!window.confirm(`Delete ${user.name}? They will be removed from the Users list, signed out everywhere and unable to sign in. Their history on cases is kept. You can restore them later by adding the same email again.`)) return;
                 startTransition(async () => {
-                  const result = await deleteUser(user.id);
-                  if (result?.error) window.alert(result.error);
+                  const result = await withToast(deleteUser(user.id), "User deleted");
+                  if (result?.error) toast.error(result.error);
                 });
               },
             },

@@ -9,6 +9,7 @@ import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { cn } from "@/lib/utils";
 import { uploadDocument } from "./documents-actions";
+import { withToast } from "@/components/ui/toast";
 
 export function UploadDocumentDialog({
   matterId,
@@ -34,7 +35,7 @@ export function UploadDocumentDialog({
   function submit(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await uploadDocument(formData);
+      const result = await withToast(uploadDocument(formData), "Document uploaded");
       if (result?.error) return setError(result.error);
       setFileName(undefined);
       onClose();

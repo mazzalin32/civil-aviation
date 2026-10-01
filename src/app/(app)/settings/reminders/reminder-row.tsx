@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { updateReminderRule } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export type ReminderRuleRow = { id: string; label: string; offsets: number[]; channels: string[]; mutable: boolean };
 
@@ -23,7 +24,7 @@ export function ReminderRow({ rule }: { rule: ReminderRuleRow }) {
     formData.set("id", rule.id);
     setError(undefined);
     startTransition(async () => {
-      const result = await updateReminderRule(formData);
+      const result = await withToast(updateReminderRule(formData), "Reminder rule saved");
       if (result?.error) return setError(result.error);
       setEditing(false);
     });

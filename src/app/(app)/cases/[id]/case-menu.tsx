@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Clock, FilePlus2, Pause, Play, Trash2, UserPlus, XCircle } from "lucide-react";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { deleteCase, putOnHold, resumeCase } from "./actions";
+import { toast, withToast } from "@/components/ui/toast";
 
 export function CaseMenu({
   matterId,
@@ -25,23 +26,23 @@ export function CaseMenu({
   function onHold() {
     const reason = window.prompt("Reason for putting this case on hold (optional):") ?? "";
     startTransition(async () => {
-      const result = await putOnHold({ matterId, reason });
-      if (result?.error) window.alert(result.error);
+      const result = await withToast(putOnHold({ matterId, reason }), "Case put on hold");
+      if (result?.error) toast.error(result.error);
     });
   }
 
   function onResume() {
     startTransition(async () => {
-      const result = await resumeCase(matterId);
-      if (result?.error) window.alert(result.error);
+      const result = await withToast(resumeCase(matterId), "Case resumed");
+      if (result?.error) toast.error(result.error);
     });
   }
 
   function onDelete() {
     if (!window.confirm("Delete this case? It will be removed from all lists and no longer open for anyone. Its documents and history are kept for audit.")) return;
     startTransition(async () => {
-      const result = await deleteCase(matterId);
-      if (result?.error) return window.alert(result.error);
+      const result = await withToast(deleteCase(matterId), "Case deleted");
+      if (result?.error) return toast.error(result.error);
       router.push("/cases");
     });
   }

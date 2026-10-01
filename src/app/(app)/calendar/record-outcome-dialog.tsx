@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { recordOutcome } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export type OutcomeEntry = { id: string; title: string; kind: string; startsAt: string };
 
@@ -22,14 +23,14 @@ export function RecordOutcomeDialog({ entry, onClose }: { entry: OutcomeEntry | 
       // Only the fields for the selected outcome type are actually rendered, so an
       // unrendered field's formData.get() is null, not "" — which fails the (string)
       // zod schema outright. Coerce every optional field to "" before sending.
-      const result = await recordOutcome({
+      const result = await withToast(recordOutcome({
         entryId: entry.id,
         outcomeType,
         outcomeNote: formData.get("outcomeNote") ?? "",
         adjournmentReason: formData.get("adjournmentReason") ?? "",
         nextDate: formData.get("nextDate") ?? "",
         directions: formData.get("directions") ?? "",
-      });
+      }), "Outcome recorded");
       if (result?.error) return setError(result.error);
       onClose();
     });

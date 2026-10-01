@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { FormAlert } from "@/components/auth/form-alert";
+import { BrandLoader } from "@/components/app/brand-loader";
 import { loginAction, type LoginState } from "./actions";
 
 const initialState: LoginState = {};
@@ -17,10 +18,12 @@ const fieldClass =
   "h-12 rounded-md px-4 text-[15px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-border focus-visible:border-b-primary";
 
 export function LoginForm({ next }: { next: string }) {
-  const [state, action] = useActionState(loginAction, initialState);
+  const [state, action, pending] = useActionState(loginAction, initialState);
 
   return (
     <form action={action} className="grid gap-3.5" noValidate>
+      {/* Covers the screen from the moment sign-in is submitted until the dashboard is ready. */}
+      {pending && <BrandLoader label="Signing you in" />}
       <input type="hidden" name="next" value={next} />
       {state.error && <FormAlert>{state.error}</FormAlert>}
       <div>

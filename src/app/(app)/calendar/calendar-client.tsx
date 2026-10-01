@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { RecordOutcomeDialog, type OutcomeEntry } from "./record-outcome-dialog";
 import { AddPersonalEntryDialog } from "./add-personal-entry-dialog";
 import { getOrCreateIcsToken, deletePersonalEntry } from "./actions";
+import { toast, withToast } from "@/components/ui/toast";
 
 export type CalendarEvent = {
   id: string;
@@ -82,14 +83,15 @@ export function CalendarClient({
       const token = await getOrCreateIcsToken();
       const url = `${window.location.origin}/api/calendar/feed.ics?token=${token}`;
       setIcsUrl(url);
-      await navigator.clipboard.writeText(url).catch(() => {});
+      const copied = await navigator.clipboard.writeText(url).then(() => true, () => false);
+      if (copied) toast.success("Calendar link copied to clipboard");
     });
   }
 
   function onDeletePersonal(e: CalendarEvent) {
     if (!window.confirm(`Remove "${e.title}"?`)) return;
     startTransition(async () => {
-      await deletePersonalEntry(e.id);
+      await withToast(deletePersonalEntry(e.id), "Entry deleted");
       setSelected(null);
     });
   }

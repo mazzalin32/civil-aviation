@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
 import { addPersonalEntry } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export function AddPersonalEntryDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [pending, startTransition] = useTransition();
@@ -15,7 +16,7 @@ export function AddPersonalEntryDialog({ open, onClose }: { open: boolean; onClo
   function submit(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await addPersonalEntry(formData);
+      const result = await withToast(addPersonalEntry(formData), "Personal entry added");
       if (result?.error) return setError(result.error);
       onClose();
     });

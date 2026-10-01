@@ -10,6 +10,7 @@ import { SlideOver } from "@/components/ui/slide-over";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { EmptyState } from "@/components/app/empty-state";
 import { addResourceLink, deleteResourceLink } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
 export type ResourceLinkRow = {
   id: string;
@@ -27,7 +28,7 @@ export function LinksView({ links, isAdmin }: { links: ResourceLinkRow[]; isAdmi
   function submit(formData: FormData) {
     setError(undefined);
     startTransition(async () => {
-      const result = await addResourceLink({ title: formData.get("title"), url: formData.get("url"), category: formData.get("category") });
+      const result = await withToast(addResourceLink({ title: formData.get("title"), url: formData.get("url"), category: formData.get("category") }), "Link added");
       if (result?.error) return setError(result.error);
       setOpen(false);
     });
@@ -36,7 +37,7 @@ export function LinksView({ links, isAdmin }: { links: ResourceLinkRow[]; isAdmi
   function onDelete(l: ResourceLinkRow) {
     if (!window.confirm(`Remove "${l.title}"?`)) return;
     startTransition(async () => {
-      await deleteResourceLink(l.id);
+      await withToast(deleteResourceLink(l.id), "Link removed");
     });
   }
 
