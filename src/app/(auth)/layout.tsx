@@ -40,14 +40,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <br />
           Access is limited to Legal Department staff assigned by the Head of Legal.
         </p>
-        <p className="m-0 mt-6 text-xs text-on-primary/60">© {new Date().getFullYear()} CAA Legal — Case &amp; Matter Management</p>
+        <p className="m-0 mt-6 text-xs text-on-primary/60">CAA Legal — Case &amp; Matter Management {new Date().getFullYear()}</p>
       </aside>
 
       <main className="flex items-center justify-center bg-surface px-4 py-10 sm:px-8">
-        <div className="w-full max-w-[480px]">
-          {children}
-          <p className="m-0 mt-10 text-center text-xs text-text-muted">© {new Date().getFullYear()} CAA Legal Department</p>
-        </div>
+        <div className="w-full max-w-[480px]">{children}</div>
       </main>
     </div>
   );
