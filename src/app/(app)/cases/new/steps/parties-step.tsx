@@ -1,109 +1,57 @@
-import { Plus, Trash2, User, Building2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Plus, Trash2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { FormSection } from "@/components/ui/form-section";
-import type { PartiesStep as PartiesStepData, PartyRow } from "@/lib/validation/matter";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { PARTY_TYPES, type Parties, type PartyRow } from "@/lib/validation/matter";
+import { FieldGrid, Options, StepHeader } from "./shared";
 
-const emptyParty: PartyRow = { name: "", counselName: "", counselFirm: "", email: "", phone: "" };
-
-export function PartiesStep({
-  value,
-  onChange,
-}: {
-  value: Partial<PartiesStepData>;
-  onChange: (patch: Partial<PartiesStepData>) => void;
-}) {
-  const opposing = value.opposing ?? [];
-  const witnesses = value.witnesses ?? [];
+export function PartiesStep({ value, onChange }: { value: Partial<Parties>; onChange: (patch: Partial<Parties>) => void }) {
+  const rows: PartyRow[] = value.rows && value.rows.length > 0 ? value.rows : [{}];
+  const update = (i: number, patch: Partial<PartyRow>) => onChange({ rows: rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) });
 
   return (
-    <div className="grid gap-7">
-      <FormSection step={1} title="Opposing parties & counsel">
-        <div className="grid gap-4 sm:col-span-2">
-          {opposing.map((p, i) => (
-            <div key={i} className="grid gap-3 rounded-card border border-border p-4 sm:grid-cols-2">
-              <Field label="Party name" htmlFor={`op-name-${i}`}>
-                <Input
-                  id={`op-name-${i}`}
-                  icon={User}
-                  value={p.name}
-                  onChange={(e) => onChange({ opposing: opposing.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)) })}
-                />
-              </Field>
-              <Field label="Counsel name" htmlFor={`op-counsel-${i}`}>
-                <Input
-                  id={`op-counsel-${i}`}
-                  value={p.counselName ?? ""}
-                  onChange={(e) => onChange({ opposing: opposing.map((r, j) => (j === i ? { ...r, counselName: e.target.value } : r)) })}
-                />
-              </Field>
-              <Field label="Counsel firm" htmlFor={`op-firm-${i}`}>
-                <Input
-                  id={`op-firm-${i}`}
-                  icon={Building2}
-                  value={p.counselFirm ?? ""}
-                  onChange={(e) => onChange({ opposing: opposing.map((r, j) => (j === i ? { ...r, counselFirm: e.target.value } : r)) })}
-                />
-              </Field>
-              <div className="flex items-end gap-2">
-                <Field label="Phone" htmlFor={`op-phone-${i}`} className="flex-1">
-                  <Input
-                    id={`op-phone-${i}`}
-                    value={p.phone ?? ""}
-                    onChange={(e) => onChange({ opposing: opposing.map((r, j) => (j === i ? { ...r, phone: e.target.value } : r)) })}
-                  />
-                </Field>
-                <Button type="button" variant="ghost" size="icon" onClick={() => onChange({ opposing: opposing.filter((_, j) => j !== i) })} aria-label="Remove party">
+    <>
+      <StepHeader
+        step={4}
+        eyebrow="Parties"
+        title="Parties to the matter"
+        description="Add every other relevant party, such as witnesses and interested parties, and describe their role. The main other party was captured in step 2."
+      />
+      <div className="grid gap-4">
+        {rows.map((row, i) => (
+          <section key={i} className="rounded-[12px] border border-border p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <User className="size-4 text-text-muted" />
+              <h3 className="m-0 text-[13.5px] font-semibold">Party {i + 1}</h3>
+              {rows.length > 1 && (
+                <button type="button" aria-label={`Remove party ${i + 1}`} onClick={() => onChange({ rows: rows.filter((_, idx) => idx !== i) })} className="ml-auto text-text-muted hover:text-danger">
                   <Trash2 className="size-4" />
-                </Button>
-              </div>
+                </button>
+              )}
             </div>
-          ))}
-          <Button type="button" onClick={() => onChange({ opposing: [...opposing, { ...emptyParty }] })} className="justify-self-start">
-            <Plus className="size-4" /> Add opposing party
-          </Button>
-        </div>
-      </FormSection>
-
-      <FormSection step={2} title="Witnesses">
-        <div className="grid gap-3 sm:col-span-2">
-          {witnesses.map((w, i) => (
-            <div key={i} className="flex items-end gap-2">
-              <Field label="Name" htmlFor={`wit-name-${i}`} className="flex-1">
-                <Input
-                  id={`wit-name-${i}`}
-                  icon={User}
-                  value={w.name}
-                  onChange={(e) => onChange({ witnesses: witnesses.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)) })}
-                />
+            <FieldGrid>
+              <Field label="Party name" htmlFor={`pt-name-${i}`}>
+                <Input id={`pt-name-${i}`} value={row.name ?? ""} onChange={(e) => update(i, { name: e.target.value })} placeholder="Full legal name" />
               </Field>
-              <Field label="Phone" htmlFor={`wit-phone-${i}`} className="flex-1">
-                <Input
-                  id={`wit-phone-${i}`}
-                  value={w.phone ?? ""}
-                  onChange={(e) => onChange({ witnesses: witnesses.map((r, j) => (j === i ? { ...r, phone: e.target.value } : r)) })}
-                />
+              <Field label="Organisation" htmlFor={`pt-org-${i}`}>
+                <Input id={`pt-org-${i}`} value={row.organisation ?? ""} onChange={(e) => update(i, { organisation: e.target.value })} placeholder="Company or institution" />
               </Field>
-              <Button type="button" variant="ghost" size="icon" onClick={() => onChange({ witnesses: witnesses.filter((_, j) => j !== i) })} aria-label="Remove witness">
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-          ))}
-          <Button type="button" onClick={() => onChange({ witnesses: [...witnesses, { name: "", phone: "" }] })} className="justify-self-start">
-            <Plus className="size-4" /> Add witness
-          </Button>
-        </div>
-      </FormSection>
-
-      <FormSection step={3} title="Internal UCAA contact">
-        <Field label="Contact name" htmlFor="p-internal-name">
-          <Input id="p-internal-name" icon={User} value={value.internalContactName ?? ""} onChange={(e) => onChange({ internalContactName: e.target.value })} />
-        </Field>
-        <Field label="Department" htmlFor="p-internal-dept" hint="The department that raised the matter">
-          <Input id="p-internal-dept" icon={Building2} value={value.internalContactDepartment ?? ""} onChange={(e) => onChange({ internalContactDepartment: e.target.value })} />
-        </Field>
-      </FormSection>
-    </div>
+              <Field label="Party type" htmlFor={`pt-type-${i}`}>
+                <Select id={`pt-type-${i}`} value={row.partyType ?? ""} onChange={(e) => update(i, { partyType: e.target.value })}>
+                  <Options values={PARTY_TYPES} />
+                </Select>
+              </Field>
+              <Field label="Role in matter" htmlFor={`pt-role-${i}`}>
+                <Input id={`pt-role-${i}`} value={row.role ?? ""} onChange={(e) => update(i, { role: e.target.value })} placeholder="e.g. Witness, interested party" />
+              </Field>
+            </FieldGrid>
+          </section>
+        ))}
+      </div>
+      <Button type="button" variant="ghost" className="mt-3 text-primary" onClick={() => onChange({ rows: [...rows, {}] })}>
+        <Plus className="size-4" /> Add party
+      </Button>
+    </>
   );
 }

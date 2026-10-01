@@ -1,49 +1,83 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, Loader2, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Save, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
-import { cn } from "@/lib/utils";
-import { basicsSchema, forumStepSchema, partiesStepSchema, factsStepSchema, assignStepSchema, type WizardData } from "@/lib/validation/matter";
-import { BasicsStep } from "./steps/basics-step";
-import { ForumStep } from "./steps/forum-step";
+import {
+  courtSchema,
+  identificationSchema,
+  partiesSchema,
+  positionSchema,
+  representationSchema,
+  serviceSchema,
+  stageSchema,
+  type WizardData,
+} from "@/lib/validation/matter";
+import { MAX_UPLOAD_BYTES } from "@/lib/validation/document";
+import { uploadDocument } from "../[id]/tabs/documents-actions";
+import { ProgressRail } from "./progress-rail";
+import { IdentificationStep } from "./steps/identification-step";
+import { PositionStep } from "./steps/position-step";
+import { ServiceStep } from "./steps/service-step";
 import { PartiesStep } from "./steps/parties-step";
-import { FactsStep } from "./steps/facts-step";
-import { AssignStep, type LawyerOption } from "./steps/assign-step";
+import { CourtStep } from "./steps/court-step";
+import { RepresentationStep, type LawyerOption } from "./steps/representation-step";
+import { StageStep } from "./steps/stage-step";
+import { DocumentsStep } from "./steps/documents-step";
+import { ReviewStep } from "./steps/review-step";
+import type { StepErrors } from "./steps/shared";
 import { saveDraft, discardDraft, checkDuplicates, createMatter } from "./actions";
 
-const STEPS = ["Basics", "Forum", "Parties", "Facts & value", "Assign & start"] as const;
+const STEPS = ["Matter identification", "CAA position & reporting", "Service / legal process", "Parties", "Court & judicial information", "Legal representation", "Matter stage", "Documents", "Review & submit"] as const;
+const LAST = STEPS.length - 1;
 
 type MatterTypeOption = { id: string; name: string; referencePrefix: string | null; stages: { id: string; name: string }[] };
+
+/** Per-step validation. Steps without required fields (service, parties, court, documents) always pass. */
+const STEP_SCHEMAS = [identificationSchema, positionSchema, serviceSchema, partiesSchema, courtSchema, representationSchema, stageSchema] as const;
+const STEP_KEYS = ["identification", "position", "service", "parties", "court", "representation", "stage"] as const;
+
+function todayInKampala() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Kampala" }).format(new Date());
+}
 
 export function WizardForm({
   categories,
   matterTypes,
   forums,
   lawyers,
+  folders,
   initialDraft,
 }: {
   categories: { id: string; name: string }[];
   matterTypes: MatterTypeOption[];
   forums: { id: string; name: string; division: string | null }[];
   lawyers: LawyerOption[];
+  folders: { id: string; name: string }[];
   initialDraft: WizardData | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [data, setData] = useState<WizardData>(initialDraft ?? {});
+  const [furthest, setFurthest] = useState(0);
+  const [data, setData] = useState<WizardData>(() => {
+    const draft = initialDraft ?? { v: 2 as const };
+    return { ...draft, v: 2, identification: { reportedDate: todayInKampala(), ...draft.identification } };
+  });
+  const [files, setFiles] = useState<File[]>([]);
+  const [folderId, setFolderId] = useState(folders[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
+  const [showErrors, setShowErrors] = useState(false);
   const [duplicates, setDuplicates] = useState<{ id: string; reference: string; title: string }[]>();
   const [ackDuplicates, setAckDuplicates] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const selectedMatterType = matterTypes.find((t) => t.id === data.basics?.matterTypeId);
-  const stages = selectedMatterType?.stages ?? [];
+  const matterType = matterTypes.find((t) => t.id === data.identification?.matterTypeId);
+  const stages = matterType?.stages ?? [];
 
   function scheduleSave(next: WizardData) {
     setSaving(true);
@@ -53,57 +87,85 @@ export function WizardForm({
     }, 700);
   }
 
-  function patch<K extends keyof WizardData>(key: K, value: WizardData[K]) {
-    const next = { ...data, [key]: { ...data[key], ...value } };
+  function patch<K extends (typeof STEP_KEYS)[number]>(key: K, value: WizardData[K]) {
+    let next: WizardData = { ...data, v: 2, [key]: { ...data[key], ...value } };
+    // A different matter type has different stages — drop a stage that no longer belongs to it.
+    if (key === "identification" && (value as { matterTypeId?: string }).matterTypeId) {
+      const nextType = matterTypes.find((t) => t.id === (value as { matterTypeId?: string }).matterTypeId);
+      if (!nextType?.stages.some((s) => s.id === data.stage?.stageTemplateId)) next = { ...next, stage: { ...data.stage, stageTemplateId: "" } };
+    }
     setData(next);
     setError(undefined);
     scheduleSave(next);
   }
 
-  function stepIsValid(i: number): boolean {
-    if (i === 0) return basicsSchema.safeParse(data.basics ?? {}).success;
-    if (i === 1) return forumStepSchema.safeParse(data.forum ?? {}).success;
-    if (i === 2) return partiesStepSchema.safeParse(data.parties ?? {}).success;
-    if (i === 3) return factsStepSchema.safeParse(data.facts ?? {}).success;
-    return assignStepSchema.safeParse(data.assign ?? {}).success;
+  function errorsFor(i: number): StepErrors {
+    if (i >= STEP_SCHEMAS.length) return {};
+    const result = STEP_SCHEMAS[i].safeParse(data[STEP_KEYS[i]] ?? {});
+    if (result.success) return {};
+    const out: StepErrors = {};
+    for (const issue of result.error.issues) out[String(issue.path[0])] ??= issue.message;
+    return out;
+  }
+  const stepValid = (i: number) => Object.keys(errorsFor(i)).length === 0 && !(i === 7 && files.some((f) => f.size > MAX_UPLOAD_BYTES));
+
+  function goTo(i: number) {
+    setStep(i);
+    setShowErrors(false);
+    setError(undefined);
+    setFurthest((f) => Math.max(f, i));
   }
 
-  function goNext() {
-    if (!stepIsValid(step)) {
-      setError("Check the highlighted fields before continuing.");
+  function next() {
+    if (!stepValid(step)) {
+      setShowErrors(true);
+      setError("Complete the highlighted fields before continuing.");
       return;
     }
-    setError(undefined);
-    setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    goTo(Math.min(step + 1, LAST));
   }
 
-  async function handleCreate() {
-    if (!stepIsValid(4)) return setError("Check the highlighted fields before continuing.");
-
-    if (!ackDuplicates) {
-      const names = (data.parties?.opposing ?? []).map((p) => p.name).filter(Boolean);
-      const matches = await checkDuplicates(data.forum?.courtCaseNo ?? "", names);
-      if (matches.length > 0) {
-        setDuplicates(matches);
-        return;
-      }
+  function submit() {
+    const firstInvalid = STEP_KEYS.findIndex((_, i) => !stepValid(i));
+    if (firstInvalid !== -1) {
+      goTo(firstInvalid);
+      setShowErrors(true);
+      setError("Some required information is missing — it is highlighted below.");
+      return;
     }
-
     startTransition(async () => {
+      if (!ackDuplicates) {
+        const names = [data.position?.partyName, ...(data.parties?.rows ?? []).map((r) => r.name)].filter((n): n is string => Boolean(n));
+        const matches = await checkDuplicates(data.court?.courtCaseNo ?? "", names);
+        if (matches.length > 0) return setDuplicates(matches);
+      }
       const result = await createMatter({
-        basics: basicsSchema.parse(data.basics),
-        forum: forumStepSchema.parse(data.forum ?? {}),
-        parties: partiesStepSchema.parse(data.parties ?? {}),
-        facts: factsStepSchema.parse(data.facts ?? {}),
-        assign: assignStepSchema.parse(data.assign),
+        identification: identificationSchema.parse(data.identification),
+        position: positionSchema.parse(data.position),
+        service: serviceSchema.parse(data.service ?? {}),
+        parties: partiesSchema.parse(data.parties ?? {}),
+        court: courtSchema.parse(data.court ?? {}),
+        representation: representationSchema.parse(data.representation),
+        stage: stageSchema.parse(data.stage),
       });
       if ("error" in result) return setError(result.error);
-      router.push(`/cases?created=${encodeURIComponent(result.reference)}`);
-    });
-  }
 
-  function handleSaveAndExit() {
-    router.push("/cases");
+      // The case exists now, so the files can go through the normal encrypted, virus-scanned upload.
+      const failed: string[] = [];
+      const targetFolder = folderId || result.defaultFolderId;
+      for (const file of files) {
+        const form = new FormData();
+        form.set("matterId", result.matterId);
+        form.set("folderId", targetFolder ?? "");
+        form.set("confidentiality", data.stage?.confidentiality ?? "NORMAL");
+        form.set("tags", "originating process");
+        form.set("file", file);
+        const res = await uploadDocument(form);
+        if (res && "error" in res && res.error) failed.push(`${file.name}: ${res.error}`);
+      }
+      if (failed.length > 0) window.alert(`The case ${result.reference} was created, but some documents were not uploaded:\n\n${failed.join("\n")}\n\nYou can attach them from the case's Documents tab.`);
+      router.push(`/cases/${result.matterId}${failed.length > 0 ? "?tab=documents" : ""}`);
+    });
   }
 
   async function handleDiscard() {
@@ -112,109 +174,121 @@ export function WizardForm({
     router.push("/cases");
   }
 
-  const progressPct = useMemo(() => (step / (STEPS.length - 1)) * 100, [step]);
+  const errors = showErrors ? errorsFor(step) : {};
+  const forumName = forums.find((f) => f.id === data.court?.forumId)?.name;
+  const leadName = lawyers.find((l) => l.id === data.representation?.leadUserId)?.name;
 
   return (
     <>
       <PageHeader
         title="New case"
-        description="Open a matter and assign the legal team."
+        description="Case intake — nine short steps to open a matter and assign the legal team."
         actions={
-          <>
-            <span className="self-center text-xs text-text-muted">{saving ? "Saving draft…" : "Draft saved"}</span>
-            <Button type="button" onClick={handleSaveAndExit}>
-              Save & exit
-            </Button>
-          </>
+          <Button type="button" onClick={() => router.push("/cases")}>
+            <X className="size-4" /> Save & exit
+          </Button>
         }
       />
 
-      <div className="mb-7">
-        <div className="mb-3 flex items-center justify-between">
-          {STEPS.map((label, i) => (
-            <button
-              key={label}
+      <div className="grid gap-6 lg:grid-cols-[232px_minmax(0,1fr)]">
+        <ProgressRail steps={STEPS} current={step} furthest={furthest} saving={saving} onSelect={goTo} />
+
+        <div className="min-w-0 rounded-card border border-border bg-surface shadow-card">
+          <div className="border-b border-border px-6 py-3.5 text-[12px] text-text-muted">
+            Case intake · <span className="font-medium text-text">Step {step + 1} of {STEPS.length}</span>
+          </div>
+
+          <div className="p-6">
+            {step === 0 && <IdentificationStep value={data.identification ?? {}} onChange={(p) => patch("identification", p)} errors={errors} categories={categories} matterTypes={matterTypes} />}
+            {step === 1 && <PositionStep value={data.position ?? {}} onChange={(p) => patch("position", p)} errors={errors} />}
+            {step === 2 && <ServiceStep value={data.service ?? {}} onChange={(p) => patch("service", p)} position={data.position ?? {}} lawyers={lawyers} />}
+            {step === 3 && <PartiesStep value={data.parties ?? {}} onChange={(p) => patch("parties", p)} />}
+            {step === 4 && <CourtStep value={data.court ?? {}} onChange={(p) => patch("court", p)} forums={forums} />}
+            {step === 5 && <RepresentationStep value={data.representation ?? {}} onChange={(p) => patch("representation", p)} errors={errors} lawyers={lawyers} />}
+            {step === 6 && <StageStep value={data.stage ?? {}} onChange={(p) => patch("stage", p)} errors={errors} stages={stages} hasMatterType={Boolean(matterType)} />}
+            {step === 7 && <DocumentsStep files={files} onFiles={setFiles} folders={folders} folderId={folderId} onFolder={setFolderId} />}
+            {step === 8 && (
+              <ReviewStep
+                data={data}
+                categoryName={categories.find((c) => c.id === data.identification?.categoryId)?.name}
+                matterTypeName={matterType?.name}
+                referencePrefix={matterType?.referencePrefix}
+                stageName={stages.find((s) => s.id === data.stage?.stageTemplateId)?.name}
+                forumName={forumName}
+                leadName={leadName}
+                supportNames={(data.representation?.supportUserIds ?? []).map((id) => lawyers.find((l) => l.id === id)?.name).filter((n): n is string => Boolean(n))}
+                fileCount={files.length}
+              />
+            )}
+
+            {duplicates && duplicates.length > 0 && (
+              <div className="mt-6 rounded-card border border-warning/40 bg-warning-soft p-4 text-[13px]">
+                <p className="m-0 mb-2 flex items-center gap-1.5 font-medium text-warning">
+                  <TriangleAlert className="size-4" /> Possible duplicate{duplicates.length === 1 ? "" : "s"} found
+                </p>
+                <ul className="m-0 mb-3 list-disc pl-5">
+                  {duplicates.map((m) => (
+                    <li key={m.id}>
+                      <Link href={`/cases?q=${encodeURIComponent(m.reference)}`} className="text-primary hover:underline" target="_blank">
+                        {m.reference} — {m.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setAckDuplicates(true);
+                      setDuplicates(undefined);
+                    }}
+                  >
+                    Submit anyway
+                  </Button>
+                  <Button type="button" size="sm" onClick={() => setDuplicates(undefined)}>
+                    <X className="size-4" /> Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <p className="m-0 mt-4 text-[13px] text-danger" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-border px-6 py-4">
+            <Button
               type="button"
-              onClick={() => setStep(i)}
-              className={cn("flex flex-1 flex-col items-center gap-1.5 text-center", i > 0 && "border-l border-border")}
+              onClick={() => {
+                setSaving(true);
+                saveDraft(data).finally(() => setSaving(false));
+              }}
             >
-              <span
-                className={cn(
-                  "grid size-7 place-items-center rounded-full text-[13px] font-semibold",
-                  i < step && "bg-success text-on-primary",
-                  i === step && "bg-primary text-on-primary",
-                  i > step && "bg-surface-muted text-text-muted",
-                )}
-              >
-                {i < step ? <Check className="size-4" /> : i + 1}
-              </span>
-              <span className={cn("text-xs", i === step ? "font-medium text-text" : "text-text-muted")}>{label}</span>
-            </button>
-          ))}
-        </div>
-        <div className="h-1 w-full rounded-full bg-surface-muted">
-          <div className="h-1 rounded-full bg-primary transition-all duration-300" style={{ width: `${progressPct}%` }} />
-        </div>
-      </div>
-
-      <div className="rounded-card border border-border bg-surface p-6 shadow-card">
-        {step === 0 && <BasicsStep value={data.basics ?? {}} onChange={(p) => patch("basics", p)} categories={categories} matterTypes={matterTypes} />}
-        {step === 1 && <ForumStep value={data.forum ?? {}} onChange={(p) => patch("forum", p)} forums={forums} />}
-        {step === 2 && <PartiesStep value={data.parties ?? {}} onChange={(p) => patch("parties", p)} />}
-        {step === 3 && <FactsStep value={data.facts ?? {}} onChange={(p) => patch("facts", p)} />}
-        {step === 4 && <AssignStep value={data.assign ?? {}} onChange={(p) => patch("assign", p)} lawyers={lawyers} stages={stages} />}
-
-        {duplicates && duplicates.length > 0 && (
-          <div className="mt-6 rounded-card border border-warning/40 bg-warning-soft p-4 text-[13px]">
-            <p className="m-0 mb-2 flex items-center gap-1.5 font-medium text-warning">
-              <TriangleAlert className="size-4" /> Possible duplicate{duplicates.length === 1 ? "" : "s"} found
-            </p>
-            <ul className="m-0 mb-3 list-disc pl-5">
-              {duplicates.map((m) => (
-                <li key={m.id}>
-                  <Link href={`/cases?q=${encodeURIComponent(m.reference)}`} className="text-primary hover:underline" target="_blank">
-                    {m.reference} — {m.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={() => {
-                  setAckDuplicates(true);
-                  setDuplicates(undefined);
-                }}
-              >
-                Create anyway
+              <Save className="size-4" /> {saving ? "Saving…" : "Save draft"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={handleDiscard} className="text-danger">
+              Discard
+            </Button>
+            <div className="ml-auto flex gap-2">
+              <Button type="button" onClick={() => goTo(Math.max(step - 1, 0))} disabled={step === 0}>
+                <ArrowLeft className="size-4" /> Previous
               </Button>
-              <Button type="button" size="sm" onClick={() => setDuplicates(undefined)}>
-                <X className="size-4" /> Cancel
-              </Button>
+              {step < LAST ? (
+                <Button type="button" variant="primary" onClick={next}>
+                  Continue <ArrowRight className="size-4" />
+                </Button>
+              ) : (
+                <Button type="button" variant="primary" onClick={submit} disabled={pending}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Submit case
+                </Button>
+              )}
             </div>
           </div>
-        )}
-
-        {error && <p className="m-0 mt-4 text-[13px] text-danger">{error}</p>}
-
-        <div className="mt-7 flex items-center gap-2 border-t border-border pt-5">
-          <Button type="button" onClick={() => setStep((s) => Math.max(s - 1, 0))} disabled={step === 0}>
-            <ArrowLeft className="size-4" /> Back
-          </Button>
-          {step < STEPS.length - 1 ? (
-            <Button type="button" variant="primary" onClick={goNext}>
-              Next <ArrowRight className="size-4" />
-            </Button>
-          ) : (
-            <Button type="button" variant="primary" onClick={handleCreate} disabled={pending}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Create case
-            </Button>
-          )}
-          <Button type="button" variant="ghost" onClick={handleDiscard} className="ml-auto text-danger">
-            Discard draft
-          </Button>
         </div>
       </div>
     </>

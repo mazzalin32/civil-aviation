@@ -1,5 +1,18 @@
 # Changelog
 
+## New case intake: 9-step flow (2026-10-01)
+
+### Changed
+- **New case** is now a 9-step intake with a progress rail: Matter identification → CAA position & reporting → Service / legal process → Parties → Court & judicial information → Legal representation → Matter stage → Documents → Review & submit. Our design tokens are kept; only the sequence and fields follow the intake mockups.
+- The reference is generated on submit (previewed read-only in step 1). Category and matter type are chosen in step 1 because the stage list in step 7 comes from the matter type's lifecycle.
+- The response deadline (step 3) and next action due (step 7) become real calendar DEADLINE entries; internal notes become the first case note; the responsible legal officer becomes the lead lawyer and is notified. Cases are created as Open.
+- Documents chosen in step 8 are uploaded through the normal encrypted, virus-scanned upload right after the case is created.
+- CAA positions extended (Claimant, Petitioner, Interested Party, Appellant, Respondent to Appeal, Other); the cases filter and Key facts use the same labels.
+- Drafts saved by the old 5-step wizard are discarded (different shape).
+
+### Schema (migration `20261001120000_intake_flow_fields`, additive)
+- `Matter`: description, reportedAt/By/Method, serviceDirection, processNature/IssuedAt/ReceivedAt, receivedBy, legalRecipientId, courtStation, filedAt, jurisdiction, representationStatus, externalCounselName/Contact. `Party`: organisation, partyType, roleInMatter. New `ServiceDirection` enum and 6 `UcaaRole` values.
+
 ## Fixes: dashboard layout, case Overview, invite emails, migration (2026-10-01)
 
 ### Changed

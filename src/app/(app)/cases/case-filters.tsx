@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { UCAA_POSITIONS } from "@/lib/validation/matter";
 import type { CaseFilters } from "./filters";
 
 export type CaseFilterOptions = {
@@ -125,11 +126,11 @@ export function CaseFiltersBar({ filters, options }: { filters: CaseFilters; opt
             </Select>
             <Select name="ucaaRole" icon={Scale} defaultValue={filters.ucaaRole ?? ""} onChange={submit} className="w-auto min-w-[150px]">
               <option value="">All UCAA roles</option>
-              <option value="PLAINTIFF">Plaintiff</option>
-              <option value="DEFENDANT">Defendant</option>
-              <option value="APPLICANT">Applicant</option>
-              <option value="RESPONDENT">Respondent</option>
-              <option value="ADVISOR">Advisor</option>
+              {UCAA_POSITIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
             </Select>
           </div>
 

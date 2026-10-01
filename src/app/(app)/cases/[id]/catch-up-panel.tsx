@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/app/avatar";
 import { SlideOver } from "@/components/ui/slide-over";
 import { formatDate, formatUGX } from "@/lib/time";
+import { UCAA_POSITIONS } from "@/lib/validation/matter";
 import { updateSummary } from "./actions";
 
 export type KeyFacts = {
@@ -160,7 +161,7 @@ export function CatchUpPanel({
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-text-muted">UCAA role</dt>
-              <dd className="m-0 text-right font-medium">{facts.ucaaRole[0] + facts.ucaaRole.slice(1).toLowerCase()}</dd>
+              <dd className="m-0 text-right font-medium">{UCAA_POSITIONS.find((r) => r.value === facts.ucaaRole)?.label ?? facts.ucaaRole}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-text-muted">Judge</dt>

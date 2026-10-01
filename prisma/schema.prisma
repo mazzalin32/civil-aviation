@@ -63,6 +63,7 @@ model User {
 
   mattersCreated      Matter[]            @relation("MatterCreatedBy")
   mattersClosed       Matter[]            @relation("MatterClosedBy")
+  mattersReceived     Matter[]            @relation("MatterLegalRecipient")
   matterAssignments   MatterAssignment[]  @relation("MatterAssignee")
   matterAssignmentsBy MatterAssignment[]  @relation("MatterAssignedBy")
   matterStagesMoved   MatterStage[]
@@ -353,6 +354,18 @@ enum UcaaRole {
   APPLICANT
   RESPONDENT
   ADVISOR
+  CLAIMANT
+  PETITIONER
+  INTERESTED_PARTY
+  APPELLANT
+  RESPONDENT_TO_APPEAL
+  OTHER
+}
+
+enum ServiceDirection {
+  CAA_SERVING
+  CAA_SERVED
+  NOT_YET_SERVED
 }
 
 enum Priority {
@@ -392,39 +405,57 @@ enum PartyKind {
 /// later phases (outcomeId, closingNote, closedAt/By) sit unused until Phase 10's closure
 /// workflow so this table doesn't need another migration then.
 model Matter {
-  id                String          @id @default(cuid())
-  reference         String          @unique // generated, e.g. "UCAA/LIT/2026/0042" — never hand-edited
-  title             String
-  categoryId        String
-  category          Category        @relation(fields: [categoryId], references: [id])
-  matterTypeId      String
-  matterType        MatterType      @relation(fields: [matterTypeId], references: [id])
-  ucaaRole          UcaaRole
-  priority          Priority        @default(MEDIUM)
-  confidentiality   Confidentiality @default(NORMAL)
-  status            MatterStatus    @default(OPEN)
-  currentStageId    String?
-  currentStage      StageTemplate?  @relation(fields: [currentStageId], references: [id])
-  forumId           String?
-  forum             Forum?          @relation(fields: [forumId], references: [id])
-  courtCaseNo       String?
-  eccmisNo          String?
-  eccmisUrl         String?
-  judge             String?
-  amountClaimed     BigInt? // integer UGX (CLAUDE.md) — BigInt, not Int, so a large national claim can't overflow
-  amountAgainst     BigInt?
-  causeOfActionDate DateTime?       @db.Date
-  referralNote      String?
-  outcomeId         String?
-  outcome           Outcome?        @relation(fields: [outcomeId], references: [id])
-  closingNote       String?
-  createdById       String
-  createdBy         User            @relation("MatterCreatedBy", fields: [createdById], references: [id])
-  createdAt         DateTime        @default(now())
-  closedAt          DateTime?
-  closedById        String?
-  closedBy          User?           @relation("MatterClosedBy", fields: [closedById], references: [id])
-  lastActivityAt    DateTime        @default(now())
+  id                     String            @id @default(cuid())
+  reference              String            @unique // generated, e.g. "UCAA/LIT/2026/0042" — never hand-edited
+  title                  String
+  categoryId             String
+  category               Category          @relation(fields: [categoryId], references: [id])
+  matterTypeId           String
+  matterType             MatterType        @relation(fields: [matterTypeId], references: [id])
+  ucaaRole               UcaaRole
+  priority               Priority          @default(MEDIUM)
+  confidentiality        Confidentiality   @default(NORMAL)
+  status                 MatterStatus      @default(OPEN)
+  currentStageId         String?
+  currentStage           StageTemplate?    @relation(fields: [currentStageId], references: [id])
+  forumId                String?
+  forum                  Forum?            @relation(fields: [forumId], references: [id])
+  courtCaseNo            String?
+  eccmisNo               String?
+  eccmisUrl              String?
+  judge                  String?
+  amountClaimed          BigInt? // integer UGX (CLAUDE.md) — BigInt, not Int, so a large national claim can't overflow
+  amountAgainst          BigInt?
+  causeOfActionDate      DateTime?         @db.Date
+  referralNote           String?
+  // Intake (9-step New case flow): how the matter reached Legal, and its service/court/counsel details.
+  description            String?
+  reportedAt             DateTime?
+  reportedBy             String?
+  reportMethod           String?
+  serviceDirection       ServiceDirection?
+  processNature          String?
+  processIssuedAt        DateTime?         @db.Date
+  processReceivedAt      DateTime?         @db.Date
+  receivedBy             String?
+  legalRecipientId       String?
+  legalRecipient         User?             @relation("MatterLegalRecipient", fields: [legalRecipientId], references: [id])
+  courtStation           String?
+  filedAt                DateTime?         @db.Date
+  jurisdiction           String?
+  representationStatus   String?
+  externalCounselName    String?
+  externalCounselContact String?
+  outcomeId              String?
+  outcome                Outcome?          @relation(fields: [outcomeId], references: [id])
+  closingNote            String?
+  createdById            String
+  createdBy              User              @relation("MatterCreatedBy", fields: [createdById], references: [id])
+  createdAt              DateTime          @default(now())
+  closedAt               DateTime?
+  closedById             String?
+  closedBy               User?             @relation("MatterClosedBy", fields: [closedById], references: [id])
+  lastActivityAt         DateTime          @default(now())
 
   assignments     MatterAssignment[]
   stageMoves      MatterStage[]
@@ -484,17 +515,20 @@ model MatterStage {
 
 /// Opposing party, witness, or the internal UCAA contact who raised the matter (spec §5.5 step 3).
 model Party {
-  id          String    @id @default(cuid())
-  matterId    String
-  matter      Matter    @relation(fields: [matterId], references: [id], onDelete: Cascade)
-  name        String
-  kind        PartyKind
-  counselName String?
-  counselFirm String?
-  email       String?
-  phone       String?
-  address     String?
-  department  String? // INTERNAL kind only — which UCAA department raised the matter
+  id           String    @id @default(cuid())
+  matterId     String
+  matter       Matter    @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  name         String
+  kind         PartyKind
+  counselName  String?
+  counselFirm  String?
+  email        String?
+  phone        String?
+  address      String?
+  department   String? // INTERNAL kind only — which UCAA department raised the matter
+  organisation String?
+  partyType    String? // individual / company / government / other
+  roleInMatter String? // free-text role, e.g. "Claimant", "Key witness"
 
   @@index([matterId])
 }
@@ -545,26 +579,26 @@ model SummaryVersion {
 
 /// Per-case discussion thread (spec §5.7 tab 5, Phase 9).
 model MatterMessage {
-  id          String    @id @default(cuid())
-  matterId    String
-  matter      Matter    @relation(fields: [matterId], references: [id], onDelete: Cascade)
-  authorId    String
-  author      User      @relation("MatterMessages", fields: [authorId], references: [id])
-  body        String
+  id       String @id @default(cuid())
+  matterId String
+  matter   Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User   @relation("MatterMessages", fields: [authorId], references: [id])
+  body     String
 
   // Pinning: pinned messages appear on the "Case in 30 seconds" catch-up panel
-  isPinned    Boolean   @default(false)
-  pinnedAt    DateTime?
-  pinnedById  String?
-  pinnedBy    User?     @relation("MessagePinnedBy", fields: [pinnedById], references: [id])
+  isPinned   Boolean   @default(false)
+  pinnedAt   DateTime?
+  pinnedById String?
+  pinnedBy   User?     @relation("MessagePinnedBy", fields: [pinnedById], references: [id])
 
   // Soft-deletion: legal platforms must never hard-delete messages (CLAUDE.md)
   deletedAt   DateTime?
   deletedById String?
   deletedBy   User?     @relation("MessageDeletedBy", fields: [deletedById], references: [id])
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   attachments MatterMessageAttachment[]
   mentions    MatterMessageMention[]
@@ -578,14 +612,14 @@ model MatterMessage {
 /// 1. Direct file upload (encrypted with envelope encryption + scanned via ClamAV)
 /// 2. Reference link to an existing Document already filed in the case Documents tab
 model MatterMessageAttachment {
-  id               String        @id @default(cuid())
-  messageId        String
-  message          MatterMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  id        String        @id @default(cuid())
+  messageId String
+  message   MatterMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   // File metadata
-  name             String
-  size             Int
-  mimeType         String
+  name     String
+  size     Int
+  mimeType String
 
   // For directly uploaded chat files (AES-256-GCM envelope encryption)
   storageKey       String?
@@ -593,14 +627,14 @@ model MatterMessageAttachment {
   encryptedDataKey String?
   iv               String?
   authTag          String?
-  scanStatus       ScanStatus    @default(CLEAN)
+  scanStatus       ScanStatus @default(CLEAN)
   scanDetail       String?
 
   // For attachments linked from the case's official document repository
-  documentId       String?
-  document         Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
-  createdAt        DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([messageId])
   @@index([documentId])
