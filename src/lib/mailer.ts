@@ -1,6 +1,9 @@
 import "server-only";
 import nodemailer from "nodemailer";
 import { env } from "./env";
+import { EMAIL_LOGO_BASE64 } from "./email-logo";
+
+const LOGO_CID = "caa-logo@legal";
 
 /**
  * SMTP sender. Dev points at Mailpit (http://localhost:8025); production points at
@@ -16,33 +19,36 @@ const transport = nodemailer.createTransport({
 const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /**
- * Shared shell for every email: logo header, white card, footer. Table-based with inline styles
- * because mail clients ignore <style> blocks. The logo is served from /public, so APP_URL must be
- * the real public URL in production or the image will not load.
+ * Shared shell for every email: a blue page with a white logo badge on top and a white card
+ * below (matches the login screen). Table-based with inline styles because mail clients ignore
+ * <style> blocks. The logo is attached and referenced by CID, so it displays without any
+ * dependency on APP_URL or an external image host.
  */
 function layout(title: string, bodyHtml: string, preheader = "") {
-  const logoUrl = `${env.APP_URL}/CAA-Uganda-logo-1.png`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title></head>
-  <body style="margin:0;padding:0;background:#F7F6F3;font-family:Inter,Arial,Helvetica,sans-serif;color:#1F2328;">
+  const year = new Date().getFullYear();
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(title)}</title></head>
+  <body style="margin:0;padding:0;background:#4169E1;font-family:Inter,'Segoe UI',Arial,Helvetica,sans-serif;color:#1F2328;">
     <span style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(preheader)}</span>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F7F6F3;padding:32px 16px;">
-      <tr><td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
-          <tr><td style="padding:0 4px 20px;">
-            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-              <td style="vertical-align:middle;"><img src="${logoUrl}" alt="Uganda Civil Aviation Authority" height="44" style="display:block;height:44px;width:auto;border:0;"></td>
-              <td style="vertical-align:middle;padding-left:12px;border-left:1px solid #E6E3DD;margin-left:12px;">
-                <span style="display:block;font-size:11px;letter-spacing:.08em;color:#6B6760;text-transform:uppercase;">&nbsp;&nbsp;Legal Department</span>
-                <span style="display:block;font-size:15px;font-weight:600;color:#1F2328;">&nbsp;&nbsp;CAA Legal</span>
-              </td>
-            </tr></table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#4169E1;">
+      <tr><td align="center" style="padding:36px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;">
+          <tr><td align="center" style="padding:0 0 22px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr><td align="center" style="background:#FFFFFF;border-radius:18px;padding:14px 22px;">
+              <img src="cid:${LOGO_CID}" alt="Uganda Civil Aviation Authority" width="126" height="60" style="display:block;width:126px;height:60px;border:0;outline:none;">
+            </td></tr></table>
+            <p style="margin:14px 0 0;font-size:18px;line-height:1.3;font-weight:700;color:#FFFFFF;letter-spacing:.01em;">CAA Legal Department</p>
+            <p style="margin:2px 0 0;font-size:12px;color:#DCE4FB;letter-spacing:.04em;">Case &amp; Matter Management</p>
           </td></tr>
-          <tr><td style="background:#FFFFFF;border:1px solid #E6E3DD;border-radius:16px;padding:32px;">
-            <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:600;color:#1F2328;">${title}</h1>
-            <div style="font-size:14px;line-height:1.6;color:#1F2328;">${bodyHtml}</div>
+          <tr><td style="background:#FFFFFF;border-radius:16px;padding:0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr><td style="padding:30px 32px 32px;">
+                <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:700;color:#1F2328;">${title}</h1>
+                <div style="font-size:14px;line-height:1.65;color:#1F2328;">${bodyHtml}</div>
+              </td></tr>
+            </table>
           </td></tr>
-          <tr><td style="padding:20px 8px 0;font-size:12px;line-height:1.6;color:#6B6760;text-align:center;">
-            Uganda Civil Aviation Authority &mdash; Legal Department<br>This is an automated message; please do not reply.
+          <tr><td align="center" style="padding:22px 12px 0;font-size:12px;line-height:1.6;color:#DCE4FB;">
+            Uganda Civil Aviation Authority &mdash; Legal Department<br>This is an automated message; please do not reply.<br>&copy; ${year} CAA Legal
           </td></tr>
         </table>
       </td></tr>
@@ -58,14 +64,34 @@ function button(href: string, label: string) {
 }
 
 function credentials(email: string, password: string) {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;background:#F7F6F3;border:1px solid #E6E3DD;border-radius:12px;">
-      <tr><td style="padding:14px 16px;font-size:13px;color:#6B6760;">Email<br><strong style="font-size:14px;color:#1F2328;">${esc(email)}</strong></td></tr>
-      <tr><td style="padding:0 16px 14px;font-size:13px;color:#6B6760;">Password<br><strong style="font-size:14px;color:#1F2328;font-family:Consolas,Menlo,monospace;">${esc(password)}</strong></td></tr>
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;background:#E8EDFC;border:1px solid #CBD6F7;border-radius:12px;">
+      <tr><td style="padding:14px 16px;font-size:13px;color:#4A5675;">Email<br><strong style="font-size:14px;color:#1F2328;">${esc(email)}</strong></td></tr>
+      <tr><td style="padding:0 16px 14px;font-size:13px;color:#4A5675;">Password<br><strong style="font-size:14px;color:#1F2328;font-family:Consolas,Menlo,monospace;">${esc(password)}</strong></td></tr>
     </table>`;
 }
 
+/** Plain-text twin of the HTML body — better deliverability and a fallback for text-only clients. */
+function toText(html: string) {
+  return html
+    .replace(/<span style="display:none[^>]*>[\s\S]*?<\/span>/i, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<(br|\/p|\/h1|\/tr|\/div)\s*\/?>/gi, "\n")
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([^<]*)<\/a>/gi, "$2 ($1)")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&mdash;/g, "—").replace(/&copy;/g, "©").replace(/&nbsp;/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 async function send(to: string, subject: string, html: string) {
-  await transport.sendMail({ from: env.MAIL_FROM, to, subject, html });
+  await transport.sendMail({
+    from: env.MAIL_FROM,
+    to,
+    subject,
+    html,
+    text: toText(html),
+    attachments: [{ filename: "caa-logo.png", content: Buffer.from(EMAIL_LOGO_BASE64, "base64"), cid: LOGO_CID, contentType: "image/png", contentDisposition: "inline" }],
+  });
 }
 
 /** Shared-password mode: lawyer can sign in immediately (no activate link). */

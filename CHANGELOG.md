@@ -1,5 +1,11 @@
 # Changelog
 
+## Emails and tasks (2026-10-01)
+
+### Changed
+- **Email template** redesigned: blue page, white logo badge, white card, blue button (matches the login screen). The CAA logo is attached to every email (inline by CID) so it always displays, independent of `APP_URL`. Plain-text version added for deliverability.
+- **Tasks**: Admins can create a task on any case from **Tasks → New task**, and a case Lead can create one on cases they lead; either can assign it to **anyone active in the department** (not just the case team). The assignee gets an in-app notification (`TASK_ASSIGNED`; add/seed the rule to also send email). The case Tasks tab's assignee list is likewise the whole department. The server still requires Admin or the case's Lead to assign.
+
 ## UI: searchable dropdowns, row menu, team add (2026-10-01)
 
 ### Changed

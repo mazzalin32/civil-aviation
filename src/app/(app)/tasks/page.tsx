@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/app/empty-state";
 import { formatDate } from "@/lib/time";
+import { NewTask } from "./new-task";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Tasks" };
@@ -14,8 +15,22 @@ export const metadata = { title: "Tasks" };
 const PRIORITY_TONE = { LOW: "neutral", MEDIUM: "info", HIGH: "warning", URGENT: "danger" } as const;
 
 export default async function Page() {
-  await requireRole();
+  const me = await requireRole();
   const now = new Date();
+
+  // Who may create a task: the Admin (any case) or a lawyer on the cases they lead.
+  const [matters, people] = await Promise.all([
+    db.matter.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: ["OPEN", "ON_HOLD", "CLOSURE_REQUESTED"] },
+        ...(me.role === "ADMIN" ? {} : { assignments: { some: { userId: me.id, role: "LEAD", removedAt: null } } }),
+      },
+      select: { id: true, reference: true, title: true },
+      orderBy: { reference: "asc" },
+    }),
+    db.user.findMany({ where: { isActive: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
 
   const tasks = await db.task.findMany({
     where: {
@@ -37,12 +52,13 @@ export default async function Page() {
       <PageHeader
         title="Tasks"
         description="Open tasks across the department."
+        actions={matters.length > 0 ? <NewTask matters={matters} people={people} currentUserId={me.id} /> : undefined}
       />
       {tasks.length === 0 ? (
         <EmptyState
           icon={Clock}
           title="No open tasks"
-          description="When lawyers have work due on a case, it will list here."
+          description={matters.length > 0 ? "Create a task and assign it to anyone in the department." : "When lawyers have work due on a case, it will list here."}
         />
       ) : (
         <Card>

@@ -74,6 +74,7 @@ export default async function CasePage({
     }),
   ]);
 
+  const assignablePeople = await db.user.findMany({ where: { isActive: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } });
   const eventTypes = await db.eventType.findMany({ where: { isActive: true }, orderBy: { order: "asc" } });
   const [documentsRaw, folders, calendarEntries, tasksRaw, forums] = await Promise.all([
     db.document.findMany({
@@ -337,7 +338,7 @@ export default async function CasePage({
           matterId={matter.id}
           currentUserId={me.id}
           canMutate={canAssign}
-          teamMembers={lawyers.map((l) => ({ id: l.id, name: l.name }))}
+          teamMembers={assignablePeople}
           tasks={tasksRaw.map((t) => ({
             id: t.id,
             title: t.title,

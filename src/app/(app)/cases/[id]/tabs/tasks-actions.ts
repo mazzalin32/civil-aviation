@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireMatterAccess, requireTaskAssign, canEditMatter } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
+import { notify } from "@/lib/notify";
 import { taskSchema, naSchema } from "@/lib/validation/calendar";
 
 type ActionResult = { error?: string } | void;
@@ -24,11 +25,32 @@ export async function addTask(raw: unknown): Promise<ActionResult> {
   const parsed = taskSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, title, assigneeId, dueAt } = parsed.data;
+  // Admin or the case's Lead only — they may hand work to anyone in the department, not just the case team.
   const user = await requireTaskAssign(matterId);
 
+  const [matter, assignee] = await Promise.all([
+    db.matter.findUnique({ where: { id: matterId }, select: { reference: true, title: true, deletedAt: true } }),
+    db.user.findUnique({ where: { id: assigneeId }, select: { isActive: true, deletedAt: true } }),
+  ]);
+  if (!matter || matter.deletedAt) return { error: "That case no longer exists." };
+  if (!assignee?.isActive || assignee.deletedAt) return { error: "Choose an active person to assign this task to." };
+
   const task = await db.task.create({ data: { matterId, title, assigneeId, dueAt: new Date(dueAt), createdById: user.id } });
-  await writeAudit({ userId: user.id, action: "task.add", entity: "Task", entityId: task.id, after: { title } });
+  await writeAudit({ userId: user.id, action: "task.add", entity: "Task", entityId: task.id, after: { title, assigneeId } });
+
+  if (assigneeId !== user.id) {
+    await notify({
+      userId: assigneeId,
+      type: "TASK_ASSIGNED",
+      matterId,
+      payload: { reference: matter.reference, title, dueAt },
+      subject: `New task: ${title}`,
+      message: `${user.name} assigned you a task on "${matter.title}" (${matter.reference}): ${title}. Due ${dueAt}.`,
+      url: `/cases/${matterId}?tab=tasks`,
+    });
+  }
   revalidatePath(`/cases/${matterId}`);
+  revalidatePath("/tasks");
 }
 
 export async function completeTask(matterId: string, id: string): Promise<ActionResult> {
