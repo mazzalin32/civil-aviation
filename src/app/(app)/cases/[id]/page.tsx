@@ -106,11 +106,16 @@ export default async function CasePage({
   // A Server Component render is already tied to one request — "now" is legitimately
   // request-time here, not a hook needing to be stable across client re-renders.
   // eslint-disable-next-line react-hooks/purity
-  const daysOpen = Math.max(1, Math.ceil((Date.now() - matter.createdAt.getTime()) / 86_400_000));
+  const nowMs = Date.now();
+  const daysOpen = Math.max(1, Math.ceil((nowMs - matter.createdAt.getTime()) / 86_400_000));
 
+  // Stages ordered before the current one count as passed even if no move was recorded (e.g. a case
+  // created directly at a later stage), so the tracker never shows "upcoming" behind the current stage.
+  const currentOrder = matter.currentStage?.order ?? null;
   const stages: TrackerStage[] = matter.matterType.stages.map((st) => {
     const move = stageMoves.find((m) => m.stageTemplateId === st.id);
-    const status: TrackerStage["status"] = st.id === matter.currentStageId ? "current" : move ? "done" : "future";
+    const status: TrackerStage["status"] =
+      st.id === matter.currentStageId ? "current" : move || (currentOrder !== null && st.order < currentOrder) ? "done" : "future";
     const windowEvents = move
       ? events.filter((e) => e.date >= move.enteredAt && (move.exitedAt ? e.date < move.exitedAt : true))
       : [];
@@ -153,12 +158,28 @@ export default async function CasePage({
       />
 
       <div className="mb-6">
-        <LifecycleTracker matterTypeName={matter.matterType.name} categoryName={matter.category.name} stages={stages} daysOpen={daysOpen} />
+        <LifecycleTracker matterId={matter.id} matterTypeName={matter.matterType.name} categoryName={matter.category.name} stages={stages} daysOpen={daysOpen} />
       </div>
 
       <div className="mb-6">
         <CatchUpPanel
           matterId={matter.id}
+          snapshot={{
+            statusLabel: matter.status.replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()),
+            priorityLabel: matter.priority[0] + matter.priority.slice(1).toLowerCase(),
+            stageName: matter.currentStage?.name ?? null,
+            stageIndex: stages.findIndex((s) => s.status === "current") + 1,
+            stageTotal: stages.length,
+            daysOpen,
+            openTasks: tasksRaw.filter((t) => t.status === "OPEN").length,
+            overdueTasks: tasksRaw.filter((t) => t.status === "OPEN" && t.dueAt.getTime() < nowMs).length,
+            documents: documentsRaw.filter((d) => !d.deletedAt).length,
+            messages: messages.filter((m) => !m.deletedAt).length,
+            nextDeadline: (() => {
+              const next = calendarEntries.filter((e) => e.kind === "DEADLINE" && e.status === "OPEN").sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())[0];
+              return next ? { title: next.title, dueAt: next.startsAt.toISOString() } : null;
+            })(),
+          }}
           summary={latestSummary ? { body: latestSummary.body, authorName: latestSummary.author.name, createdAt: latestSummary.createdAt.toISOString() } : null}
           pinnedMessage={latestPinnedMessage ? {
             body: latestPinnedMessage.body,

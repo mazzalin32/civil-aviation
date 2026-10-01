@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil, Pin } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, FileText, ListChecks, MessageSquare, Pencil, Pin, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/app/avatar";
@@ -18,8 +19,38 @@ export type KeyFacts = {
   lastActivityAt: string;
 };
 
+export type Snapshot = {
+  statusLabel: string;
+  priorityLabel: string;
+  stageName: string | null;
+  stageIndex: number;
+  stageTotal: number;
+  daysOpen: number;
+  openTasks: number;
+  overdueTasks: number;
+  documents: number;
+  messages: number;
+  nextDeadline: { title: string; dueAt: string } | null;
+};
+
+function Tile({ href, icon: Icon, label, value, hint, tone }: { href: string; icon: typeof FileText; label: string; value: string; hint?: string; tone?: "danger" }) {
+  return (
+    <Link
+      href={href}
+      className="group min-w-0 rounded-[12px] border border-border bg-surface-muted px-3.5 py-3 transition-colors hover:border-primary hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <span className="flex items-center gap-1.5 text-[12px] text-text-muted">
+        <Icon className="size-3.5" strokeWidth={1.8} /> {label}
+      </span>
+      <span className="mt-1 block truncate text-[15px] font-semibold tabular-nums" title={value}>{value}</span>
+      {hint && <span className={`block truncate text-[12px] ${tone === "danger" ? "text-danger" : "text-text-muted"}`} title={hint}>{hint}</span>}
+    </Link>
+  );
+}
+
 export function CatchUpPanel({
   matterId,
+  snapshot,
   summary,
   pinnedMessage,
   facts,
@@ -28,6 +59,7 @@ export function CatchUpPanel({
   deadlines,
 }: {
   matterId: string;
+  snapshot: Snapshot;
   summary: { body: string; authorName: string; createdAt: string } | null;
   pinnedMessage: { body: string; authorName: string; createdAt: string } | null;
   facts: KeyFacts;
@@ -53,7 +85,7 @@ export function CatchUpPanel({
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
       <div className="rounded-card border border-border bg-surface p-5 shadow-card">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <h2 className="m-0 text-base font-semibold">Case in 30 seconds</h2>
+          <h2 className="m-0 text-base font-semibold">Overview</h2>
           {summary && (
             <span className="text-xs text-text-muted">
               Edited by {summary.authorName} · {formatDate(new Date(summary.createdAt))}
@@ -61,15 +93,48 @@ export function CatchUpPanel({
           )}
           {canMutate && (
             <Button type="button" size="sm" className="ml-auto" onClick={() => setEditing(true)}>
-              <Pencil className="size-3.5" /> Edit summary
+              <Pencil className="size-3.5" /> Edit overview
             </Button>
           )}
+        </div>
+        <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          <Tile
+            href={`/cases/${matterId}`}
+            icon={Workflow}
+            label="Stage"
+            value={snapshot.stageName ?? "Not started"}
+            hint={`${snapshot.stageIndex > 0 ? `${snapshot.stageIndex} of ${snapshot.stageTotal} · ` : ""}${snapshot.statusLabel} · ${snapshot.priorityLabel} priority`}
+          />
+          <Tile
+            href={`/cases/${matterId}?tab=hearings`}
+            icon={CalendarClock}
+            label="Next deadline"
+            value={snapshot.nextDeadline ? formatDate(new Date(snapshot.nextDeadline.dueAt)) : "None open"}
+            hint={snapshot.nextDeadline?.title}
+            tone={snapshot.nextDeadline && new Date(snapshot.nextDeadline.dueAt).getTime() < now ? "danger" : undefined}
+          />
+          <Tile
+            href={`/cases/${matterId}?tab=tasks`}
+            icon={ListChecks}
+            label="Open tasks"
+            value={String(snapshot.openTasks)}
+            hint={snapshot.overdueTasks > 0 ? `${snapshot.overdueTasks} overdue` : "None overdue"}
+            tone={snapshot.overdueTasks > 0 ? "danger" : undefined}
+          />
+          <Tile href={`/cases/${matterId}?tab=documents`} icon={FileText} label="Documents" value={String(snapshot.documents)} hint="On file" />
+          <Tile
+            href={`/cases/${matterId}?tab=discussion`}
+            icon={MessageSquare}
+            label="Discussion"
+            value={String(snapshot.messages)}
+            hint={`Open ${snapshot.daysOpen} day${snapshot.daysOpen === 1 ? "" : "s"}`}
+          />
         </div>
         {summary ? (
           <div className="grid gap-2 text-[13.5px] whitespace-pre-wrap">{summary.body}</div>
         ) : (
           <p className="m-0 text-[13px] text-text-muted">
-            {canMutate ? "No summary written yet — click \"Edit summary\" to add one." : "No summary written yet."}
+            {canMutate ? "No overview written yet — click \"Edit overview\" to add one." : "No overview written yet."}
           </p>
         )}
         {pinnedMessage && (
@@ -151,7 +216,7 @@ export function CatchUpPanel({
         </div>
       </div>
 
-      <SlideOver open={editing} onClose={() => setEditing(false)} title="Edit summary">
+      <SlideOver open={editing} onClose={() => setEditing(false)} title="Edit overview">
         <form action={save} className="grid gap-4">
           {error && <p className="m-0 text-xs text-danger">{error}</p>}
           <textarea

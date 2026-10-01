@@ -39,11 +39,18 @@ export async function activateAction(_prev: ActivateState, formData: FormData): 
   await db.user.update({ where: { id: pendingUser.id }, data: afterSuccessfulAttempt() });
   await writeAudit({ userId: pendingUser.id, action: "user.password.activated", entity: "User", entityId: pendingUser.id, ip: hdrs.get("x-forwarded-for") ?? undefined });
 
-  const result = await auth.api.signInEmail({
-    body: { email: pendingUser.email, password: parsed.data.password, rememberMe: false },
-    headers: hdrs,
-    asResponse: false,
-  });
+  // The password is already set at this point. If the automatic sign-in fails for any reason,
+  // send them to the login page rather than showing an error for a step that succeeded.
+  let result: Awaited<ReturnType<typeof auth.api.signInEmail>>;
+  try {
+    result = await auth.api.signInEmail({
+      body: { email: pendingUser.email, password: parsed.data.password, rememberMe: false },
+      headers: hdrs,
+      asResponse: false,
+    });
+  } catch {
+    redirect("/login");
+  }
   const needsTwoFactor = "twoFactorRedirect" in result && result.twoFactorRedirect === true;
   if (needsTwoFactor) redirect("/2fa");
   await db.user.update({ where: { id: pendingUser.id }, data: { lastLoginAt: new Date() } });

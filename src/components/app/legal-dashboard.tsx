@@ -18,7 +18,7 @@ function KpiCard({ label, value, hint, href, tone }: DashboardData["kpis"][numbe
   return (
     <Link
       href={href}
-      className="block rounded-card border border-border bg-surface p-5 shadow-card transition-colors hover:border-primary"
+      className="block min-w-0 rounded-card border border-border bg-surface p-5 shadow-card transition-colors hover:border-primary"
     >
       <div className="flex items-start justify-between gap-2">
         <p className="m-0 text-[13px] text-text-muted">{label}</p>
@@ -38,9 +38,9 @@ function StageBars({ stages }: { stages: DashboardData["stages"] }) {
     return <p className="m-0 px-6 pb-5 text-[13px] text-text-muted">No open matters to chart yet.</p>;
   }
   return (
-    <div className="flex h-[220px] items-end gap-2 px-6 pt-3 pb-5">
+    <div className="flex h-[220px] items-end gap-2 overflow-x-auto px-6 pt-3 pb-5">
       {stages.map((s) => (
-        <Link key={s.name} href={`/cases?stage=${encodeURIComponent(s.name)}`} className="group flex min-w-0 flex-1 flex-col items-center gap-2">
+        <Link key={s.name} href={`/cases?stage=${encodeURIComponent(s.name)}`} className="group flex min-w-[48px] flex-1 flex-col items-center gap-2">
           <span className="text-[11px] tabular-nums text-text-muted">{s.count}</span>
           <span
             className="w-full max-w-[44px] rounded-t-md bg-primary transition-opacity group-hover:opacity-80"
@@ -95,7 +95,7 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
     <>
       <p className="m-0 mb-1 text-[12px] font-medium tracking-[0.04em] text-text-muted uppercase">{data.dateLabel}</p>
       <div className="mb-6 flex flex-wrap items-end gap-4">
-        <h1 className="m-0 font-serif text-[28px] leading-tight font-semibold tracking-[-0.01em]">{data.greeting}</h1>
+        <h1 className="m-0 min-w-0 font-serif text-[28px] leading-tight font-semibold tracking-[-0.01em]">{data.greeting}</h1>
         {data.isAdmin && (
           <div className="ml-auto">
             <Link href="/cases/new" className={buttonVariants({ variant: "primary" })}>
@@ -111,8 +111,8 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
         ))}
       </div>
 
-      <div className="mb-4 grid gap-4 xl:grid-cols-[1fr_340px]">
-        <Card>
+      <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <Card className="min-w-0">
           <CardHeader className="justify-between">
             <div>
               <CardTitle>Matters by stage</CardTitle>
@@ -125,7 +125,7 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
           <StageBars stages={data.stages} />
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <div>
               <CardTitle>Matters by risk</CardTitle>
@@ -137,7 +137,7 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="justify-between">
             <div>
               <CardTitle>Cases needing attention</CardTitle>
@@ -151,11 +151,11 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
             {data.attention.length === 0 ? (
               <p className="m-0 text-[13px] text-text-muted">No open matters yet.</p>
             ) : (
-              <ul className="m-0 grid list-none gap-1 p-0">
+              <ul className="m-0 grid grid-cols-[minmax(0,1fr)] list-none gap-1 p-0">
                 {data.attention.map((row) => {
                   const d = new Date(row.lastActivityAt);
                   return (
-                    <li key={row.id}>
+                    <li key={row.id} className="min-w-0">
                       <Link
                         href={`/cases/${row.id}`}
                         className="flex items-center gap-3 rounded-control px-1 py-2.5 hover:bg-surface-muted"
@@ -185,7 +185,7 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="justify-between">
             <div>
               <CardTitle>Deadlines requiring action</CardTitle>
@@ -197,9 +197,9 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
             {data.deadlines.length === 0 ? (
               <p className="m-0 text-[13px] text-text-muted">No open deadlines.</p>
             ) : (
-              <ul className="m-0 grid list-none gap-1 p-0">
+              <ul className="m-0 grid grid-cols-[minmax(0,1fr)] list-none gap-1 p-0">
                 {data.deadlines.map((row) => (
-                  <li key={row.id}>
+                  <li key={row.id} className="min-w-0">
                     <Link href={`/cases/${row.matterId}?tab=hearings`} className="flex items-center gap-3 rounded-control px-1 py-2.5 hover:bg-surface-muted">
                       <span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning-soft text-warning">
                         <Clock className="size-4" strokeWidth={1.8} />

@@ -1,5 +1,15 @@
 # Changelog
 
+## Fixes: dashboard layout, case Overview, invite emails, migration (2026-10-01)
+
+### Changed
+- **Case page**: "Case in 30 seconds" is now **Overview** and opens with a snapshot strip (stage, next deadline, open/overdue tasks, documents, discussion) where every tile links to its tab. The lifecycle tracker shows Completed / In progress / Upcoming per stage, days spent in each, a legend, and "Jump to current stage" / "Open full timeline" links. Stages before the current one now count as completed even without a recorded move.
+- **Emails**: shared template redesigned with the CAA logo header, boxed credentials card for the shared-password invite, and escaped names. The logo loads from `APP_URL`, so `APP_URL` must be the real public URL in production.
+
+### Fixed
+- **Dashboard** no longer overflows the viewport (`minmax(0,1fr)` grid track, truncating rows, scrollable stage chart).
+- **Migration `20260930190000_pitch_prototype_models`** re-created tables that earlier migrations already create, so `prisma migrate deploy` failed on any existing database. It now only adds the chat pinning/soft-delete columns, `MatterMessageAttachment` and `MatterMessageMention`.
+
 ## Phase 9: Case discussion (chat) — realtime, @mentions, pinning, attachments (2026-09-30)
 
 ### Added
