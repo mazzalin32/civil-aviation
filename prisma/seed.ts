@@ -737,6 +737,26 @@ async function seedNileHorizonPhase9Content(matterId: string, adminId: string, l
   });
 }
 
+/** Intake fields (9-step New case flow) derived from what each seed case already says, so sample cases look as if they came through the intake. */
+function intakeFields(c: CaseSeed, leadId: string, matterTypeName: string) {
+  const serving = c.ucaaRole === "PLAINTIFF" || c.ucaaRole === "APPLICANT";
+  const served = c.ucaaRole === "DEFENDANT" || c.ucaaRole === "RESPONDENT";
+  const opened = new Date(`${c.openedAt}T09:00:00Z`);
+  return {
+    description: c.referralNote ?? null,
+    reportedAt: opened,
+    reportedBy: "CAA department",
+    reportMethod: "Internal memo",
+    serviceDirection: serving ? ("CAA_SERVING" as const) : served ? ("CAA_SERVED" as const) : ("NOT_YET_SERVED" as const),
+    processNature: matterTypeName === "Civil litigation" ? (served ? "Summons" : "Plaint") : null,
+    legalRecipientId: leadId,
+    courtStation: c.forumName ? "Kampala" : null,
+    filedAt: c.courtCaseNo ? new Date(`${c.openedAt}T00:00:00Z`) : null,
+    jurisdiction: matterTypeName === "Civil litigation" ? "Civil" : null,
+    representationStatus: "In-house counsel",
+  };
+}
+
 async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
   const referenceCounters = new Map<string, number>(); // `${prefix}:${year}` -> next number to use
 
@@ -762,6 +782,8 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
     if (existing) {
       // Idempotent re-run — the case itself is never edited by the seed, but a later phase's
       // demo content (e.g. Phase 5's timeline/summary/note) may still need to be added.
+      // Backfill intake fields on cases seeded before the 9-step intake existed (only where still empty).
+      await db.matter.updateMany({ where: { id: existing.id, reportedAt: null }, data: intakeFields(c, leadId, c.matterTypeName) });
       if (c.title.includes("Nile Horizon")) await seedNileHorizonDetail(existing.id, adminId, leadId);
       continue;
     }
@@ -784,6 +806,7 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
         amountAgainst: c.amountAgainst ?? null,
         causeOfActionDate: c.causeOfActionDate ? new Date(c.causeOfActionDate) : null,
         referralNote: c.referralNote ?? null,
+        ...intakeFields(c, leadId, c.matterTypeName),
         createdById: adminId,
         createdAt,
         lastActivityAt: new Date(`${c.lastActivityAt}T09:00:00Z`),

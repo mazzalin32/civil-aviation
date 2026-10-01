@@ -10,6 +10,8 @@
 - CAA positions extended (Claimant, Petitioner, Interested Party, Appellant, Respondent to Appeal, Other); the cases filter and Key facts use the same labels.
 - Drafts saved by the old 5-step wizard are discarded (different shape).
 
+- Seed: sample cases now carry intake fields (description, reported by/method, service direction, process, court station, representation); existing seeded cases are backfilled where those are empty.
+
 ### Schema (migration `20261001120000_intake_flow_fields`, additive)
 - `Matter`: description, reportedAt/By/Method, serviceDirection, processNature/IssuedAt/ReceivedAt, receivedBy, legalRecipientId, courtStation, filedAt, jurisdiction, representationStatus, externalCounselName/Contact. `Party`: organisation, partyType, roleInMatter. New `ServiceDirection` enum and 6 `UcaaRole` values.
 
