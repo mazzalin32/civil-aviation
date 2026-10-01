@@ -1,5 +1,20 @@
 # Changelog
 
+## Phase 9: Case discussion (chat) — realtime, @mentions, pinning, attachments (2026-09-30)
+
+### Added
+- **Full Case Discussion System**: Per-case collaboration thread scoped to each matter, fully integrated into the Case Page `Discussion` tab.
+- **Realtime Delivery via SSE**: Server-Sent Events stream (`/api/cases/[id]/chat/stream`) with automatic reconnection and exponential backoff, broadcasting message creation, pinning, and deletion across active browser tabs with no polling.
+- **Dual Attachment Capability**:
+  - Direct file uploads (up to 25MB) encrypted with envelope AES-256-GCM and virus-scanned with ClamAV before storage.
+  - Case document linking to attach existing case files directly into discussion threads with dedicated search picker dialog.
+  - Secure download endpoint (`/api/cases/[id]/chat/attachments/[attachmentId]/download`) supporting confidentiality enforcement, PDF watermarking, and audit logging.
+- **@Mentions with Notifications**: Typing `@` triggers interactive autocomplete popover with team members prioritized. Mentioning users triggers in-app and email notifications.
+- **Message Pinning & "Case in 30 seconds" Integration**: Lead lawyers and Admins can pin key discussion messages. Pinned messages display in a banner inside the discussion tab and promote to the "Case in 30 seconds" catch-up panel.
+- **Thread Search & Filtering**: In-thread search bar filtering messages, authors, and attachment filenames with live match counts.
+- **Soft-Deletion & Audit Logging**: Authors and Lead/Admin users can soft-delete messages (`deletedAt`), and every chat mutation (post, pin, unpin, delete) writes to `AuditLog`.
+- **Database & Reference Data**: Added `MatterMessageAttachment` and `MatterMessageMention` models to Prisma schema, and updated `prisma/seed.ts` with demo chat messages on the Nile Horizon case.
+
 ## Documents page: real upload, sort, sample files (2026-09-30, latest)
 
 ### Added

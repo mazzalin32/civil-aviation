@@ -58,7 +58,7 @@ const mail = nodemailer.createTransport({
 });
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 const demoPassword = process.env.DEMO_LOGIN_PASSWORD?.trim();
-const SEED_PASSWORD = demoPassword || process.env.SEED_PASSWORD || "CaaLegal@2026!";
+const SEED_PASSWORD = demoPassword || process.env.SEED_PASSWORD || "pass123";
 
 const monthsFromNow = (months: number) => {
   const d = new Date();
@@ -571,6 +571,9 @@ async function seedNileHorizonDetail(matterId: string, adminId: string, leadId: 
 
   const alreadyHasCalendar = await db.calendarEntry.count({ where: { matterId } });
   if (alreadyHasCalendar === 0) await seedNileHorizonPhase7Content(matterId, adminId, leadId);
+
+  const alreadyHasMessages = await db.matterMessage.count({ where: { matterId } });
+  if (alreadyHasMessages === 0) await seedNileHorizonPhase9Content(matterId, adminId, leadId);
 }
 
 async function seedNileHorizonPhase5Content(matterId: string, adminId: string, leadId: string) {
@@ -636,6 +639,102 @@ async function seedNileHorizonPhase7Content(matterId: string, adminId: string, l
     await db.task.create({ data: { matterId, title: "Finance reconciliation", assigneeId: carol.id, dueAt: new Date("2026-10-02T09:00:00Z"), createdById: adminId } });
   }
   await db.task.create({ data: { matterId, title: "Witness statements", assigneeId: leadId, dueAt: new Date("2026-10-24T09:00:00Z"), createdById: adminId } });
+}
+
+// Phase 9 demo content — discussion messages on the mockup case, including a pinned message,
+// @mentions, and attachments (both direct upload and linked document).
+async function seedNileHorizonPhase9Content(matterId: string, adminId: string, leadId: string) {
+  const [lead, brian, carol] = await Promise.all([
+    db.user.findUnique({ where: { id: leadId } }),
+    db.user.findUnique({ where: { email: "brian.okello@caa.go.ug" } }),
+    db.user.findUnique({ where: { email: "carol.atim@caa.go.ug" } }),
+  ]);
+
+  const brianId = brian?.id ?? adminId;
+  const carolId = carol?.id ?? adminId;
+
+  // 1. Initial message from Brian with direct attachment (preliminary reconciliation note)
+  const directBody = Buffer.from(
+    "Finance Preliminary Reconciliation - Nile Horizon Parking Charges\n\n1. Period: July 2024 - Dec 2024\n2. Billed: UGX 420,000,000\n3. Disputed Delta: UGX 65,000,000\nStatus: Pending confirmation from airport ops.",
+    "utf8",
+  );
+  const msg1 = await db.matterMessage.create({
+    data: {
+      matterId,
+      authorId: brianId,
+      body: "I reviewed the parking invoices with the Finance team. There is a dispute regarding the tariff rate applied after the July 2024 revision. I've attached our preliminary reconciliation note.",
+      createdAt: new Date("2026-09-26T10:15:00Z"),
+    },
+  });
+
+  if (process.env.DOCUMENT_MASTER_KEY) {
+    const enc = seedEncryptFile(directBody);
+    const storageKey = `chat/${matterId}/${msg1.id}/prelim_reconciliation.txt`;
+    await seedPutObject(storageKey, enc.ciphertext);
+    await db.matterMessageAttachment.create({
+      data: {
+        messageId: msg1.id,
+        name: "prelim_reconciliation.txt",
+        size: directBody.length,
+        mimeType: "text/plain",
+        storageKey,
+        sha256: crypto.createHash("sha256").update(directBody).digest("hex"),
+        encryptedDataKey: enc.encryptedDataKey,
+        iv: enc.iv,
+        authTag: enc.authTag,
+        scanStatus: "CLEAN",
+      },
+    });
+  }
+
+  // 2. Message from Carol with @mention to lead lawyer and linked case document if available
+  const existingDoc = await db.document.findFirst({
+    where: { matterId, deletedAt: null },
+    include: { currentVersion: true },
+  });
+
+  const leadName = lead?.name ?? "Agnes Nakato";
+  const msg2 = await db.matterMessage.create({
+    data: {
+      matterId,
+      authorId: carolId,
+      body: `@[${leadName}](user:${leadId}) please note the mediator requested our position in writing before Friday. I have linked the relevant case file for quick reference.`,
+      createdAt: new Date("2026-09-27T14:30:00Z"),
+    },
+  });
+
+  await db.matterMessageMention.create({
+    data: {
+      messageId: msg2.id,
+      userId: leadId,
+    },
+  });
+
+  if (existingDoc && existingDoc.currentVersion) {
+    await db.matterMessageAttachment.create({
+      data: {
+        messageId: msg2.id,
+        name: existingDoc.name,
+        size: existingDoc.currentVersion.size,
+        mimeType: existingDoc.currentVersion.mimeType,
+        documentId: existingDoc.id,
+      },
+    });
+  }
+
+  // 3. Pinned message from Lead Lawyer (Agnes) establishing case settlement strategy
+  const pinnedDate = new Date("2026-09-28T09:00:00Z");
+  await db.matterMessage.create({
+    data: {
+      matterId,
+      authorId: leadId,
+      body: "Key strategy agreed with Head of Legal: We can accept a 12-month payment schedule with 85% principal minimum, but will NOT waive interest if extended beyond 12 months. Please keep all submissions aligned with this threshold.",
+      isPinned: true,
+      pinnedAt: pinnedDate,
+      pinnedById: leadId,
+      createdAt: pinnedDate,
+    },
+  });
 }
 
 async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {

@@ -24,7 +24,7 @@ npm run dev                   # http://localhost:3000
 
 Documents are stored encrypted on the local filesystem for now (`DOCUMENT_STORAGE_DIR`, default `./storage/documents`) — real S3-compatible object storage (the `minio` service, `--profile storage`) isn't wired up yet; see the comment above that service in `docker-compose.yml`. Without `clamav` running, set `REQUIRE_VIRUS_SCAN=false` in `.env` for local testing — every upload still records why scanning was skipped.
 
-The seed assigns `SEED_PASSWORD` (default `CaaLegal@2026!`) to the Admin and sample lawyers and prints it after each run. Set `SEED_PASSWORD` in `.env` to use a different local/demo password. Activation links are also generated for lawyers and sent to Mailpit, but the seeded password can be used directly for local testing. Every account requires 2FA.
+The seed assigns `SEED_PASSWORD` (default `pass123`) to the Admin and sample lawyers and prints it after each run. Set `SEED_PASSWORD` in `.env` to use a different local/demo password. Activation links are also generated for lawyers and sent to Mailpit, but the seeded password can be used directly for local testing. Every account requires 2FA.
 
 | Service | URL |
 |---|---|

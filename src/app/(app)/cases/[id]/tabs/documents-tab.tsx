@@ -8,6 +8,7 @@ import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { formatDate } from "@/lib/time";
 import { deleteDocument, restoreDocument, permanentlyDeleteDocument } from "./documents-actions";
 import { UploadDocumentDialog } from "./upload-document-dialog";
+import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
 
 export type DocRow = {
   id: string;
@@ -53,6 +54,7 @@ export function DocumentsTab({
 }) {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
 
   const active = documents.filter((d) => !d.deletedAt);
   const deleted = documents.filter((d) => d.deletedAt);
@@ -97,7 +99,26 @@ export function DocumentsTab({
                   <FileText className="size-5 shrink-0 text-text-muted" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <b className="truncate text-[13px] font-medium">{d.name}</b>
+                      {d.currentVersionId ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewFile({
+                              name: d.name,
+                              size: d.size,
+                              viewUrl: `/api/documents/${d.currentVersionId}?action=view`,
+                              downloadUrl: `/api/documents/${d.currentVersionId}?action=download`,
+                              canDownload: d.confidentiality !== "HIGHLY_CONFIDENTIAL" || isAdmin,
+                            })
+                          }
+                          className="truncate text-left text-[13px] font-medium text-text hover:text-primary hover:underline transition-colors"
+                          title={`Preview ${d.name}`}
+                        >
+                          {d.name}
+                        </button>
+                      ) : (
+                        <b className="truncate text-[13px] font-medium">{d.name}</b>
+                      )}
                       {d.confidentiality !== "NORMAL" && (
                         <Badge tone="neutral">
                           <Lock className="size-3" /> {d.confidentiality === "HIGHLY_CONFIDENTIAL" ? "Highly confidential" : "Confidential"}
@@ -121,16 +142,34 @@ export function DocumentsTab({
                     </p>
                   </div>
                   {d.currentVersionId && (
-                    <>
-                      <a href={`/api/documents/${d.currentVersionId}?action=view`} target="_blank" rel="noreferrer" className="text-text-muted hover:text-text" title="View">
+                    <div className="flex shrink-0 items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewFile({
+                            name: d.name,
+                            size: d.size,
+                            viewUrl: `/api/documents/${d.currentVersionId}?action=view`,
+                            downloadUrl: `/api/documents/${d.currentVersionId}?action=download`,
+                            canDownload: d.confidentiality !== "HIGHLY_CONFIDENTIAL" || isAdmin,
+                          })
+                        }
+                        className="text-text-muted hover:text-primary transition-colors cursor-pointer"
+                        title="Preview document"
+                      >
                         <Eye className="size-4" />
-                      </a>
-                      {d.confidentiality !== "HIGHLY_CONFIDENTIAL" && (
-                        <a href={`/api/documents/${d.currentVersionId}?action=download`} className="text-text-muted hover:text-text" title="Download">
+                      </button>
+                      {(d.confidentiality !== "HIGHLY_CONFIDENTIAL" || isAdmin) && (
+                        <a
+                          href={`/api/documents/${d.currentVersionId}?action=download`}
+                          download
+                          className="text-text-muted hover:text-primary transition-colors"
+                          title="Download document"
+                        >
                           <Download className="size-4" />
                         </a>
                       )}
-                    </>
+                    </div>
                   )}
                   {canMutate && <RowActionsMenu actions={[{ label: "Delete", icon: Trash2, danger: true, disabled: pending, onClick: () => onDelete(d) }]} />}
                 </div>
@@ -170,6 +209,12 @@ export function DocumentsTab({
         defaultConfidentiality={matterConfidentiality}
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
+      />
+
+      {/* In-app File Preview Modal */}
+      <FilePreviewModal
+        file={previewFile}
+        onClose={() => setPreviewFile(null)}
       />
     </div>
   );

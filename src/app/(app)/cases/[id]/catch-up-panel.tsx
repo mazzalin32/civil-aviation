@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/app/avatar";
@@ -21,6 +21,7 @@ export type KeyFacts = {
 export function CatchUpPanel({
   matterId,
   summary,
+  pinnedMessage,
   facts,
   team,
   canMutate,
@@ -28,6 +29,7 @@ export function CatchUpPanel({
 }: {
   matterId: string;
   summary: { body: string; authorName: string; createdAt: string } | null;
+  pinnedMessage: { body: string; authorName: string; createdAt: string } | null;
   facts: KeyFacts;
   team: { id: string; name: string; role: "LEAD" | "SUPPORT" }[];
   canMutate: boolean;
@@ -69,6 +71,17 @@ export function CatchUpPanel({
           <p className="m-0 text-[13px] text-text-muted">
             {canMutate ? "No summary written yet — click \"Edit summary\" to add one." : "No summary written yet."}
           </p>
+        )}
+        {pinnedMessage && (
+          <div className="mt-3 flex items-start gap-2.5 rounded-[12px] bg-surface-muted px-3.5 py-3 text-[13px]">
+            <Pin className="mt-0.5 size-4 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <p className="m-0 whitespace-pre-wrap">{pinnedMessage.body}</p>
+              <span className="text-[12px] text-text-muted">
+                Pinned from discussion · {pinnedMessage.authorName} · {formatDate(new Date(pinnedMessage.createdAt))}
+              </span>
+            </div>
+          </div>
         )}
       </div>
 

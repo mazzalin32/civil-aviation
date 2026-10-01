@@ -22,6 +22,27 @@ export async function canAccessMatter(_userId: string, _role: Role, _matterId: s
   return true;
 }
 
+/**
+ * Case chat discussions are strictly scoped per case: only users explicitly assigned
+ * to the case (or Admins) can read messages, stream SSE updates, post, or download attachments.
+ */
+export async function canAccessMatterChat(userId: string, role: Role, matterId: string) {
+  if (role === "ADMIN") return true;
+  const assignment = await db.matterAssignment.findFirst({
+    where: { matterId, userId, removedAt: null },
+    select: { id: true },
+  });
+  return Boolean(assignment);
+}
+
+export async function requireMatterChatAccess(matterId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const allowed = await canAccessMatterChat(user.id, user.role, matterId);
+  if (!allowed) redirect("/forbidden");
+  return user;
+}
+
 async function matterAssignmentRole(userId: string, matterId: string) {
   const assignment = await db.matterAssignment.findFirst({ where: { matterId, userId, removedAt: null } });
   return assignment?.role ?? null;

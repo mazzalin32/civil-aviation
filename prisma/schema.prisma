@@ -82,6 +82,9 @@ model User {
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
   matterMessages          MatterMessage[]          @relation("MatterMessages")
+  pinnedMatterMessages    MatterMessage[]          @relation("MessagePinnedBy")
+  deletedMatterMessages   MatterMessage[]          @relation("MessageDeletedBy")
+  matterMessageMentions   MatterMessageMention[]
   groupMessages           GroupMessage[]
   lawFirmsAdded           LawFirm[]
   resourceLinksAdded      ResourceLink[]
@@ -540,18 +543,80 @@ model SummaryVersion {
   @@index([matterId, createdAt])
 }
 
-/// Per-case discussion thread. Lawyers and Admin can both post (prototype: the one
-/// mutation lawyers keep; everything else on a case is Admin-only).
+/// Per-case discussion thread (spec §5.7 tab 5, Phase 9).
 model MatterMessage {
-  id        String   @id @default(cuid())
-  matterId  String
-  matter    Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User     @relation("MatterMessages", fields: [authorId], references: [id])
-  body      String
-  createdAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  matterId    String
+  matter      Matter    @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User      @relation("MatterMessages", fields: [authorId], references: [id])
+  body        String
+
+  // Pinning: pinned messages appear on the "Case in 30 seconds" catch-up panel
+  isPinned    Boolean   @default(false)
+  pinnedAt    DateTime?
+  pinnedById  String?
+  pinnedBy    User?     @relation("MessagePinnedBy", fields: [pinnedById], references: [id])
+
+  // Soft-deletion: legal platforms must never hard-delete messages (CLAUDE.md)
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?     @relation("MessageDeletedBy", fields: [deletedById], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  attachments MatterMessageAttachment[]
+  mentions    MatterMessageMention[]
 
   @@index([matterId, createdAt])
+  @@index([matterId, isPinned])
+}
+
+/// Attachments associated with a case message.
+/// Supports dual modes:
+/// 1. Direct file upload (encrypted with envelope encryption + scanned via ClamAV)
+/// 2. Reference link to an existing Document already filed in the case Documents tab
+model MatterMessageAttachment {
+  id               String        @id @default(cuid())
+  messageId        String
+  message          MatterMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  // File metadata
+  name             String
+  size             Int
+  mimeType         String
+
+  // For directly uploaded chat files (AES-256-GCM envelope encryption)
+  storageKey       String?
+  sha256           String?
+  encryptedDataKey String?
+  iv               String?
+  authTag          String?
+  scanStatus       ScanStatus    @default(CLEAN)
+  scanDetail       String?
+
+  // For attachments linked from the case's official document repository
+  documentId       String?
+  document         Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime      @default(now())
+
+  @@index([messageId])
+  @@index([documentId])
+}
+
+/// Explicit mentions of users within a message (@LawyerName).
+model MatterMessageMention {
+  id        String        @id @default(cuid())
+  messageId String
+  message   MatterMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId])
 }
 
 /// Shared or private note on a matter (spec §5.7 tab 7). Private notes are visible only to
@@ -603,9 +668,10 @@ model Document {
   deletedAt        DateTime? // soft delete only (CLAUDE.md) — Admin can restore within the retention period
   deletedById      String?
 
-  versions   DocumentVersion[]   @relation("DocumentVersions")
-  accessLogs DocumentAccessLog[]
-  eventLinks EventDocument[]
+  versions           DocumentVersion[]         @relation("DocumentVersions")
+  accessLogs         DocumentAccessLog[]
+  eventLinks         EventDocument[]
+  messageAttachments MatterMessageAttachment[]
 
   @@index([matterId, deletedAt])
   @@index([folderId])

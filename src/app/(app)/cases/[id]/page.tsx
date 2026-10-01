@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
+import { Lock } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireMatterAccess, canEditMatter, canAssignTasks } from "@/lib/authz";
+import { requireMatterAccess, canEditMatter, canAssignTasks, canAccessMatterChat } from "@/lib/authz";
 import { CaseHeader } from "./header";
 import { LifecycleTracker, type TrackerStage } from "./lifecycle-tracker";
 import { CatchUpPanel } from "./catch-up-panel";
@@ -29,6 +30,7 @@ export default async function CasePage({
   const isAdmin = me.role === "ADMIN";
   const canEdit = await canEditMatter(me.id, me.role, id);
   const canAssign = await canAssignTasks(me.id, me.role, id);
+  const canChat = await canAccessMatterChat(me.id, me.role, id);
 
   const matter = await db.matter.findUnique({
     where: { id },
@@ -60,7 +62,12 @@ export default async function CasePage({
     }),
     db.matterMessage.findMany({
       where: { matterId: id },
-      include: { author: { select: { id: true, name: true } } },
+      include: {
+        author: { select: { id: true, name: true } },
+        pinnedBy: { select: { id: true, name: true } },
+        attachments: true,
+        mentions: { include: { user: { select: { id: true, name: true } } } },
+      },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -117,6 +124,10 @@ export default async function CasePage({
     };
   });
 
+  const latestPinnedMessage = messages
+    .filter((m) => m.isPinned && !m.deletedAt)
+    .sort((a, b) => (b.pinnedAt?.getTime() ?? b.createdAt.getTime()) - (a.pinnedAt?.getTime() ?? a.createdAt.getTime()))[0] ?? null;
+
   return (
     <>
       <CaseHeader
@@ -149,6 +160,11 @@ export default async function CasePage({
         <CatchUpPanel
           matterId={matter.id}
           summary={latestSummary ? { body: latestSummary.body, authorName: latestSummary.author.name, createdAt: latestSummary.createdAt.toISOString() } : null}
+          pinnedMessage={latestPinnedMessage ? {
+            body: latestPinnedMessage.body,
+            authorName: latestPinnedMessage.author.name,
+            createdAt: (latestPinnedMessage.pinnedAt ?? latestPinnedMessage.createdAt).toISOString(),
+          } : null}
           facts={{
             amountClaimed: matter.amountClaimed !== null ? matter.amountClaimed.toString() : null,
             ucaaRole: matter.ucaaRole,
@@ -176,7 +192,7 @@ export default async function CasePage({
           documents: documentsRaw.filter((d) => !d.deletedAt).length,
           hearings: calendarEntries.filter((e) => e.kind === "DEADLINE").length,
           tasks: tasksRaw.length,
-          discussion: messages.length,
+          discussion: messages.filter((m) => !m.deletedAt).length,
           notes: notesRaw.length,
           activity: tab === "activity" ? activity.length : undefined,
         }}
@@ -264,16 +280,57 @@ export default async function CasePage({
           }))}
         />
       )}
-      {tab === "discussion" && (
+      {tab === "discussion" && !canChat && (
+        <div className="rounded-card border border-border bg-surface p-10 text-center shadow-card">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-full bg-surface-muted text-text-muted">
+            <Lock className="size-5" />
+          </div>
+          <h3 className="m-0 text-base font-semibold text-text">Case Discussion Restricted</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm text-text-muted">
+            Case communications are restricted to legal counsel assigned to this matter ({team.map((t) => t.name).join(", ") || "No lawyers assigned"}).
+          </p>
+        </div>
+      )}
+      {tab === "discussion" && canChat && (
         <DiscussionTab
           matterId={matter.id}
           currentUserId={me.id}
+          canPin={canEdit}
+          team={team}
+          allLawyers={lawyers.map((l) => ({ id: l.id, name: l.name }))}
+          caseDocuments={documentsRaw
+            .filter((d) => !d.deletedAt)
+            .map((d) => ({
+              id: d.id,
+              name: d.name,
+              folderName: d.folder.name,
+              size: d.currentVersion?.size ?? null,
+            }))}
           messages={messages.map((m) => ({
             id: m.id,
+            matterId: m.matterId,
             body: m.body,
             createdAt: m.createdAt.toISOString(),
             authorId: m.author.id,
             authorName: m.author.name,
+            isPinned: m.isPinned,
+            pinnedAt: m.pinnedAt?.toISOString() ?? null,
+            pinnedById: m.pinnedById,
+            pinnedByName: m.pinnedBy?.name ?? null,
+            deletedAt: m.deletedAt?.toISOString() ?? null,
+            attachments: m.attachments.map((att) => ({
+              id: att.id,
+              name: att.name,
+              size: att.size,
+              mimeType: att.mimeType,
+              isLinkedDocument: Boolean(att.documentId),
+              documentId: att.documentId,
+              downloadUrl: `/api/cases/${matter.id}/chat/attachments/${att.id}/download`,
+            })),
+            mentions: m.mentions.map((men) => ({
+              userId: men.user.id,
+              userName: men.user.name,
+            })),
           }))}
         />
       )}

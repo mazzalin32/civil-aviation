@@ -32,7 +32,7 @@ const SHARED: NavItem[] = [
   { href: "/documents", label: "Documents", icon: "documents" },
   { href: "/law-firms", label: "Law Firms & Counsel", icon: "firms" },
   { href: "/links", label: "Links", icon: "links" },
-  { href: "/chat", label: "Group Chat", icon: "chat" },
+  { href: "/chat", label: "Case Chat", icon: "chat" },
   { href: "/reports", label: "Reports & Analytics", icon: "reports" },
 ];
 
