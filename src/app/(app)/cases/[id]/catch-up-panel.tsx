@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { CalendarClock, FileText, ListChecks, MessageSquare, Pencil, Pin } from "lucide-react";
+import { CalendarClock, FileText, ListChecks, MessageSquare, Pencil, Pin, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/app/avatar";
@@ -10,6 +10,7 @@ import { SlideOver } from "@/components/ui/slide-over";
 import { formatDate, formatUGX } from "@/lib/time";
 import { UCAA_POSITIONS } from "@/lib/validation/matter";
 import { updateSummary } from "./actions";
+import { ReassignDialog } from "./reassign-dialog";
 import { IntakeDetails, StatusBanner, type Intake, type StatusInfo } from "./overview-details";
 
 export type KeyFacts = {
@@ -60,6 +61,8 @@ export function CatchUpPanel({
   facts,
   team,
   canMutate,
+  canManageTeam,
+  lawyers,
   deadlines,
 }: {
   matterId: string;
@@ -71,9 +74,12 @@ export function CatchUpPanel({
   facts: KeyFacts;
   team: { id: string; name: string; role: "LEAD" | "SUPPORT" }[];
   canMutate: boolean;
+  canManageTeam: boolean;
+  lawyers: { id: string; name: string; workload: number }[];
   deadlines: { id: string; title: string; dueAt: string; isCritical: boolean }[];
 }) {
   const [editing, setEditing] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
   const [now] = useState(() => Date.now());
@@ -209,7 +215,14 @@ export function CatchUpPanel({
         </div>
 
         <div className="rounded-card border border-border bg-surface p-5 shadow-card">
-          <h2 className="m-0 mb-3 text-base font-semibold">Team</h2>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="m-0 text-base font-semibold">Team</h2>
+            {canManageTeam && (
+              <Button type="button" size="sm" className="ml-auto" onClick={() => setTeamOpen(true)}>
+                <UserPlus className="size-3.5" /> Add
+              </Button>
+            )}
+          </div>
           <ul className="m-0 grid list-none gap-2.5 p-0">
             {team.map((t) => (
               <li key={t.id} className="flex items-center gap-2 text-[13px]">
@@ -221,6 +234,17 @@ export function CatchUpPanel({
           </ul>
         </div>
       </div>
+
+      {canManageTeam && (
+        <ReassignDialog
+          matterId={matterId}
+          lawyers={lawyers}
+          currentLeadId={team.find((t) => t.role === "LEAD")?.id}
+          currentSupportIds={team.filter((t) => t.role === "SUPPORT").map((t) => t.id)}
+          open={teamOpen}
+          onClose={() => setTeamOpen(false)}
+        />
+      )}
 
       <SlideOver open={editing} onClose={() => setEditing(false)} title="Edit summary">
         <form action={save} className="grid gap-4">

@@ -1,5 +1,13 @@
 # Changelog
 
+## UI: searchable dropdowns, row menu, team add (2026-10-01)
+
+### Changed
+- **Dropdowns**: any select with more than 7 options now has a search box (keyboard friendly); shorter lists stay native. Drop-in change to the shared `Select`, so every form gets it.
+- **Row action menu (⋯)** now renders in a portal with fixed positioning and opens upward near the bottom of the screen, so it is never clipped by a table or covers the section below.
+- **Case page → Team card** has an **Add** button for admins (opens the case team dialog).
+- Auth screens: the tagline now reads "© 2026 CAA Legal — Case & Matter Management".
+
 ## Admin delete, department-wide visibility, branding (2026-10-01)
 
 ### Added
