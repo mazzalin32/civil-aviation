@@ -1,7 +1,5 @@
-import { Poppins } from "next/font/google";
-
-// Only the brand panel's two-line title uses this geometric face (matches the supplied reference).
-const brandFont = Poppins({ subsets: ["latin"], weight: ["300", "500"], display: "swap" });
+// The brand panel's two-line title is set in Times New Roman (a system font, nothing to load).
+const BRAND_SERIF = '"Times New Roman", Times, serif';
 
 /**
  * Split layout for every auth screen (login, activate, forgot/change password):
@@ -38,9 +36,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/CAA-Uganda-logo-1.png" alt="" width={168} height={80} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
           </div>
-          <h2 className={`${brandFont.className} m-0 mt-9 text-[28px] leading-[1.25] text-on-primary`}>
-            <span className="block font-medium">Civil Aviation Authority</span>
-            <span className="block font-light">Legal Department</span>
+          <h2 style={{ fontFamily: BRAND_SERIF }} className="m-0 mt-9 text-[30px] leading-[1.25] text-on-primary">
+            <span className="block font-bold">Civil Aviation Authority</span>
+            <span className="block font-normal">Legal Department</span>
           </h2>
         </div>
 
