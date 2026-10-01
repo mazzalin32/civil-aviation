@@ -43,7 +43,7 @@ export function PartyFormDialog({
           <Select id="pt-kind" name="kind" defaultValue={party?.kind ?? "OPPOSING"}>
             <option value="OPPOSING">Opposing party</option>
             <option value="WITNESS">Witness</option>
-            <option value="INTERNAL">Internal UCAA contact</option>
+            <option value="INTERNAL">Internal CAA contact</option>
             <option value="OTHER">Other</option>
           </Select>
         </Field>

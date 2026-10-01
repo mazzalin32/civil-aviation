@@ -8,7 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await getCurrentUser();
   if (!user) redirect("/login"); // defensive — proxy already guarantees this
 
-  const openTaskCount = await db.task.count({ where: { assigneeId: user.id, status: "OPEN" } });
+  const openTaskCount = await db.task.count({ where: { assigneeId: user.id, status: "OPEN", matter: { deletedAt: null } } });
 
   return (
     <div className="flex min-h-dvh">

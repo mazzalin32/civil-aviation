@@ -125,7 +125,7 @@ export function CaseFiltersBar({ filters, options }: { filters: CaseFilters; opt
               ))}
             </Select>
             <Select name="ucaaRole" icon={Scale} defaultValue={filters.ucaaRole ?? ""} onChange={submit} className="w-auto min-w-[150px]">
-              <option value="">All UCAA roles</option>
+              <option value="">All CAA roles</option>
               {UCAA_POSITIONS.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}

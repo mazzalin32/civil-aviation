@@ -33,6 +33,7 @@ model User {
   practisingCertNo   String?
   certExpiry         DateTime? @db.Date
   isActive           Boolean   @default(true)
+  deletedAt          DateTime? // soft delete: hidden from lists, cannot sign in; never a hard delete
   // Security state we own (not Better Auth's concern): 2FA display, forced change,
   // lockout. The password hash and TOTP secret live in Account / TwoFactor below.
   twoFactorEnabled   Boolean   @default(false) // field name/shape required by the twoFactor plugin
@@ -456,6 +457,8 @@ model Matter {
   closedById             String?
   closedBy               User?             @relation("MatterClosedBy", fields: [closedById], references: [id])
   lastActivityAt         DateTime          @default(now())
+  deletedAt              DateTime? // soft delete by an Admin: hidden everywhere, rows kept for audit
+  deletedById            String?
 
   assignments     MatterAssignment[]
   stageMoves      MatterStage[]

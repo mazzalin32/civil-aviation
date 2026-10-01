@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarPlus, GitCommitHorizontal, Lock } from "lucide-react";
+import { CalendarPlus, GitCommitHorizontal, Lock, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/app/avatar";
@@ -81,6 +81,11 @@ export function CaseHeader({ data }: { data: CaseHeaderData }) {
             <Avatar key={s.id} name={s.name} seed={s.id} className="ring-2 ring-surface" />
           ))}
         </div>
+        {data.isAdmin && (
+          <Button type="button" onClick={() => setDialog("reassign")}>
+            <UserPlus className="size-4" /> Add people
+          </Button>
+        )}
         {data.canMutate && (
           <Button type="button" onClick={() => setDialog("event")}>
             <CalendarPlus className="size-4" /> Add event

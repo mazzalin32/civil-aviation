@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Ban, Check, CheckCircle2, LogOut, Mail, Pencil, X } from "lucide-react";
+import { Ban, Check, CheckCircle2, LogOut, Mail, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { Avatar } from "@/components/app/avatar";
 import { formatDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { resendInvite, signOutAllSessions, toggleUserActive, updateLawyer } from "./actions";
+import { deleteUser, resendInvite, signOutAllSessions, toggleUserActive, updateLawyer } from "./actions";
 
 export type UserRowData = {
   id: string;
@@ -123,6 +123,19 @@ export function UserRowItem({ user }: { user: UserRowData }) {
                 if (user.isActive && !window.confirm(`Deactivate ${user.name}? They'll be signed out everywhere immediately.`)) return;
                 startTransition(async () => {
                   const result = await toggleUserActive(user.id, !user.isActive);
+                  if (result?.error) window.alert(result.error);
+                });
+              },
+            },
+            {
+              label: "Delete user",
+              icon: Trash2,
+              danger: true,
+              disabled: pending || user.isSelf,
+              onClick: () => {
+                if (!window.confirm(`Delete ${user.name}? They will be removed from the Users list, signed out everywhere and unable to sign in. Their history on cases is kept. You can restore them later by adding the same email again.`)) return;
+                startTransition(async () => {
+                  const result = await deleteUser(user.id);
                   if (result?.error) window.alert(result.error);
                 });
               },

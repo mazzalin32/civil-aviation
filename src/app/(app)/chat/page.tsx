@@ -17,8 +17,9 @@ export default async function ChatPage({
   // Strictly scoped per case — assigned counsel + admins
   const matters = await db.matter.findMany({
     where: isAdmin
-      ? {}
+      ? { deletedAt: null }
       : {
+          deletedAt: null,
           assignments: {
             some: {
               userId: user.id,

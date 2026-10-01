@@ -50,12 +50,13 @@ export async function createLawyer(formData: FormData) {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
 
   const existing = await db.user.findUnique({ where: { email: parsed.data.email } });
-  if (existing) return { error: "Someone with this email already has an account." };
+  if (existing && !existing.deletedAt) return { error: "Someone with this email already has an account." };
 
-  const created = await db.user.create({
-    data: { name: parsed.data.name, email: parsed.data.email, role: Role.LAWYER, ...fields(parsed.data) },
-  });
-  await writeAudit({ userId: admin.id, action: "user.create", entity: "User", entityId: created.id, after: { name: created.name, email: created.email } });
+  // A previously deleted account is brought back (same history) instead of colliding on the unique email.
+  const created = existing
+    ? await db.user.update({ where: { id: existing.id }, data: { name: parsed.data.name, deletedAt: null, isActive: true, ...fields(parsed.data) } })
+    : await db.user.create({ data: { name: parsed.data.name, email: parsed.data.email, role: Role.LAWYER, ...fields(parsed.data) } });
+  await writeAudit({ userId: admin.id, action: existing ? "user.restore" : "user.create", entity: "User", entityId: created.id, after: { name: created.name, email: created.email } });
 
   await sendInvite(created);
   await writeAudit({ userId: admin.id, action: "user.invite.sent", entity: "User", entityId: created.id });
@@ -121,5 +122,33 @@ export async function signOutAllSessions(id: string) {
   const admin = await requireRole("ADMIN");
   await db.session.deleteMany({ where: { userId: id } });
   await writeAudit({ userId: admin.id, action: "user.sessions.revoked", entity: "User", entityId: id });
+  await reload();
+}
+
+/**
+ * "Delete" a user. Never a hard delete (CLAUDE.md) — their history (cases, audit log, messages)
+ * must stay intact, so the account is hidden from every list, signed out everywhere, and its
+ * password removed. Re-adding the same email later restores it. Refused while they still lead
+ * an open case, because that case would be left without a responsible lawyer.
+ */
+export async function deleteUser(id: string) {
+  const admin = await requireRole("ADMIN");
+  if (id === admin.id) return { error: "You can't delete your own account." };
+
+  const user = await db.user.findUnique({ where: { id } });
+  if (!user || user.deletedAt) return { error: "That user no longer exists." };
+
+  const leading = await db.matterAssignment.count({
+    where: { userId: id, role: "LEAD", removedAt: null, matter: { deletedAt: null, status: { in: ["OPEN", "ON_HOLD", "CLOSURE_REQUESTED"] } } },
+  });
+  if (leading > 0) return { error: `${user.name} is the lead on ${leading} open case${leading === 1 ? "" : "s"}. Reassign ${leading === 1 ? "it" : "them"} first (Cases → Reassign), then delete.` };
+
+  await db.$transaction(async (tx) => {
+    await tx.user.update({ where: { id }, data: { deletedAt: new Date(), isActive: false } });
+    await tx.session.deleteMany({ where: { userId: id } });
+    await tx.account.deleteMany({ where: { userId: id } });
+    await tx.matterAssignment.updateMany({ where: { userId: id, removedAt: null }, data: { removedAt: new Date() } });
+    await writeAudit({ userId: admin.id, action: "user.delete", entity: "User", entityId: id, before: { name: user.name, email: user.email } }, tx);
+  });
   await reload();
 }

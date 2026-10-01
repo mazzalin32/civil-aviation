@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { AssignmentRole } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { requireMatterEdit } from "@/lib/authz";
+import { requireMatterEdit, requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import {
@@ -273,4 +273,22 @@ export async function resumeCase(matterId: string): Promise<ActionResult> {
   });
 
   reload(matterId);
+}
+
+/**
+ * Admin-only "delete case". Never a hard delete (CLAUDE.md): the matter, its documents, messages
+ * and audit trail are kept; it is just hidden from every list and its page returns 404.
+ */
+export async function deleteCase(matterId: string): Promise<ActionResult> {
+  const admin = await requireRole("ADMIN");
+  const matter = await db.matter.findUnique({ where: { id: matterId } });
+  if (!matter || matter.deletedAt) return { error: "That case no longer exists." };
+
+  await db.$transaction(async (tx) => {
+    await tx.matter.update({ where: { id: matterId }, data: { deletedAt: new Date(), deletedById: admin.id } });
+    await writeAudit({ userId: admin.id, action: "matter.delete", entity: "Matter", entityId: matterId, before: { reference: matter.reference, title: matter.title } }, tx);
+  });
+
+  revalidatePath("/cases");
+  revalidatePath("/dashboard");
 }

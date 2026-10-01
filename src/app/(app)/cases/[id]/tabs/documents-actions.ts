@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireMatterAccess, requireMatterEdit } from "@/lib/authz";
+import { requireMatterAccess, requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { encryptFile, sha256Hex } from "@/lib/documents/encryption";
@@ -120,9 +120,8 @@ export async function uploadDocument(formData: FormData): Promise<ActionResult> 
 }
 
 export async function deleteDocument(matterId: string, documentId: string): Promise<ActionResult> {
-  const user = await requireMatterEdit(matterId);
-  const linked = await db.eventDocument.findFirst({ where: { documentId } });
-  if (linked && user.role !== "ADMIN") return { error: "Only an Admin can delete a document linked to a timeline event as evidence." };
+  // Anyone can add documents; only an Admin can delete them.
+  const user = await requireRole("ADMIN");
 
   await db.document.update({ where: { id: documentId }, data: { deletedAt: new Date(), deletedById: user.id } });
   await writeAudit({ userId: user.id, action: "document.delete", entity: "Document", entityId: documentId });

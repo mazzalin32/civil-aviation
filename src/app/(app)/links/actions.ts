@@ -12,7 +12,7 @@ export async function addResourceLink(raw: unknown): Promise<ActionResult> {
   const parsed = resourceLinkSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { title, url, category } = parsed.data;
-  const user = await requireRole();
+  const user = await requireRole("ADMIN");
 
   const link = await db.resourceLink.create({ data: { title, url, category: category || null, addedById: user.id } });
   await writeAudit({ userId: user.id, action: "resourcelink.create", entity: "ResourceLink", entityId: link.id, after: { title, url } });

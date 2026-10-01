@@ -42,7 +42,7 @@ export function ReassignDialog({
   }
 
   return (
-    <SlideOver open={open} onClose={onClose} title="Reassign">
+    <SlideOver open={open} onClose={onClose} title="Case team — add or change people">
       <form action={submit} className="grid gap-4">
         {error && <p className="m-0 text-xs text-danger">{error}</p>}
         <Field label="Lead lawyer" htmlFor="ra-lead">

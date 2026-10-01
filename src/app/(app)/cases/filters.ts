@@ -53,7 +53,7 @@ export function parseCaseFilters(sp: Record<string, string | string[] | undefine
 }
 
 export function buildCaseWhere(f: CaseFilters): Prisma.MatterWhereInput {
-  const where: Prisma.MatterWhereInput = {};
+  const where: Prisma.MatterWhereInput = { deletedAt: null };
 
   if (f.status) where.status = f.status as Prisma.EnumMatterStatusFilter["equals"];
   if (f.stage) where.currentStage = { name: f.stage };

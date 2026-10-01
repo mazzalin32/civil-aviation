@@ -67,12 +67,14 @@ export function LawFirmsView({ firms, isAdmin }: { firms: LawFirmRow[]; isAdmin:
 
   return (
     <>
-      <Button type="button" variant="primary" className="mb-4 justify-self-start" onClick={openNew}>
-        <Plus className="size-4" /> Add law firm
-      </Button>
+      {isAdmin && (
+        <Button type="button" variant="primary" className="mb-4 justify-self-start" onClick={openNew}>
+          <Plus className="size-4" /> Add law firm
+        </Button>
+      )}
 
       {firms.length === 0 ? (
-        <EmptyState icon={Building2} title="No law firms yet" description="Add outside counsel and firms the department deals with, so anyone can look up contact details." />
+        <EmptyState icon={Building2} title="No law firms yet" description={isAdmin ? "Add outside counsel and firms the department deals with, so anyone can look up contact details." : "No outside counsel or firms have been added yet."} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {[...active, ...inactive].map((f) => (

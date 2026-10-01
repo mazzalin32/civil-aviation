@@ -14,15 +14,13 @@ export const metadata = { title: "Tasks" };
 const PRIORITY_TONE = { LOW: "neutral", MEDIUM: "info", HIGH: "warning", URGENT: "danger" } as const;
 
 export default async function Page() {
-  const user = await requireRole();
-  const isAdmin = user.role === "ADMIN";
+  await requireRole();
   const now = new Date();
 
   const tasks = await db.task.findMany({
     where: {
       status: "OPEN",
-      ...(isAdmin ? {} : { assigneeId: user.id }),
-      matter: isAdmin ? undefined : { assignments: { some: { userId: user.id, removedAt: null } } },
+      matter: { deletedAt: null }, // department-wide for everyone; changing a task is gated per action
     },
     orderBy: { dueAt: "asc" },
     select: {
@@ -38,13 +36,13 @@ export default async function Page() {
     <>
       <PageHeader
         title="Tasks"
-        description={isAdmin ? "Open tasks across the department." : "Open tasks assigned to you."}
+        description="Open tasks across the department."
       />
       {tasks.length === 0 ? (
         <EmptyState
           icon={Clock}
           title="No open tasks"
-          description={isAdmin ? "When lawyers have work due on a case, it will list here." : "Tasks from your cases will list here with due dates."}
+          description="When lawyers have work due on a case, it will list here."
         />
       ) : (
         <Card>
@@ -61,7 +59,7 @@ export default async function Page() {
                       <span className="block truncate text-[13.5px] font-medium">{t.title}</span>
                       <span className="block truncate text-[12px] text-text-muted">
                         {t.matter.reference} · {t.matter.title}
-                        {isAdmin ? ` · ${t.assignee.name}` : ""}
+                        {` · ${t.assignee.name}`}
                       </span>
                     </span>
                     <span className="shrink-0 text-right">

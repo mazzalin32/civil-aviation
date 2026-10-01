@@ -165,7 +165,7 @@ export function CatchUpPanel({
               <dd className="m-0 text-right font-medium tabular-nums">{facts.amountClaimed ? formatUGX(BigInt(facts.amountClaimed)) : "—"}</dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-text-muted">UCAA role</dt>
+              <dt className="text-text-muted">CAA position</dt>
               <dd className="m-0 text-right font-medium">{UCAA_POSITIONS.find((r) => r.value === facts.ucaaRole)?.label ?? facts.ucaaRole}</dd>
             </div>
             <div className="flex justify-between gap-3">

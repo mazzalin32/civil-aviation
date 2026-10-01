@@ -25,6 +25,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
     db.document.findMany({
       where: {
         deletedAt: null,
+        matter: { deletedAt: null },
         ...(query
           ? {
               OR: [
@@ -44,7 +45,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
       orderBy: sort === "az" ? { name: "asc" } : { createdAt: "desc" },
       take: 200,
     }),
-    db.matter.findMany({ where: { status: { in: ["OPEN", "ON_HOLD"] } }, select: { id: true, reference: true, title: true }, orderBy: { reference: "asc" } }),
+    db.matter.findMany({ where: { deletedAt: null, status: { in: ["OPEN", "ON_HOLD"] } }, select: { id: true, reference: true, title: true }, orderBy: { reference: "asc" } }),
     db.documentFolder.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { order: "asc" } }),
   ]);
 

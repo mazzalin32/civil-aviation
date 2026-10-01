@@ -18,10 +18,11 @@ export async function GET(request: NextRequest) {
   const user = await db.user.findUnique({ where: { icsToken: token }, select: { id: true, role: true } });
   if (!user) return new NextResponse("Invalid token", { status: 401 });
 
-  const where = user.role === "ADMIN" ? {} : { OR: [{ assigneeId: user.id }, { userId: user.id }] };
+  const notDeleted = { NOT: { matter: { deletedAt: { not: null } } } };
+  const where = user.role === "ADMIN" ? notDeleted : { ...notDeleted, OR: [{ assigneeId: user.id }, { userId: user.id }] };
   const [entries, tasks] = await Promise.all([
     db.calendarEntry.findMany({ where, include: { matter: { select: { reference: true } } } }),
-    db.task.findMany({ where: user.role === "ADMIN" ? {} : { assigneeId: user.id }, include: { matter: { select: { reference: true } } } }),
+    db.task.findMany({ where: user.role === "ADMIN" ? notDeleted : { ...notDeleted, assigneeId: user.id }, include: { matter: { select: { reference: true } } } }),
   ]);
 
   const events: EventAttributes[] = [

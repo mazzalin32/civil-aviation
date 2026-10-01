@@ -1,5 +1,18 @@
 # Changelog
 
+## Admin delete, department-wide visibility, branding (2026-10-01)
+
+### Added
+- **Delete user** (Admin, Users → row menu). Soft delete per the repo rules: hidden from the list and export, signed out everywhere, password removed, removed from case teams; refused while they lead an open case. Adding the same email again restores the account.
+- **Delete case** and **Add people** (Admin, case page). Delete is a soft delete — the case disappears from every list, calendar, task list and dashboard and its page 404s; documents and audit history are kept.
+- Schema: `User.deletedAt`, `Matter.deletedAt/deletedById` (migration `20261001150000_soft_delete_users_matters`).
+
+### Changed
+- Dashboard, Tasks and Calendar are now department-wide for every account (same view as the Admin); what someone can *do* is still gated per action (Admin or assigned lawyer). Chat stays scoped to the cases a lawyer is assigned to (Admin sees all).
+- Links and Law Firms: only Admins see/use the add buttons (enforced on the server too). Documents: anyone can upload; only Admins can delete.
+- Case Overview heading "How it came in" is now **Matter intake**; the parties group reads "Parties · CAA is …".
+- Branding: "UCAA Legal Department" is now **CAA Legal Department** on the login screens and in labels; auth screens show © 2026 under the form.
+
 ## New case intake: 9-step flow (2026-10-01)
 
 ### Changed

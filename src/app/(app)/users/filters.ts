@@ -13,7 +13,7 @@ export function parseUserFilters(sp: Record<string, string | string[] | undefine
 
 /** Shared between the list page and the export routes, so "export" always matches what's on screen. */
 export function buildUserWhere(filters: UserFilters): Prisma.UserWhereInput {
-  const where: Prisma.UserWhereInput = {};
+  const where: Prisma.UserWhereInput = { deletedAt: null };
 
   if (filters.status === "active") where.isActive = true;
   else if (filters.status === "deactivated") where.isActive = false;

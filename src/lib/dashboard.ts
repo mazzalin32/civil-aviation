@@ -40,13 +40,13 @@ export type DashboardData = {
   overdueDeadlineCount: number;
 };
 
-function matterScope(user: CurrentUser): Prisma.MatterWhereInput {
-  if (user.role === "ADMIN") return {};
-  return { assignments: { some: { userId: user.id, removedAt: null } } };
+/** Everyone sees the whole department's portfolio on the dashboard; what a lawyer may DO is gated per action. */
+function matterScope(): Prisma.MatterWhereInput {
+  return { deletedAt: null };
 }
 
 export async function loadDashboard(user: CurrentUser, now: Date): Promise<Omit<DashboardData, "greeting" | "dateLabel">> {
-  const scope = matterScope(user);
+  const scope = matterScope();
   const activeWhere: Prisma.MatterWhereInput = { ...scope, status: { in: [...ACTIVE_STATUSES] } };
   const in30 = new Date(now.getTime() + 30 * 86_400_000);
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));

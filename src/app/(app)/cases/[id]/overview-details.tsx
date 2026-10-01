@@ -132,14 +132,14 @@ export function IntakeDetails({ intake, now }: { intake: Intake; now: number }) 
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <Group icon={FileInput} title="How it came in" empty={!hasOrigin}>
+      <Group icon={FileInput} title="Matter intake" empty={!hasOrigin}>
         {i.description && <p className="m-0 text-[13.5px] whitespace-pre-wrap">{i.description}</p>}
         <Row label="Reported">{i.reportedAt ? formatDate(new Date(i.reportedAt), { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : null}</Row>
         <Row label="Reported by">{i.reportedBy}</Row>
         <Row label="Method">{i.reportMethod}</Row>
       </Group>
 
-      <Group icon={Users} title={`CAA is ${i.positionLabel.toLowerCase()}`} empty={!hasParties}>
+      <Group icon={Users} title={`Parties · CAA is ${i.positionLabel}`} empty={!hasParties}>
         {i.otherParty && (
           <>
             <Row label="Other party">{i.otherParty.name}{i.otherParty.type ? <span className="font-normal text-text-muted"> · {i.otherParty.type}</span> : null}</Row>

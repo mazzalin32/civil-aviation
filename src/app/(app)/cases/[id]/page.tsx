@@ -45,7 +45,7 @@ export default async function CasePage({
       parties: { orderBy: { name: "asc" } },
     },
   });
-  if (!matter) notFound();
+  if (!matter || matter.deletedAt) notFound();
 
   const [stageMoves, events, latestSummary, summaryVersionIds, notesRaw, lawyers, messages] = await Promise.all([
     db.matterStage.findMany({ where: { matterId: id }, orderBy: { enteredAt: "asc" } }),
@@ -294,7 +294,7 @@ export default async function CasePage({
           matterConfidentiality={matter.confidentiality}
           isAdmin={isAdmin}
           canUpload
-          canMutate={canEdit}
+          canMutate={isAdmin}
           documents={documentsRaw.map((d) => ({
             id: d.id,
             name: d.name,

@@ -20,12 +20,14 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const sp = await searchParams;
   const lawyerFilter = isAdmin && typeof sp.lawyer === "string" ? sp.lawyer : undefined;
 
+  // Entries/tasks of a deleted case disappear with it (personal entries have no matter and always show).
+  const notDeleted = { NOT: { matter: { deletedAt: { not: null } } } };
   const entryWhere = isAdmin
     ? lawyerFilter
-      ? { OR: [{ assigneeId: lawyerFilter }, { userId: lawyerFilter }] }
-      : {}
-    : { OR: [{ assigneeId: me.id }, { userId: me.id }] };
-  const taskWhere = isAdmin ? (lawyerFilter ? { assigneeId: lawyerFilter } : {}) : { assigneeId: me.id };
+      ? { ...notDeleted, OR: [{ assigneeId: lawyerFilter }, { userId: lawyerFilter }] }
+      : notDeleted
+    : { ...notDeleted, OR: [{ matterId: { not: null } }, { userId: me.id }] }; // the whole department's case calendar + your own personal entries
+  const taskWhere = isAdmin && lawyerFilter ? { ...notDeleted, assigneeId: lawyerFilter } : notDeleted;
 
   // A Server Component render is already tied to one request — "now" is legitimately
   // request-time here, not a hook needing to be stable across client re-renders.
@@ -100,7 +102,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title={isAdmin ? "Department calendar" : "My calendar"} description={isAdmin ? "Every lawyer's hearings, deadlines and tasks." : "Hearings, deadlines and tasks from your cases."} />
+      <PageHeader title="Department calendar" description="Every lawyer's hearings, deadlines and tasks." />
       <CalendarClient events={events} clashes={clashes} isAdmin={isAdmin} lawyers={lawyers} currentLawyerId={lawyerFilter} />
     </>
   );

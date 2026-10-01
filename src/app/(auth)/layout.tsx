@@ -31,7 +31,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/CAA-Uganda-logo-1.png" alt="" width={168} height={80} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
         </div>
-        <b className="mt-5 block font-serif text-2xl font-semibold tracking-wide">UCAA Legal Department</b>
+        <b className="mt-5 block font-serif text-2xl font-semibold tracking-wide">CAA Legal Department</b>
 
         <div className="flex-1" />
 
@@ -44,7 +44,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </aside>
 
       <main className="flex items-center justify-center bg-surface px-4 py-10 sm:px-8">
-        <div className="w-full max-w-[480px]">{children}</div>
+        <div className="w-full max-w-[480px]">
+          {children}
+          <p className="m-0 mt-10 text-center text-xs text-text-muted">© {new Date().getFullYear()} CAA Legal Department</p>
+        </div>
       </main>
     </div>
   );

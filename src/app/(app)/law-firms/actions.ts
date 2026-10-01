@@ -12,7 +12,7 @@ export async function saveLawFirm(raw: unknown): Promise<ActionResult> {
   const parsed = lawFirmSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { id, name, contactName, phone, email, address, notes } = parsed.data;
-  const user = await requireRole();
+  const user = await requireRole("ADMIN");
 
   const data = {
     name,

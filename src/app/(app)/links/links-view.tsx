@@ -48,12 +48,14 @@ export function LinksView({ links, isAdmin }: { links: ResourceLinkRow[]; isAdmi
 
   return (
     <>
-      <Button type="button" variant="primary" className="mb-4 justify-self-start" onClick={() => setOpen(true)}>
-        <Plus className="size-4" /> Add link
-      </Button>
+      {isAdmin && (
+        <Button type="button" variant="primary" className="mb-4 justify-self-start" onClick={() => setOpen(true)}>
+          <Plus className="size-4" /> Add link
+        </Button>
+      )}
 
       {links.length === 0 ? (
-        <EmptyState icon={Link2} title="No links yet" description="Add quick-reference links to statutes, court portals or other resources the team uses often." />
+        <EmptyState icon={Link2} title="No links yet" description={isAdmin ? "Add quick-reference links to statutes, court portals or other resources the team uses often." : "The Head of Legal has not added any quick-reference links yet."} />
       ) : (
         <div className="grid gap-4">
           {[...groups.entries()].map(([category, rows]) => (
