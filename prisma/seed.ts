@@ -869,6 +869,8 @@ async function seedPitchExtras(adminId: string, firstLawyerId: string) {
     { title: "International Civil Aviation Organization (ICAO)", url: "https://www.icao.int", category: "Aviation" },
     { title: "Google", url: "https://www.google.com", category: "Tools" },
     { title: "WhatsApp Web", url: "https://web.whatsapp.com", category: "Tools" },
+    { title: "Uganda Registration Services Bureau (URSB)", url: "https://ursb.go.ug", category: "Government" },
+    { title: "Uganda Revenue Authority (URA)", url: "https://ura.go.ug", category: "Government" },
   ];
   for (const l of links) {
     const existing = await db.resourceLink.findFirst({ where: { title: l.title } });
