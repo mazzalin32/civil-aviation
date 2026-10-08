@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <h1 className="m-0 mb-1 text-center font-serif text-[26px] leading-tight font-semibold text-text">
         Welcome to CAA Legal
         <br />
-        Case &amp; Matter Management
+        Case File Management
       </h1>
       <p className="m-0 mb-6 text-center text-lg font-semibold text-primary">Sign in</p>
       <LoginForm next={next && next.startsWith("/") ? next : "/"} />

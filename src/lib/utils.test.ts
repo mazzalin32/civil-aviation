@@ -27,5 +27,5 @@ describe("navigation", () => {
     // only account/settings-style admin areas stay Admin-only.
     for (const p of ["/users", "/settings", "/closure-requests"]) expect(lawyerPaths).not.toContain(p);
   });
-  it("derives the top-bar title from nested paths", () => expect(titleFor("/cases/new", "ADMIN")).toBe("Legal Matters"));
+  it("derives the top-bar title from nested paths", () => expect(titleFor("/cases/new", "ADMIN")).toBe("Cases"));
 });
