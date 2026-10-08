@@ -25,14 +25,14 @@ export type NavItem = {
 };
 
 const SHARED: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { href: "/cases", label: "Cases", icon: "cases" },
-  { href: "/calendar", label: "Calendar", icon: "calendar" },
-  { href: "/tasks", label: "Tasks", icon: "tasks", badgeKey: "openTasks" },
-  { href: "/documents", label: "Documents", icon: "documents" },
-  { href: "/law-firms", label: "Law Firms", icon: "firms" },
-  { href: "/links", label: "Resources", icon: "links" },
-  { href: "/chat", label: "Chat", icon: "chat" },
+  { href: "/dashboard", label: "Legal Dashboard", icon: "dashboard" },
+  { href: "/cases", label: "Legal Matters", icon: "cases" },
+  { href: "/calendar", label: "Legal Calendar", icon: "calendar" },
+  { href: "/tasks", label: "Tasks & Legal Deadlines", icon: "tasks", badgeKey: "openTasks" },
+  { href: "/documents", label: "Legal Documents", icon: "documents" },
+  { href: "/law-firms", label: "External Counsel & Law Firms", icon: "firms" },
+  { href: "/links", label: "Legal Resources & Links", icon: "links" },
+  { href: "/chat", label: "Matter Chat", icon: "chat" },
   { href: "/reports", label: "Matter Reports", icon: "reports" },
 ];
 
@@ -42,9 +42,9 @@ export const NAV: Record<Role, NavItem[]> = {
   LAWYER: SHARED,
   ADMIN: [
     ...SHARED.map((item) => (item.href === "/cases" ? { ...item, quickAdd: { href: "/cases/new", label: "New Matter" } } : item)),
-    { href: "/closure-requests", label: "Closure Requests", icon: "closure" },
+    { href: "/closure-requests", label: "Matter Closure Requests", icon: "closure" },
     { href: "/users", label: "Users & Access", icon: "users", quickAdd: { href: "/users?new=1", label: "Add lawyer" } },
-    { href: "/settings", label: "Settings", icon: "settings" },
+    { href: "/settings", label: "Legal System Settings", icon: "settings" },
   ],
 };
 

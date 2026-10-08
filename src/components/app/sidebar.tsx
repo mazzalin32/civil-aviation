@@ -90,7 +90,7 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
       aria-label="Main navigation"
       className={cn(
         "sticky top-0 hidden h-dvh shrink-0 flex-col gap-1 overflow-hidden border-r border-on-primary/10 bg-primary px-3.5 py-4 text-on-primary lg:flex",
-        collapsed ? "w-[76px]" : "w-[248px]",
+        collapsed ? "w-[76px]" : "w-[288px]",
       )}
     >
       <div className={cn("flex items-center gap-2.5", collapsed ? "justify-center px-0" : "px-2")}>
