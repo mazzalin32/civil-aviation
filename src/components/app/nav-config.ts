@@ -25,15 +25,15 @@ export type NavItem = {
 };
 
 const SHARED: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { href: "/cases", label: "Cases", icon: "cases" },
-  { href: "/calendar", label: "Calendar", icon: "calendar" },
-  { href: "/tasks", label: "Tasks & Deadlines", icon: "tasks", badgeKey: "openTasks" },
-  { href: "/documents", label: "Documents", icon: "documents" },
-  { href: "/law-firms", label: "Law Firms & Counsel", icon: "firms" },
-  { href: "/links", label: "Links", icon: "links" },
-  { href: "/chat", label: "Case Chat", icon: "chat" },
-  { href: "/reports", label: "Reports & Analytics", icon: "reports" },
+  { href: "/dashboard", label: "Legal Dashboard", icon: "dashboard" },
+  { href: "/cases", label: "Legal Matters", icon: "cases" },
+  { href: "/calendar", label: "Legal Calendar", icon: "calendar" },
+  { href: "/tasks", label: "Tasks & Legal Deadlines", icon: "tasks", badgeKey: "openTasks" },
+  { href: "/documents", label: "Legal Documents", icon: "documents" },
+  { href: "/law-firms", label: "External Counsel & Law Firms", icon: "firms" },
+  { href: "/links", label: "Legal Resources & Links", icon: "links" },
+  { href: "/chat", label: "Matter Chat", icon: "chat" },
+  { href: "/reports", label: "Legal Reports & Analytics", icon: "reports" },
 ];
 
 /** Sidebar navigation per role — one flat list, no section headers (the whole org sees the
@@ -41,10 +41,10 @@ const SHARED: NavItem[] = [
 export const NAV: Record<Role, NavItem[]> = {
   LAWYER: SHARED,
   ADMIN: [
-    ...SHARED.map((item) => (item.href === "/cases" ? { ...item, quickAdd: { href: "/cases/new", label: "New case" } } : item)),
-    { href: "/closure-requests", label: "Closure requests", icon: "closure" },
-    { href: "/users", label: "Users", icon: "users", quickAdd: { href: "/users?new=1", label: "Add lawyer" } },
-    { href: "/settings", label: "Settings", icon: "settings" },
+    ...SHARED.map((item) => (item.href === "/cases" ? { ...item, quickAdd: { href: "/cases/new", label: "New Matter" } } : item)),
+    { href: "/closure-requests", label: "Matter Closure Requests", icon: "closure" },
+    { href: "/users", label: "Users & Access", icon: "users", quickAdd: { href: "/users?new=1", label: "Add lawyer" } },
+    { href: "/settings", label: "Legal System Settings", icon: "settings" },
   ],
 };
 

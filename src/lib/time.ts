@@ -6,14 +6,15 @@ export function formatDate(date: Date, options: Intl.DateTimeFormatOptions = { d
   return new Intl.DateTimeFormat(APP_LOCALE, { timeZone: APP_TIME_ZONE, ...options }).format(date);
 }
 
-/** Time-of-day greeting in Kampala, using the person's first name. */
+/** Time-of-day greeting in Kampala, addressing the person by their full name — the account
+ *  name is often a role ("Head of Legal", "Managing Partner"), and clipping it to a first
+ *  word turned that into "Head" (correct-terms §1). */
 export function greetingFor(date: Date, fullName: string) {
   const hour = Number(
     new Intl.DateTimeFormat("en-GB", { timeZone: APP_TIME_ZONE, hour: "numeric", hourCycle: "h23" }).format(date),
   );
-  const first = fullName.trim().split(/\s+/)[0] || fullName;
   const hello = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  return `${hello}, ${first}`;
+  return `${hello}, ${fullName.trim()}`;
 }
 
 /** Money is stored as integer UGX. */

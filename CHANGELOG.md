@@ -1,5 +1,28 @@
 # Changelog
 
+## Legal terminology pass (2026-10-08)
+
+Applied `correct-terms.docx` — the department's legal-language standard — across the interface.
+
+### Changed
+- **Navigation**: Legal Dashboard, Legal Matters, Legal Calendar, Tasks & Legal Deadlines,
+  Legal Documents, External Counsel & Law Firms, Legal Resources & Links, Matter Chat,
+  Legal Reports & Analytics, Matter Closure Requests, Users & Access, Legal System Settings.
+  Sidebar brand reads "CAA Legal Department".
+- **Dashboard** wording per §3: Active Legal Matters / Currently Active, Matters Requiring
+  Action / Requires Legal Attention, Upcoming Legal Deadlines / Due Within 30 Days,
+  High-Risk Legal Matters / High or Urgent Legal Priority, Matters by Procedural Stage /
+  Current Matter Portfolio, Matters by Risk Level / Risk Distribution Across Active Matters,
+  View Detailed Report. Risk levels spelled out as High / Medium / Low **Risk**.
+- **Procedural stages** renamed per §1 and §4, in the seed and in the database: Intake →
+  Matter Intake, Filed & served → Filed and Served, Hearing → Hearing Stage, Application
+  filed → Application Filed, Notice of dispute → Notice of Dispute, Investigation → Legal
+  Investigation, Decision → **Judgment / Ruling**, Draft → **Draft / Pre-Filing**.
+- Greeting addresses the person by full name, so the seeded Admin reads "Good morning,
+  Head of Legal" rather than "Good morning, Head".
+- "Collapse menu" → Collapse Navigation; "Sign out" → Sign Out; "New case" → New Matter.
+- §2 terminology hierarchy: "Case" gives way to "Matter" in page titles and headings.
+
 ## Toasts, loader, favicon, performance (2026-10-01)
 
 ### Added

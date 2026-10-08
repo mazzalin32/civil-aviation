@@ -159,19 +159,19 @@ export async function loadDashboard(user: CurrentUser, now: Date): Promise<Omit<
   }
 
   const kpis: DashboardKpi[] = [
-    { label: "Active matters", value: activeCount, hint: "Currently open", href: "/cases?status=OPEN" },
+    { label: "Active Legal Matters", value: activeCount, hint: "Currently Active", href: "/cases?status=OPEN" },
     {
-      label: "Awaiting action",
+      label: "Matters Requiring Action",
       value: awaiting,
-      hint: awaiting > 0 ? "Needs attention" : "Nothing overdue",
+      hint: awaiting > 0 ? "Requires Legal Attention" : "Nothing overdue",
       href: "/tasks",
       tone: awaiting > 0 ? "warning" : "default",
     },
-    { label: "Upcoming deadlines", value: upcomingDeadlines, hint: "Next 30 days", href: "/calendar" },
+    { label: "Upcoming Legal Deadlines", value: upcomingDeadlines, hint: "Due Within 30 Days", href: "/calendar" },
     {
-      label: "High-risk matters",
+      label: "High-Risk Legal Matters",
       value: highRiskCount,
-      hint: highRiskThisMonth > 0 ? `${highRiskThisMonth} new this month` : "High or urgent priority",
+      hint: highRiskThisMonth > 0 ? `${highRiskThisMonth} new this month` : "High or Urgent Legal Priority",
       href: "/cases?highRisk=1",
       tone: highRiskCount > 0 ? "danger" : "default",
     },

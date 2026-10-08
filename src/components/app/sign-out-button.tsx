@@ -13,13 +13,13 @@ export function SignOutButton({ collapsed }: { collapsed?: boolean }) {
         )}
       >
         <LogOut className="size-4 shrink-0" strokeWidth={1.8} />
-        {!collapsed && "Sign out"}
+        {!collapsed && "Sign Out"}
         {collapsed && (
           <span
             role="tooltip"
             className="pointer-events-none absolute left-full ml-2 z-20 whitespace-nowrap rounded-md bg-text px-2 py-1 text-xs text-bg opacity-0 shadow-pop transition-opacity group-hover:opacity-100"
           >
-            Sign out
+            Sign Out
           </span>
         )}
       </button>

@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/authz";
 import { WizardForm } from "./wizard-form";
 import { loadDraft, getAssignableLawyers } from "./actions";
 
-export const metadata = { title: "New case" };
+export const metadata = { title: "New Matter" };
 
 export default async function NewCasePage() {
   await requireRole("ADMIN");

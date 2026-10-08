@@ -182,7 +182,7 @@ export function WizardForm({
   return (
     <>
       <PageHeader
-        title="New case"
+        title="New Matter"
         description="Case intake — nine short steps to open a matter and assign the legal team."
         actions={
           <Button type="button" onClick={() => router.push("/cases")}>

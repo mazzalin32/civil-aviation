@@ -11,7 +11,7 @@ import { CaseRow, type CaseRowData } from "./case-row";
 import { CreatedToast } from "./created-toast";
 import { buildCaseOrderBy, buildCaseWhere, parseCaseFilters, PRIORITY_RANK, type SortKey } from "./filters";
 
-export const metadata = { title: "Cases" };
+export const metadata = { title: "Legal Matters" };
 
 const COLUMNS: { key: SortKey | null; label: string }[] = [
   { key: "title", label: "Case" },
@@ -101,12 +101,12 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader
-        title="Cases"
+        title="Legal Matters"
         description="Every matter in the department."
         actions={
           isAdmin && (
             <Link href="/cases/new" className={buttonVariants({ variant: "primary" })}>
-              <Plus className="size-4" /> New case
+              <Plus className="size-4" /> New Matter
             </Link>
           )
         }

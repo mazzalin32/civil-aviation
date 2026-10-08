@@ -100,7 +100,7 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
         </div>
         {!collapsed && (
           <div className="min-w-0 flex-1 leading-tight">
-            <b className="block truncate text-sm font-semibold">CAA Legal</b>
+            <b className="block truncate text-sm font-semibold">CAA Legal Department</b>
             <small className="block truncate text-xs text-on-primary/70">Uganda Civil Aviation Authority</small>
           </div>
         )}
@@ -117,7 +117,7 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
         )}
       >
         {collapsed ? <ChevronsRight className="size-4 shrink-0" strokeWidth={1.8} /> : <ChevronsLeft className="size-4 shrink-0" strokeWidth={1.8} />}
-        {!collapsed && "Collapse menu"}
+        {!collapsed && "Collapse Navigation"}
         <Tooltip label="Expand sidebar" collapsed={collapsed} />
       </button>
       <div className="mb-2 border-t border-on-primary/10" />

@@ -14,6 +14,14 @@ const RISK_COLOR: Record<DashboardData["risk"][number]["key"], string> = {
   Low: "var(--success)",
 };
 
+/** Risk levels are spelled out in full in the interface (correct-terms §1) — the bare
+ *  "High"/"Medium"/"Low" keys stay as the data. */
+const RISK_LABEL: Record<DashboardData["risk"][number]["key"], string> = {
+  High: "High Risk",
+  Medium: "Medium Risk",
+  Low: "Low Risk",
+};
+
 function KpiCard({ label, value, hint, href, tone }: DashboardData["kpis"][number]) {
   return (
     <Link
@@ -64,20 +72,20 @@ function RiskBreakdown({ risk }: { risk: DashboardData["risk"] }) {
   return (
     <div className="px-6 pt-3 pb-5">
       <p className="m-0 text-[28px] leading-none font-semibold tabular-nums">{total}</p>
-      <p className="m-0 mt-1 mb-4 text-[12px] text-text-muted">Open matters</p>
-      <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-surface-muted" role="img" aria-label={risk.map((s) => `${s.key} ${s.count}`).join(", ")}>
+      <p className="m-0 mt-1 mb-4 text-[12px] text-text-muted">Active Matters</p>
+      <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-surface-muted" role="img" aria-label={risk.map((s) => `${RISK_LABEL[s.key]} ${s.count}`).join(", ")}>
         {total > 0 &&
           risk
             .filter((s) => s.count > 0)
             .map((s) => (
-              <span key={s.key} title={`${s.key}: ${s.count}`} style={{ width: `${(s.count / total) * 100}%`, background: RISK_COLOR[s.key] }} />
+              <span key={s.key} title={`${RISK_LABEL[s.key]}: ${s.count}`} style={{ width: `${(s.count / total) * 100}%`, background: RISK_COLOR[s.key] }} />
             ))}
       </div>
       <ul className="m-0 mt-4 grid list-none gap-2.5 p-0 text-[13px]">
         {risk.map((s) => (
           <li key={s.key} className="flex items-center gap-2.5">
             <span className="size-2.5 rounded-full" style={{ background: RISK_COLOR[s.key] }} />
-            <span className="flex-1 text-text-muted">{s.key}</span>
+            <span className="flex-1 text-text-muted">{RISK_LABEL[s.key]}</span>
             <span className="font-medium tabular-nums">{s.count}</span>
             <span className="w-10 text-right text-[12px] text-text-muted tabular-nums">{total === 0 ? "0%" : `${Math.round((s.count / total) * 100)}%`}</span>
           </li>
@@ -96,7 +104,7 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
         {data.isAdmin && (
           <div className="ml-auto">
             <Link href="/cases/new" className={buttonVariants({ variant: "primary" })}>
-              <Plus className="size-4" /> New case
+              <Plus className="size-4" /> New Matter
             </Link>
           </div>
         )}
@@ -112,11 +120,11 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
         <Card className="min-w-0">
           <CardHeader className="justify-between">
             <div>
-              <CardTitle>Matters by stage</CardTitle>
-              <p className="m-0 mt-0.5 text-[12px] text-text-muted">Current portfolio distribution</p>
+              <CardTitle>Matters by Procedural Stage</CardTitle>
+              <p className="m-0 mt-0.5 text-[12px] text-text-muted">Current Matter Portfolio</p>
             </div>
             <Link href={data.isAdmin ? "/reports" : "/cases"} className="text-[13px] font-medium text-primary hover:underline">
-              View report
+              View Detailed Report
             </Link>
           </CardHeader>
           <StageBars stages={data.stages} />
@@ -125,8 +133,8 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
         <Card className="min-w-0">
           <CardHeader>
             <div>
-              <CardTitle>Matters by risk</CardTitle>
-              <p className="m-0 mt-0.5 text-[12px] text-text-muted">Priority across open matters</p>
+              <CardTitle>Matters by Risk Level</CardTitle>
+              <p className="m-0 mt-0.5 text-[12px] text-text-muted">Risk Distribution Across Active Matters</p>
             </div>
           </CardHeader>
           <RiskBreakdown risk={data.risk} />
@@ -137,7 +145,7 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
         <Card className="min-w-0">
           <CardHeader className="justify-between">
             <div>
-              <CardTitle>Cases needing attention</CardTitle>
+              <CardTitle>Matters Requiring Action</CardTitle>
               <p className="m-0 mt-0.5 text-[12px] text-text-muted">High-risk and recently active matters</p>
             </div>
             <Link href="/cases" className="text-[13px] font-medium text-primary hover:underline">
