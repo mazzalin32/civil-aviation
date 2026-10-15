@@ -19,7 +19,7 @@ import path from "node:path";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 import nodemailer from "nodemailer";
-import { PrismaClient, Role, AssignmentRole, PartyKind } from "../src/generated/prisma/client";
+import { PrismaClient, Role, AssignmentRole, PartyKind, ContractStatusCategory, ContractExecutionStatus } from "../src/generated/prisma/client";
 
 // Reimplemented here rather than imported from src/lib/documents/* — those are "server-only"
 // and throw outside a Next.js server context (this is a plain tsx script). Same envelope
@@ -185,13 +185,17 @@ const MATTER_TYPES: {
   {
     name: "Contract",
     referencePrefix: "CTR",
+    // The contract's overall lifecycle (client's "Contract lifecycle" vocab, 2026-10-15).
+    // Receipt, legal review, internal approval, AG vetting, amendments and execution are
+    // tracked in parallel on ContractDetail, not as stages — see CONTRACT_STATUS_OPTIONS.
     stages: [
-      { name: "Draft" },
-      { name: "Under Review" },
-      { name: "Sent for Amendments" },
-      { name: "Approved" },
-      { name: "Signed", allowsClosure: true },
-      { name: "Rejected", allowsClosure: true },
+      { name: "Not Yet Effective" },
+      { name: "Active / In Force" },
+      { name: "Suspended" },
+      { name: "Renewal Under Consideration" },
+      { name: "Expired", allowsClosure: true },
+      { name: "Terminated", allowsClosure: true },
+      { name: "Closed / Archived", allowsClosure: true },
     ],
   },
   {
@@ -264,6 +268,28 @@ const DEADLINE_RULES: { trigger: string; title: string; offsetDays: number; isCr
   { trigger: "Filing", title: "Awaiting response", offsetDays: 15, isCritical: false },
 ];
 
+// Dropdown vocabulary for the Contracts register's five parallel tracking statuses
+// (client feedback 2026-10-15) — Admin-configurable via ContractStatusOption, never hard-coded
+// in the UI (CLAUDE.md). The contract's overall lifecycle is a sixth dimension, handled by the
+// Contract matter type's ordinary StageTemplate lifecycle instead (see MATTER_TYPES above).
+const CONTRACT_STATUS_OPTIONS: Record<ContractStatusCategory, string[]> = {
+  RECEIPT: ["Awaiting Receipt", "Received", "Registration Pending", "Registered"],
+  LEGAL_REVIEW: ["Not Commenced", "Under Legal Review", "Comments Issued", "Referred for Further Review", "Legal Review Completed"],
+  INTERNAL_APPROVAL: ["Pending Approval", "Approved", "Approved Subject to Conditions", "Not Approved", "Approval Not Required"],
+  AG_VETTING: [
+    "Not Required",
+    "Pending Submission",
+    "Submitted for Vetting",
+    "Acknowledgment Awaited",
+    "Under Vetting",
+    "Comments / Revisions Requested",
+    "Resubmitted for Vetting",
+    "Cleared / No Objection Recorded",
+    "Vetting Outcome Pending Confirmation",
+  ],
+  AMENDMENTS: ["No Amendments Required", "Amendments Required", "Amendments in Progress", "Amended Draft Submitted", "Amendments Accepted"],
+};
+
 async function seedReferenceData() {
   for (const c of CATEGORIES) {
     await db.category.upsert({ where: { name: c.name }, update: {}, create: c });
@@ -283,7 +309,7 @@ async function seedReferenceData() {
     for (const [j, s] of mt.stages.entries()) {
       await db.stageTemplate.upsert({
         where: { matterTypeId_name: { matterTypeId: created.id, name: s.name } },
-        update: {},
+        update: { isActive: true },
         create: {
           matterTypeId: created.id,
           name: s.name,
@@ -292,6 +318,16 @@ async function seedReferenceData() {
           order: j,
         },
       });
+    }
+    // Deactivate (never delete — CLAUDE.md) stage names dropped from this matter type's lifecycle,
+    // e.g. the Contract type's old Draft/Under Review/.../Signed stages replaced by the lifecycle vocab.
+    const currentNames = mt.stages.map((s) => s.name);
+    await db.stageTemplate.updateMany({ where: { matterTypeId: created.id, name: { notIn: currentNames } }, data: { isActive: false } });
+  }
+
+  for (const category of Object.keys(CONTRACT_STATUS_OPTIONS) as ContractStatusCategory[]) {
+    for (const [i, label] of CONTRACT_STATUS_OPTIONS[category].entries()) {
+      await db.contractStatusOption.upsert({ where: { category_label: { category, label } }, update: { order: i, isActive: true }, create: { category, label, order: i } });
     }
   }
 
@@ -341,7 +377,23 @@ type CaseSeed = {
   leadEmail: string;
   supportEmails?: string[];
   opposing?: { name: string; counselName?: string; counselFirm?: string }[];
-  contractSigned?: boolean;
+  contractDetail?: {
+    originatingDepartment?: string;
+    dateOfReceipt?: string;
+    dateSubmittedForReview?: string;
+    receiptStatus?: string;
+    legalReviewStatus?: string;
+    internalApprovalStatus?: string;
+    agVettingStatus?: string;
+    amendmentsStatus?: string;
+    caaExecutionStatus?: ContractExecutionStatus;
+    counterpartyExecutionStatus?: ContractExecutionStatus;
+    dateOfSignature?: string;
+    dateOfFullExecution?: string;
+    commencementDate?: string;
+    expiryDate?: string;
+    outstandingAction?: string;
+  };
 };
 
 const CASE_SEEDS: CaseSeed[] = [
@@ -349,7 +401,7 @@ const CASE_SEEDS: CaseSeed[] = [
     title: "Ground handling services agreement — SkyLink Aviation Services",
     categoryName: "Contracts & Commercial",
     matterTypeName: "Contract",
-    stageName: "Signed",
+    stageName: "Active / In Force",
     ucaaRole: "OTHER",
     priority: "MEDIUM",
     referralNote: "Three-year ground handling services agreement for Entebbe International Airport, countersigned by both parties.",
@@ -357,13 +409,28 @@ const CASE_SEEDS: CaseSeed[] = [
     lastActivityAt: "2026-05-20",
     leadEmail: "agnes.nakato@caa.go.ug",
     opposing: [{ name: "SkyLink Aviation Services Ltd" }],
-    contractSigned: true,
+    contractDetail: {
+      originatingDepartment: "Airport Operations",
+      dateOfReceipt: "2026-04-02",
+      dateSubmittedForReview: "2026-04-05",
+      receiptStatus: "Registered",
+      legalReviewStatus: "Legal Review Completed",
+      internalApprovalStatus: "Approved",
+      agVettingStatus: "Cleared / No Objection Recorded",
+      amendmentsStatus: "No Amendments Required",
+      caaExecutionStatus: ContractExecutionStatus.SIGNED,
+      counterpartyExecutionStatus: ContractExecutionStatus.SIGNED,
+      dateOfSignature: "2026-05-18",
+      dateOfFullExecution: "2026-05-20",
+      commencementDate: "2026-06-01",
+      expiryDate: "2029-05-31",
+    },
   },
   {
     title: "Fuel supply agreement renewal — Meridian Fuel Supplies Ltd",
     categoryName: "Contracts & Commercial",
     matterTypeName: "Contract",
-    stageName: "Sent for Amendments",
+    stageName: "Not Yet Effective",
     ucaaRole: "OTHER",
     priority: "MEDIUM",
     referralNote: "Renewal terms returned to the supplier for amendment of the pricing-review clause.",
@@ -371,7 +438,19 @@ const CASE_SEEDS: CaseSeed[] = [
     lastActivityAt: "2026-09-30",
     leadEmail: "carol.atim@caa.go.ug",
     opposing: [{ name: "Meridian Fuel Supplies Ltd" }],
-    contractSigned: false,
+    contractDetail: {
+      originatingDepartment: "Finance",
+      dateOfReceipt: "2026-08-14",
+      dateSubmittedForReview: "2026-08-18",
+      receiptStatus: "Registered",
+      legalReviewStatus: "Comments Issued",
+      internalApprovalStatus: "Pending Approval",
+      agVettingStatus: "Not Required",
+      amendmentsStatus: "Amendments Required",
+      caaExecutionStatus: ContractExecutionStatus.PENDING,
+      counterpartyExecutionStatus: ContractExecutionStatus.PENDING,
+      outstandingAction: "Awaiting the supplier's amended pricing-review clause before resubmitting for internal approval.",
+    },
   },
   // Real, publicly reported CAA matters (ULII judgments) — added at the client's request as
   // relatable live examples rather than invented ones. Both already concluded.
@@ -438,6 +517,40 @@ function intakeFields(c: CaseSeed, leadId: string, matterTypeName: string) {
   };
 }
 
+/** Looks up each ContractStatusOption label in c.contractDetail and returns the ContractDetail
+ * upsert payload (Prisma's generated connect/scalar input types aren't worth importing into
+ * this self-contained script, so the data shape is left to infer). */
+async function resolveContractDetail(detail: NonNullable<CaseSeed["contractDetail"]>) {
+  const statusId = async (category: ContractStatusCategory, label?: string) =>
+    label ? (await db.contractStatusOption.findUniqueOrThrow({ where: { category_label: { category, label } } })).id : null;
+
+  const [receiptStatusId, legalReviewStatusId, internalApprovalStatusId, agVettingStatusId, amendmentsStatusId] = await Promise.all([
+    statusId(ContractStatusCategory.RECEIPT, detail.receiptStatus),
+    statusId(ContractStatusCategory.LEGAL_REVIEW, detail.legalReviewStatus),
+    statusId(ContractStatusCategory.INTERNAL_APPROVAL, detail.internalApprovalStatus),
+    statusId(ContractStatusCategory.AG_VETTING, detail.agVettingStatus),
+    statusId(ContractStatusCategory.AMENDMENTS, detail.amendmentsStatus),
+  ]);
+
+  return {
+    originatingDepartment: detail.originatingDepartment ?? null,
+    dateOfReceipt: detail.dateOfReceipt ? new Date(detail.dateOfReceipt) : null,
+    dateSubmittedForReview: detail.dateSubmittedForReview ? new Date(detail.dateSubmittedForReview) : null,
+    receiptStatusId,
+    legalReviewStatusId,
+    internalApprovalStatusId,
+    agVettingStatusId,
+    amendmentsStatusId,
+    caaExecutionStatus: detail.caaExecutionStatus ?? ContractExecutionStatus.PENDING,
+    counterpartyExecutionStatus: detail.counterpartyExecutionStatus ?? ContractExecutionStatus.PENDING,
+    dateOfSignature: detail.dateOfSignature ? new Date(detail.dateOfSignature) : null,
+    dateOfFullExecution: detail.dateOfFullExecution ? new Date(detail.dateOfFullExecution) : null,
+    commencementDate: detail.commencementDate ? new Date(detail.commencementDate) : null,
+    expiryDate: detail.expiryDate ? new Date(detail.expiryDate) : null,
+    outstandingAction: detail.outstandingAction ?? null,
+  };
+}
+
 async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
   const referenceCounters = new Map<string, number>(); // `${prefix}:${year}` -> next number to use
 
@@ -465,6 +578,16 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
       // demo content (e.g. Phase 5's timeline/summary/note) may still need to be added.
       // Backfill intake fields on cases seeded before the 9-step intake existed (only where still empty).
       await db.matter.updateMany({ where: { id: existing.id, reportedAt: null }, data: intakeFields(c, leadId, c.matterTypeName) });
+      // Migrate a matter onto a renamed/replaced stage (e.g. Contract's old Draft/.../Signed
+      // stages replaced by the lifecycle vocab) so it doesn't keep pointing at a deactivated one.
+      if (existing.currentStageId !== stage.id) {
+        await db.matter.update({ where: { id: existing.id }, data: { currentStageId: stage.id } });
+        await db.matterStage.create({ data: { matterId: existing.id, stageTemplateId: stage.id, movedById: adminId, note: "Migrated onto the current lifecycle" } });
+      }
+      if (c.contractDetail) {
+        const data = await resolveContractDetail(c.contractDetail);
+        await db.contractDetail.upsert({ where: { matterId: existing.id }, update: data, create: { matterId: existing.id, ...data } });
+      }
       continue;
     }
 
@@ -486,7 +609,6 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
         amountAgainst: c.amountAgainst ?? null,
         causeOfActionDate: c.causeOfActionDate ? new Date(c.causeOfActionDate) : null,
         referralNote: c.referralNote ?? null,
-        contractSigned: c.contractSigned ?? null,
         ...intakeFields(c, leadId, c.matterTypeName),
         createdById: adminId,
         createdAt,
@@ -503,6 +625,9 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
     }
     for (const p of c.opposing ?? []) {
       await db.party.create({ data: { matterId: matter.id, name: p.name, kind: PartyKind.OPPOSING, counselName: p.counselName ?? null, counselFirm: p.counselFirm ?? null } });
+    }
+    if (c.contractDetail) {
+      await db.contractDetail.create({ data: { matterId: matter.id, ...(await resolveContractDetail(c.contractDetail)) } });
     }
   }
 

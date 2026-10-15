@@ -54,3 +54,26 @@ export const holdSchema = z.object({
   matterId: z.string().min(1),
   reason: optionalText(300),
 });
+
+const optionalDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date").optional().or(z.literal(""));
+
+/** Contracts register (client feedback 2026-10-15) — the five parallel tracking statuses
+ * (receipt/legal review/internal approval/AG vetting/amendments), execution and key dates. */
+export const updateContractDetailSchema = z.object({
+  matterId: z.string().min(1),
+  originatingDepartment: optionalText(120),
+  dateOfReceipt: optionalDate,
+  dateSubmittedForReview: optionalDate,
+  receiptStatusId: optionalText(40),
+  legalReviewStatusId: optionalText(40),
+  internalApprovalStatusId: optionalText(40),
+  agVettingStatusId: optionalText(40),
+  amendmentsStatusId: optionalText(40),
+  caaExecutionStatus: z.enum(["PENDING", "SIGNED"]).default("PENDING"),
+  counterpartyExecutionStatus: z.enum(["PENDING", "SIGNED"]).default("PENDING"),
+  dateOfSignature: optionalDate,
+  dateOfFullExecution: optionalDate,
+  commencementDate: optionalDate,
+  expiryDate: optionalDate,
+  outstandingAction: optionalText(500),
+});

@@ -62,7 +62,6 @@ export function ReviewStep({
         <Item label="Supporting lawyers" value={supportNames.length ? supportNames.join(", ") : null} />
         <Item label="Current stage" value={stageName} />
         <Item label="Priority" value={PRIORITY_LABEL[stage.priority ?? "MEDIUM"]} />
-        {matterTypeName === "Contract" && <Item label="Signed" value={stage.contractSigned === undefined ? null : stage.contractSigned ? "Yes" : "No"} />}
         <Item label="Documents attached" value={fileCount > 0 ? String(fileCount) : null} />
       </dl>
 

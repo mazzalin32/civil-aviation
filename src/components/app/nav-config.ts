@@ -12,7 +12,8 @@ export type NavIcon =
   | "reports"
   | "closure"
   | "users"
-  | "settings";
+  | "settings"
+  | "contracts";
 
 export type NavItem = {
   href: string;
@@ -27,6 +28,7 @@ export type NavItem = {
 const SHARED: NavItem[] = [
   { href: "/dashboard", label: "Legal Dashboard", icon: "dashboard" },
   { href: "/cases", label: "Legal Matters", icon: "cases" },
+  { href: "/contracts", label: "Contracts", icon: "contracts" },
   { href: "/calendar", label: "Legal Calendar", icon: "calendar" },
   { href: "/tasks", label: "Tasks & Legal Deadlines", icon: "tasks", badgeKey: "openTasks" },
   { href: "/documents", label: "Legal Documents", icon: "documents" },
@@ -41,7 +43,13 @@ const SHARED: NavItem[] = [
 export const NAV: Record<Role, NavItem[]> = {
   LAWYER: SHARED,
   ADMIN: [
-    ...SHARED.map((item) => (item.href === "/cases" ? { ...item, quickAdd: { href: "/cases/new", label: "New Matter" } } : item)),
+    ...SHARED.map((item) =>
+      item.href === "/cases"
+        ? { ...item, quickAdd: { href: "/cases/new", label: "New Matter" } }
+        : item.href === "/contracts"
+          ? { ...item, quickAdd: { href: "/contracts/new", label: "New contract" } }
+          : item,
+    ),
     { href: "/closure-requests", label: "Matter Closure Requests", icon: "closure" },
     { href: "/users", label: "Users & Access", icon: "users", quickAdd: { href: "/users?new=1", label: "Add lawyer" } },
     { href: "/settings", label: "Legal System Settings", icon: "settings" },

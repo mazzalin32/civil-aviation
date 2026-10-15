@@ -11,14 +11,12 @@ export function StageStep({
   errors,
   stages,
   hasMatterType,
-  isContract,
 }: {
   value: Partial<Stage>;
   onChange: (patch: Partial<Stage>) => void;
   errors: StepErrors;
   stages: { id: string; name: string }[];
   hasMatterType: boolean;
-  isContract?: boolean;
 }) {
   return (
     <>
@@ -52,19 +50,6 @@ export function StageStep({
         <Field label="Next action due" htmlFor="g-next" hint="Becomes a deadline on the case calendar.">
           <Input id="g-next" type="date" value={value.nextActionDue ?? ""} onChange={(e) => onChange({ nextActionDue: e.target.value })} />
         </Field>
-        {isContract && (
-          <Field label="Signed" htmlFor="g-signed" hint="Has the contract been signed?">
-            <Select
-              id="g-signed"
-              value={value.contractSigned === undefined ? "" : value.contractSigned ? "yes" : "no"}
-              onChange={(e) => onChange({ contractSigned: e.target.value === "" ? undefined : e.target.value === "yes" })}
-            >
-              <option value="">Not yet known</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </Select>
-          </Field>
-        )}
         <Field label="Internal notes" htmlFor="g-notes" className="sm:col-span-2" hint="Saved as the first note on the case.">
           <Textarea id="g-notes" value={value.internalNotes ?? ""} onChange={(e) => onChange({ internalNotes: e.target.value })} placeholder="Record the immediate next legal action." />
         </Field>

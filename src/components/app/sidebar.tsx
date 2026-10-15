@@ -11,6 +11,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileCheck2,
+  FileSignature,
   FolderOpen,
   Link2,
   LayoutGrid,
@@ -40,6 +41,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   users: Users,
   reports: BarChart3,
   settings: Settings,
+  contracts: FileSignature,
 };
 
 const STORAGE_KEY = "caa-sidebar-collapsed";

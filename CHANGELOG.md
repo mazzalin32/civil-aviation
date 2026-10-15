@@ -1,16 +1,24 @@
 # Changelog
 
-## Contracts tracking (2026-10-15)
+## Contracts register (2026-10-15)
 
-Client feedback from the prototype demo: track the organisation's contracts (signed/unsigned, approval, sent back for amendments), and swap the generic "XYZ" placeholder for a relatable example.
+Client feedback from the prototype demo: a dedicated place to track the organisation's contracts through receipt, legal review, internal approval, Attorney General vetting, amendments and signature — as its own register, not folded into the litigation wizard. Replaces an earlier same-day quick version (a single "Signed Yes/No" field).
 
 ### Added
-- New **Contract** matter type with its own lifecycle: Draft → Under Review → Sent for Amendments → Approved → Signed / Rejected. Reuses the existing Matter/case-page machinery (Overview, Documents, Timeline, Deadlines) — no new module needed.
-- `Matter.contractSigned` (nullable boolean) — explicit "Signed: Yes/No" captured on the Matter stage intake step (shown only for Contract matters), surfaced as a chip on the case page's Key facts card.
-- Two seeded example contracts (one Signed, one Sent for Amendments) demonstrating the new matter type.
+- `ContractDetail` — 1:1 with `Matter` for Contract-type matters: originating department, date of receipt, date submitted for legal review, date of signature/full execution, commencement/expiry dates, outstanding action, and separate CAA/counterparty execution status (Pending/Signed).
+- `ContractStatusOption` — Admin-configurable dropdown options (never hard-coded, per CLAUDE.md) backing five parallel tracking statuses: Receipt, Legal Review, Internal Approval, AG Vetting, Amendments. The contract's overall lifecycle (Not Yet Effective → Active/In Force → Suspended → Renewal Under Consideration → Expired/Terminated/Closed) uses the ordinary Matter stage lifecycle instead of a sixth status field.
+- **Contracts** nav item: a dashboard + list at `/contracts` (KPI tiles — total registered, under legal review, awaiting approval/AG vetting, requiring amendments, awaiting CAA/counterparty signature, fully executed, active, expiring within 30/60/90 days — plus a sortable table), and a short dedicated intake at `/contracts/new` (title, nature, counterparty, originating department, receipt date, responsible officer, commencement/expiry dates) instead of the 9-step litigation wizard, whose service/court/CAA-position steps don't apply to a contract.
+- An "Edit contract details" action on the case page's new Contract details card, permission-checked the same way as every other mutation (`requireMatterEdit`) and audit-logged.
+- Two seeded example contracts (one fully executed and active, one awaiting amendments) demonstrating the register end to end.
 
 ### Changed
-- The "e.g. XYZ Aviation Ltd v Civil Aviation Authority" placeholder in the matter-title field, and the two illustrative examples in `FLOWS.md`, replaced with a relatable name already used by the seeded demo data (Nile Horizon Aviation Ltd).
+- The Contract matter type's lifecycle stages replaced: Draft/Under Review/Sent for Amendments/Approved/Signed/Rejected → Not Yet Effective/Active-In Force/Suspended/Renewal Under Consideration/Expired/Terminated/Closed-Archived (old stage rows deactivated, never deleted, per CLAUDE.md).
+- Contract matters no longer go through the main 9-step New Matter wizard (the matter-type dropdown there now excludes Contract) — they're created via `/contracts/new`.
+- The "e.g. XYZ Aviation Ltd v Civil Aviation Authority" placeholder in the matter-title field, and the two illustrative examples in `FLOWS.md`, replaced with a relatable name already used by the seeded demo data.
+- Seed data pared down to real matters only: the 15 fictional demo cases removed, replaced by two real, publicly reported CAA matters from ULII judgments (Besigye v. CAA, Makuza v. CAA) alongside the two contract examples — applied to both the local and production (Vercel/Neon) databases.
+
+### Removed
+- `Matter.contractSigned` (superseded by `ContractDetail`'s execution-status fields) and the now-unused `seedNileHorizonDetail` demo-content seeding tied to a removed fictional case.
 
 ## Spec/flows reconciliation (2026-10-11)
 

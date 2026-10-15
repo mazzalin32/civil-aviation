@@ -450,7 +450,6 @@ model Matter {
   outcomeId              String?
   outcome                Outcome?          @relation(fields: [outcomeId], references: [id])
   closingNote            String?
-  contractSigned         Boolean? // Yes/No for Contract matters; null = not applicable to this matter type
   createdById            String
   createdBy              User              @relation("MatterCreatedBy", fields: [createdById], references: [id])
   createdAt              DateTime          @default(now())
@@ -472,6 +471,7 @@ model Matter {
   tasks           Task[]
   notifications   Notification[]
   messages        MatterMessage[]
+  contractDetail  ContractDetail?
 
   @@index([status, priority])
   @@index([categoryId])
@@ -479,6 +479,74 @@ model Matter {
   @@index([forumId])
   @@index([currentStageId])
   @@index([lastActivityAt])
+}
+
+/// Contract-specific fields for Matters of type "Contract" (spec §5, Contracts register —
+/// client feedback 2026-10-15). 1:1 with Matter; its overall lifecycle (Not Yet Effective →
+/// Active → Expired/Terminated/Closed) uses Matter's ordinary currentStage/StageTemplate —
+/// these are the five parallel tracking statuses plus the contract-specific dates.
+model ContractDetail {
+  matterId                 String                  @id
+  matter                   Matter                  @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  originatingDepartment    String?
+  dateOfReceipt             DateTime?               @db.Date
+  dateSubmittedForReview    DateTime?               @db.Date
+  receiptStatusId           String?
+  receiptStatus             ContractStatusOption?   @relation("ContractReceiptStatus", fields: [receiptStatusId], references: [id])
+  legalReviewStatusId       String?
+  legalReviewStatus         ContractStatusOption?   @relation("ContractLegalReviewStatus", fields: [legalReviewStatusId], references: [id])
+  internalApprovalStatusId  String?
+  internalApprovalStatus    ContractStatusOption?   @relation("ContractInternalApprovalStatus", fields: [internalApprovalStatusId], references: [id])
+  agVettingStatusId         String?
+  agVettingStatus            ContractStatusOption?   @relation("ContractAgVettingStatus", fields: [agVettingStatusId], references: [id])
+  amendmentsStatusId         String?
+  amendmentsStatus            ContractStatusOption?   @relation("ContractAmendmentsStatus", fields: [amendmentsStatusId], references: [id])
+  caaExecutionStatus          ContractExecutionStatus @default(PENDING)
+  counterpartyExecutionStatus ContractExecutionStatus @default(PENDING)
+  dateOfSignature              DateTime?               @db.Date
+  dateOfFullExecution          DateTime?               @db.Date
+  commencementDate              DateTime?               @db.Date
+  expiryDate                     DateTime?               @db.Date
+  outstandingAction               String?
+
+  @@index([receiptStatusId])
+  @@index([legalReviewStatusId])
+  @@index([internalApprovalStatusId])
+  @@index([agVettingStatusId])
+  @@index([amendmentsStatusId])
+}
+
+enum ContractExecutionStatus {
+  PENDING
+  SIGNED
+}
+
+/// Admin-configurable dropdown options backing ContractDetail's five status fields
+/// (CLAUDE.md: statuses are data, never hard-coded) — one table, grouped by category,
+/// editable the same way Outcome/Forum are.
+model ContractStatusOption {
+  id       String                 @id @default(cuid())
+  category ContractStatusCategory
+  label    String
+  order    Int                    @default(0)
+  isActive Boolean                @default(true)
+
+  receiptFor          ContractDetail[] @relation("ContractReceiptStatus")
+  legalReviewFor      ContractDetail[] @relation("ContractLegalReviewStatus")
+  internalApprovalFor ContractDetail[] @relation("ContractInternalApprovalStatus")
+  agVettingFor        ContractDetail[] @relation("ContractAgVettingStatus")
+  amendmentsFor       ContractDetail[] @relation("ContractAmendmentsStatus")
+
+  @@unique([category, label])
+  @@index([category, order])
+}
+
+enum ContractStatusCategory {
+  RECEIPT
+  LEGAL_REVIEW
+  INTERNAL_APPROVAL
+  AG_VETTING
+  AMENDMENTS
 }
 
 /// Lead/supporting lawyer on a matter (CLAUDE.md domain words). Never deleted — removedAt

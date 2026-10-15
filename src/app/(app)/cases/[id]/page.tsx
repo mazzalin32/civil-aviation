@@ -5,6 +5,7 @@ import { requireMatterAccess } from "@/lib/authz";
 import { CaseHeader } from "./header";
 import { LifecycleTracker, type TrackerStage } from "./lifecycle-tracker";
 import { CatchUpPanel } from "./catch-up-panel";
+import { ContractDetailsCard } from "./contract-details-card";
 import { TabStrip, type TabKey } from "./tabs/tab-strip";
 import { TimelineTab } from "./tabs/timeline-tab";
 import { NotesTab } from "./tabs/notes-tab";
@@ -54,6 +55,7 @@ export default async function CasePage({
     messages,
     messageCount,
     pinnedMessage,
+    contractStatusOptions,
   ] = await Promise.all([
     db.matter.findUnique({
       where: { id },
@@ -65,6 +67,9 @@ export default async function CasePage({
         legalRecipient: { select: { name: true } },
         assignments: { where: { removedAt: null }, include: { user: { select: { id: true, name: true } } } },
         parties: { orderBy: { name: "asc" } },
+        contractDetail: {
+          include: { receiptStatus: true, legalReviewStatus: true, internalApprovalStatus: true, agVettingStatus: true, amendmentsStatus: true },
+        },
       },
     }),
     db.matterStage.findMany({ where: { matterId: id }, orderBy: { enteredAt: "asc" } }),
@@ -108,6 +113,7 @@ export default async function CasePage({
       : Promise.resolve([]),
     db.matterMessage.count({ where: { matterId: id, deletedAt: null } }),
     db.matterMessage.findFirst({ where: { matterId: id, isPinned: true, deletedAt: null }, orderBy: { pinnedAt: "desc" }, include: { author: { select: { id: true, name: true } } } }),
+    db.contractStatusOption.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
   ]);
   if (!matter || matter.deletedAt) notFound();
 
@@ -273,7 +279,6 @@ export default async function CasePage({
             opposingCounsel: matter.parties.find((p) => p.kind === "OPPOSING")?.counselFirm ?? matter.parties.find((p) => p.kind === "OPPOSING")?.counselName ?? null,
             categoryName: matter.category.name,
             lastActivityAt: matter.lastActivityAt.toISOString(),
-            contractSigned: matter.contractSigned,
           }}
           team={team}
           canMutate={canEdit}
@@ -287,6 +292,41 @@ export default async function CasePage({
             .map((e) => ({ id: e.id, title: e.title, dueAt: e.startsAt.toISOString(), isCritical: e.isCritical }))}
         />
       </div>
+
+      {matter.matterType.name === "Contract" && (
+        <div className="mb-6">
+          <ContractDetailsCard
+            matterId={matter.id}
+            canMutate={canEdit}
+            detail={{
+              originatingDepartment: matter.contractDetail?.originatingDepartment ?? null,
+              dateOfReceipt: matter.contractDetail?.dateOfReceipt?.toISOString() ?? null,
+              dateSubmittedForReview: matter.contractDetail?.dateSubmittedForReview?.toISOString() ?? null,
+              receiptStatus: matter.contractDetail?.receiptStatus ? { id: matter.contractDetail.receiptStatus.id, label: matter.contractDetail.receiptStatus.label } : null,
+              legalReviewStatus: matter.contractDetail?.legalReviewStatus ? { id: matter.contractDetail.legalReviewStatus.id, label: matter.contractDetail.legalReviewStatus.label } : null,
+              internalApprovalStatus: matter.contractDetail?.internalApprovalStatus
+                ? { id: matter.contractDetail.internalApprovalStatus.id, label: matter.contractDetail.internalApprovalStatus.label }
+                : null,
+              agVettingStatus: matter.contractDetail?.agVettingStatus ? { id: matter.contractDetail.agVettingStatus.id, label: matter.contractDetail.agVettingStatus.label } : null,
+              amendmentsStatus: matter.contractDetail?.amendmentsStatus ? { id: matter.contractDetail.amendmentsStatus.id, label: matter.contractDetail.amendmentsStatus.label } : null,
+              caaExecutionStatus: matter.contractDetail?.caaExecutionStatus ?? "PENDING",
+              counterpartyExecutionStatus: matter.contractDetail?.counterpartyExecutionStatus ?? "PENDING",
+              dateOfSignature: matter.contractDetail?.dateOfSignature?.toISOString() ?? null,
+              dateOfFullExecution: matter.contractDetail?.dateOfFullExecution?.toISOString() ?? null,
+              commencementDate: matter.contractDetail?.commencementDate?.toISOString() ?? null,
+              expiryDate: matter.contractDetail?.expiryDate?.toISOString() ?? null,
+              outstandingAction: matter.contractDetail?.outstandingAction ?? null,
+            }}
+            statusOptions={{
+              receipt: contractStatusOptions.filter((o) => o.category === "RECEIPT").map((o) => ({ id: o.id, label: o.label })),
+              legalReview: contractStatusOptions.filter((o) => o.category === "LEGAL_REVIEW").map((o) => ({ id: o.id, label: o.label })),
+              internalApproval: contractStatusOptions.filter((o) => o.category === "INTERNAL_APPROVAL").map((o) => ({ id: o.id, label: o.label })),
+              agVetting: contractStatusOptions.filter((o) => o.category === "AG_VETTING").map((o) => ({ id: o.id, label: o.label })),
+              amendments: contractStatusOptions.filter((o) => o.category === "AMENDMENTS").map((o) => ({ id: o.id, label: o.label })),
+            }}
+          />
+        </div>
+      )}
 
       <TabStrip
         matterId={matter.id}
