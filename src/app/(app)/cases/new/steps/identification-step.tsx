@@ -29,7 +29,7 @@ export function IdentificationStep({
           <Input id="i-ref" value={reference} readOnly disabled className="font-mono tabular-nums" />
         </Field>
         <Field label="Matter title" htmlFor="i-title" error={errors.title}>
-          <Input id="i-title" value={value.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} placeholder="e.g. XYZ Aviation Ltd v Civil Aviation Authority" autoFocus />
+          <Input id="i-title" value={value.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} placeholder="e.g. Nile Horizon Aviation Ltd v Uganda Civil Aviation Authority" autoFocus />
         </Field>
         <Field label="Category" htmlFor="i-category" error={errors.categoryId} hint="What the matter is about — drives reports.">
           <Select id="i-category" value={value.categoryId ?? ""} onChange={(e) => onChange({ categoryId: e.target.value })}>

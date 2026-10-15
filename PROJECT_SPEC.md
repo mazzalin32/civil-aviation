@@ -1,7 +1,7 @@
 # CAA Legal — Case & Matter Management System
 **Client:** Uganda Civil Aviation Authority (UCAA) — Legal Department
 **Document owner:** You (lead designer/developer) · **Build tool:** Claude Code
-**Status:** v1.2 — client decisions recorded, spec/flows/mockup reconciled (see §15). Companion files: `FLOWS.md` (every user flow, step by step) · `docs/design/case-page.html` (reference mockup of the case page)
+**Status:** v1.3 — client approved the pitch prototype as the v1 baseline; spec/flows reconciled to match it, build-phase status tracked in §12 (see §15 for the full decisions log). Companion files: `FLOWS.md` (every user flow, step by step) · `docs/design/case-page.html` (reference mockup of the case page)
 
 > **Naming:** "Later (v2)" marks features deferred beyond the v1 build. It is **not** the same as build Phase 2 in §12.
 
@@ -25,6 +25,7 @@ UCAA is a regulator *and* an operator (it runs Entebbe International Airport and
 | Land | Airport land boundary disputes, encroachment, compensation for acquisition |
 | Arbitration / ADR | Contract disputes referred to arbitration or mediation |
 | Advisory (non-contentious) | Legal opinions, contract drafting/review, MoUs, board papers, regulation drafting |
+| Contract | Tracking a contract through drafting, review and signature — Draft → Under Review → Sent for Amendments → Approved → Signed/Rejected, with an explicit Signed Yes/No |
 
 > **Build tip:** Build the data model for "Matter" with a `type` field from day one, even if v1 UI only focuses on litigation. Adding advisory work later is then trivial.
 
@@ -55,17 +56,17 @@ Supreme Court → Court of Appeal / Constitutional Court → High Court (Civil, 
 | Role | Who at UCAA | Can do |
 |---|---|---|
 | **Admin (Supervisor)** | Director Legal / Head of Legal | Everything: create/deactivate users, create cases, assign/reassign lawyers, view all cases, approve case closure, import data, run reports, and **configure the whole system** from the Admin Settings portal (§5.13) |
-| **Lawyer** | Legal officers / counsel | See assigned cases (lead or supporting), update stage, add events, upload documents, set deadlines, chat, write notes |
+| **Lawyer** | Legal officers / counsel | Read every matter in the department (revised 2026-09-29, see §15); edit (stage, parties, summary, notes, closure) only matters they lead or support; upload documents to any matter; chat only in matters they're assigned to; write notes |
 | *(Later, v2)* **Registry Clerk** | Legal assistant | Log incoming documents/court papers, schedule dates, no strategy notes |
 | *(Later, v2)* **Viewer** | DG / management | Read-only dashboards and case summaries |
 
 **Rules:**
 - **Configuration principle:** the system ships with sensible defaults (categories, stages, courts, deadline rules, reminders), and the Admin can add, rename, reorder, deactivate or change any of them in the portal. Nothing legal is hard-coded.
 - A case has one **Lead Lawyer** and zero or more **Supporting Lawyers**.
-- Lawyers only see cases they're assigned to (Admin can grant view access to others).
+- **Org-wide read, assignment-gated edit (revised 2026-09-29, client-approved pitch-prototype pivot — see §15):** any signed-in lawyer can open and read any matter, not just ones they're assigned to — the department works as one pool, and this also makes it trivial to cover for an absent colleague. Editing case data (stage, parties, summary, notes, closure) is restricted to the matter's Lead/Support or Admin (`canEditMatter`). Any lawyer can upload a supporting document to any matter. Only a matter's Lead (or Admin) can assign tasks on it. **The case Discussion thread is the one exception that stays strictly scoped** — only assigned lawyers + Admin can read or post in a matter's chat, same as the original spec.
 - **Private notes** on a case are visible only to their author + Admin.
 - Every action is written to an **audit log** (who, what, when). Legal work demands this.
-- No public sign-up. Accounts are created by Admin only. A new lawyer gets a **single-use invite link (valid 72 h)** to set their own password and 2FA — the Admin never knows or sends a password. Only the first seeded Admin uses a temporary password, which must be changed at first login. 2FA via authenticator app (TOTP) with backup codes.
+- No public sign-up. Accounts are created by Admin only. The real path: a new lawyer gets a **single-use invite link (valid 72 h)** to set their own password and 2FA — the Admin never knows or sends a password. Only the first seeded Admin uses a temporary password, which must be changed at first login. 2FA via authenticator app (TOTP) with backup codes. **Prototype/demo mode (env-gated, must be off before go-live):** `DEMO_LOGIN_PASSWORD` lets every seeded/invited lawyer sign in immediately with one shared password instead of activating their own link — useful for client demos, bypassed entirely when the var is unset. `REQUIRE_2FA` and `REQUIRE_PASSWORD_CHANGE` are separate env toggles (default `true`) that let 2FA/forced-change be switched off for local testing; both must be `true` in production.
 
 ## 5. Core modules (v1 scope)
 
@@ -80,21 +81,24 @@ Login, invite-link activation, forgot password (email reset link), forced passwo
 - Recent activity feed
 - Quick action: **+ New Case**
 
-### 5.3 Lawyer Dashboard ("My Day")
-- Today & this week: hearings, deadlines, tasks
-- My cases list with stage chip and next date
-- Unread messages / mentions
-- Overdue items pinned at the top in red
+### 5.3 Dashboard ("Legal Dashboard" for Admin, same page for lawyers — revised 2026-09-29)
+One shared dashboard component for both roles, not two separate designs: greeting, KPI cards (Active Legal Matters, Matters Requiring Action, Upcoming Legal Deadlines, High-Risk Legal Matters), Matters by Procedural Stage, Matters by Risk Level, cases needing attention, deadlines requiring action, recent activity. **Admin sees the whole portfolio; a lawyer sees the same widgets scoped to matters they lead or support** (not the org-wide read that applies to the case list/page — the dashboard stays "my work" by design). Every widget links to the matching list/calendar/report. "My Day"-specific items (today/this week agenda, "Record outcome" cards) live in this same dashboard rather than a separate page; `/my-day` redirects here.
 
 ### 5.4 User Management (Admin)
-Create lawyer (name, email, phone, title, practising certificate no. + expiry, department). Deactivate (never hard-delete — keeps history). Reassign all of a departing lawyer's cases in one action.
+Create lawyer (name, email, phone, title, practising certificate no. + expiry, department). Deactivate (never hard-delete — keeps history, revokes sessions). Delete (Admin, soft delete — hidden from lists/export, refused while leading an open case; re-inviting the same email restores the account). Reassign all of a departing lawyer's cases in one action.
 
-### 5.5 Case/Matter creation (Admin) — 5-step wizard, draft auto-saved
-1. **Basics:** title (e.g. *UCAA v. XYZ Aviation Ltd*), category + sub-category (**what it's about** — from Admin-configured list), matter type (**how it runs** — picks the lifecycle template), UCAA's role (plaintiff/defendant/applicant/respondent/advisor), priority, confidentiality level
-2. **Forum:** court/tribunal, division, location, court case number, ECCMIS number, judge/registrar (skippable for advisory matters)
-3. **Parties:** opposing parties, opposing counsel (name, firm, contacts), witnesses, internal UCAA contact person (the department that raised it)
-4. **Facts & value:** short description, amount claimed / exposure (UGX), date cause of action arose, how it came to Legal (referral memo)
-5. **Assign & start:** lead + supporting lawyers (dropdown shows workload + next free day), initial stage, first deadline/hearing, initial documents
+### 5.5 Case/Matter creation (Admin) — 9-step intake, draft auto-saved (revised 2026-10-01 from the original 5-step wizard, per client intake-flow mockups; field coverage below, not original)
+1. **Matter identification:** title, reference (previewed read-only, generated on submit), category + sub-category, matter type (picks the lifecycle)
+2. **CAA position & reporting:** UCAA's role (now Claimant / Defendant / Petitioner / Interested Party / Appellant / Respondent to Appeal / Applicant / Respondent / Advisor / Other), priority, confidentiality, how it was reported to Legal (description, reported-by, reported method)
+3. **Service / legal process:** service direction (served on UCAA / served by UCAA), process nature, issued/received dates, received-by, response-deadline countdown (becomes a real calendar deadline)
+4. **Parties:** opposing parties, opposing counsel, witnesses, internal UCAA contact, party organisation/type/role fields
+5. **Court & judicial information:** court/tribunal, division, court station, location, court case number, ECCMIS number, judge/registrar, filed date, jurisdiction (skippable for advisory matters)
+6. **Legal representation:** representation status, external counsel name/contact (in-house vs. instructing an external firm)
+7. **Matter stage:** starting stage from the chosen matter type's lifecycle, first deadline/hearing (next-action-due becomes a real calendar deadline)
+8. **Documents:** initial documents, uploaded through the normal encrypted/scanned pipeline right after the matter is created
+9. **Review & submit:** full read-back before creating
+
+The responsible legal officer named in intake becomes the lead lawyer and is notified; internal notes become the matter's first note. Cases are created Open. Duplicate check (same court number or same opposing party) still warns before creating.
 
 ### 5.6 Case List
 Table view + card view. **Sort** by any column (opened date, next date, last activity, priority, value, title). **Filter** by status, stage, category, type, court, lawyer, priority, UCAA role, value range. **Time filters:** Today · This week · This month · This quarter · This year · Custom range — applied to a chosen date field (opened, closed, next hearing, last activity). Search across title, case number, ECCMIS number, parties. Saved filter views; export the current filtered list to Excel/PDF.
@@ -107,19 +111,20 @@ Layout (desktop), top to bottom:
 
 **B. Lifecycle diagram** — horizontal stage tracker (see §6). Shows template name + category, "Stage X of Y · N days open". Completed stages filled with a check, current stage ringed and pulsing softly (off under reduced-motion), future stages outlined and numbered. Click a stage to see what happened in it (dates, events). Sub-processes (e.g. an injunction application) show as small branches under the main line.
 
-**C. "Case in 30 seconds" panel** (the memory feature) — two columns:
+**C. Overview panel** (the memory feature, renamed from "Case in 30 seconds" — revised 2026-10-01) — a snapshot strip (stage, next deadline, open/overdue tasks, documents, discussion — every tile links to its tab), a plain-language status banner (On track / Due soon / Action needed / On hold / Closure requested / Closed), then what intake captured: "How it came in" (now **Matter intake**), parties ("Parties · CAA is …"), service & legal process (with the response-deadline countdown), court & forum, legal representation. Below that, two columns:
 - *Left:* **Summary** — three short paragraphs: *What it's about · Where it stands · What's next*. Written/edited by the lawyer (previous versions kept); "Edited by X · when" chip. Pinned discussion messages appear under it. The ✨ AI button only appears when the Admin has enabled AI (Later, v2).
-- *Right column:* **Key facts** card (next date & purpose highlighted, amount at stake, UCAA role, judge, opposing counsel, category, last activity) · **Deadlines** card (open deadlines with days-left chips, time spent in the current stage) · **Team** card (lead/support).
+- *Right column:* **Key facts** card (next date & purpose highlighted, amount at stake, UCAA role, judge, opposing counsel, category, last activity) · **Deadlines** card (open deadlines with days-left chips, time spent in the current stage) · **Team** card (lead/support, with an Admin-only **Add** button).
 
-**D. Tabs:**
+**D. Tabs (revised 2026-09-29/2026-10-01 — Parties folded into the Overview panel above rather than kept as its own tab; "Hearings & Deadlines" shortened to "Deadlines"; Documents tab labelled "Legal Documents" per the terminology pass):**
 1. **Timeline** — every event in order: filings, hearings, adjournments (with reason), rulings, correspondence, stage changes, assignment changes. Each event: date, type icon, short description, linked documents, who logged it. Filterable by type.
-2. **Documents** — grouped by folder (Pleadings, Evidence, Correspondence, Court Orders, Submissions, Internal Memos). Version history, preview (PDF/images), uploaded-by, date, tags. Drag-and-drop upload.
-3. **Hearings & Deadlines** — calendar + list. Each hearing records outcome afterwards (adjourned to X / proceeded / ruling delivered). Deadlines have a reminder schedule.
-4. **Tasks** — checklist items with assignee and due date ("Draft witness statement", "Serve summons").
-5. **Discussion** — chat thread for this case only; @mentions; attach documents from the case; pin important messages.
-6. **Parties & Contacts**
-7. **Notes** — shared notes + private notes.
-8. **Activity** — who did what on this case, including document views. Assigned lawyers see case activity; Admin additionally sees the full audit detail (before/after values, IP).
+2. **Legal Documents** — grouped by folder (Pleadings, Evidence, Correspondence, Court Orders, Submissions, Internal Memos). Version history, preview (PDF/images), uploaded-by, date, tags. Drag-and-drop upload; any lawyer can upload, only Admin/Lead/Support can delete.
+3. **Deadlines** — calendar + list. Each hearing records outcome afterwards (adjourned to X / proceeded / ruling delivered). Deadlines have a reminder schedule.
+4. **Tasks** — checklist items with assignee and due date ("Draft witness statement", "Serve summons"); assignable to anyone active in the department by the matter's Lead or Admin.
+5. **Discussion** — chat thread for this case only; @mentions; attach documents from the case; pin important messages. Stays strictly assignee+Admin scoped even though the rest of the page is org-wide-readable (§4).
+6. **Notes** — shared notes + private notes.
+7. **Activity** — who did what on this case, including document views. Everyone sees case activity; Admin additionally sees the full audit detail (before/after values, IP).
+
+Parties & Contacts CRUD still exists (opposing parties, counsel, witnesses, internal contact) — reached from the Overview panel's parties group, not a separate tab.
 
 ### 5.8 Calendar (every lawyer has their own)
 - **My Calendar (lawyer):** every hearing, deadline, task and mediation session from the lawyer's cases, generated automatically from the case data — the lawyer never re-enters a date.
@@ -187,7 +192,16 @@ Also supported: bulk import of users and bulk upload of documents to a case (zip
 
 Changes to settings never break existing cases: deactivated categories/stages stay on old cases, and template edits apply to new cases (with an option to migrate open ones).
 
-### 5.14 AI assistant (Later, v2 — build phase 14; switchable by Admin)
+### 5.14 Org-wide reference & collaboration pages (added 2026-09-30, client-approved pitch-prototype pivot)
+
+Four pages added alongside the per-matter tabs above, all reachable from the main nav (not nested under any one case) — the "whole department works off shared reference material" idea that came out of client feedback on the prototype:
+
+- **Legal Documents library** (`/documents`) — org-wide, read-through list across every matter's documents (not a second upload path): searchable by name/case, links back into the owning case's Documents tab for viewing/downloading/uploading. Respects the same per-document confidentiality and access logging as the case tab.
+- **External Counsel & Law Firms** (`/law-firms`) — directory of outside firms/counsel UCAA briefs or opposes: `LawFirm` model, any lawyer can add/edit, Admin can deactivate. Answers remaining question §14.2 (external firms) in the affirmative, as a directory rather than a login/portal.
+- **Legal Resources & Links** (`/links`) — quick-reference links to statutes, court portals, regulators (seeded with Judiciary/URSB/URA links), grouped by category: `ResourceLink` model, any lawyer can add, Admin can deactivate.
+- **Matter Chat / Group Chat** (`/chat`) — an org-wide chat **separate from** each case's own Discussion tab: `GroupMessage` model. **Supersedes the §10/§15 "no global Messages page" decision** — the per-case Discussion tab stays (and stays strictly assignment-scoped, §4), but there is now also one department-wide channel for things that aren't about a single matter. Call/attach/voice-note controls are UI-only placeholders in the prototype — clicking them says so rather than silently doing nothing; a real calling/attachment backend is not yet built.
+
+### 5.15 AI assistant (Later, v2 — build phase 14; switchable by Admin)
 - **"Catch me up"** — summary of the case from its timeline, notes and hearing outcomes: what it's about, where it stands, what's next, open risks.
 - **"What's coming up"** — natural-language briefing of the lawyer's week.
 - **Draft the case summary** for the lawyer to edit (never auto-published).
@@ -221,6 +235,17 @@ Stages can be skipped (e.g. settled at mediation jumps to Closed), and a matter 
 **Closing a case** depends on the lifecycle: each template marks which stages allow closure. The lawyer submits a **closure request** with outcome, closing note, final amounts (awarded/paid/recovered) and confirmation that all deadlines/tasks are done. The Admin approves or sends it back (policy configurable per type). Closed cases become read-only; the Admin can **reopen** with a reason.
 
 ## 7. Data model (starting point for Claude Code)
+
+**Additive changes since the original draft below (all shipped, see CHANGELOG.md for migrations):**
+- `User.deletedAt`, `Matter.deletedAt`/`deletedById` — soft delete (Admin-only, never hard-delete, CLAUDE.md).
+- `Matter` gained intake fields from the 9-step flow (§5.5): `description`, `reportedAt`/`reportedBy`/`reportMethod`, `serviceDirection` (new `ServiceDirection` enum: `CAA_SERVING`/`CAA_SERVED`/`NOT_YET_SERVED`), `processNature`/`processIssuedAt`/`processReceivedAt`/`receivedBy`, `legalRecipientId`, `courtStation`, `filedAt`, `jurisdiction`, `representationStatus`, `externalCounselName`/`externalCounselContact`.
+- `UcaaRole` extended beyond plaintiff/defendant/applicant/respondent/advisor with `CLAIMANT`, `PETITIONER`, `INTERESTED_PARTY`, `APPELLANT`, `RESPONDENT_TO_APPEAL`, `OTHER` (§5.5 step 2).
+- `Party` gained `organisation`, `partyType`, `roleInMatter`.
+- `MatterMessageAttachment`, `MatterMessageMention` — per-case Discussion attachments and @mentions (Phase 9).
+- `LawFirm`, `ResourceLink`, `GroupMessage` — the org-wide pages in §5.14.
+- `User.icsToken` — calendar subscription feed auth (§5.8).
+- `NotificationPreference` ships (Phase 2/8) but time-based reminder *sending* (hearing/deadline/overdue escalation, digest email) is not yet implemented — only event-triggered notifications (assignment, upload, mention, task) fire today. Phase 8 remains partial; see §12.
+- `ClosureRequest` is specced below but **not yet built** — `/closure-requests` is still a placeholder. See §12.
 
 ```
 -- Identity & security
@@ -295,19 +320,19 @@ AuditLog(id, userId, action, entity, entityId, before, after, ip, userAgent, cre
 ## 8. Screens list (design in this order)
 
 1. Login + 2FA + forced password change
-2. Lawyer dashboard ("My Day")
+2. Shared dashboard (Admin sees the whole portfolio; a lawyer sees matters they lead/support — §5.3)
 3. **Case page** (most design time)
 4. Case list (sort / filter / time filter)
 5. Calendar (lawyer + department)
-6. Admin dashboard
-7. New case wizard
-8. Closure request + approval
-9. Users (list, create, reassign)
-10. Admin Settings portal (categories, lifecycles, courts, deadline rules, reminders, security)
-11. Import wizard
-12. Reports
-13. Notifications panel
-14. Document viewer (secure, watermarked)
+6. New case intake (9 steps, §5.5)
+7. Closure request + approval *(not yet built — Phase 10, §12)*
+8. Users (list, create, reassign)
+9. Admin Settings portal (categories, lifecycles, courts, deadline rules, reminders, security)
+10. Import wizard (cases) *(not yet built — Phase 12, §12)*
+11. Reports *(not yet built — Phase 11, §12)*
+12. Notifications panel
+13. Document viewer (secure, watermarked)
+14. Legal Documents library, Law Firms & Counsel, Resource Links, Group Chat (§5.14)
 15. Profile & preferences
 16. Empty, loading, error, 403, session-expired screens
 
@@ -370,9 +395,9 @@ Direction from the client: white and clean like the reference images, warm (not 
 
 **Icons:** lucide only — no emoji in the UI (the AI sparkle uses lucide `Sparkles`).
 
-**Layout:** left sidebar 248px (white, logo + "CAA Legal / Uganda Civil Aviation Authority" top, nav with count chips, user card bottom). Top bar: breadcrumbs · search (shows **Ctrl K** on Windows, **⌘K** on Mac) · "New case" primary button (**Admin only**) · bell (notifications **and** @mentions). Content max-width 1440px. Chat lives only inside each case — there is no separate Messages page.
+**Layout:** left sidebar (blue-filled, collapsible to icons-only with hover tooltips, revised 2026-09-26 — brand mark + "CAA Legal Department" top, nav with count chips, user card bottom). Top bar: breadcrumbs · search (shows **Ctrl K** on Windows, **⌘K** on Mac) · bell (notifications **and** @mentions). Content max-width 1440px. "+ New matter" lives on the Cases page itself, not the top bar (revised 2026-09-27). Per-case Discussion stays assignment-scoped and is the only place chat is tied to one matter (§4) — but there is now also a department-wide **Matter Chat** page (§5.14), superseding the original "no global Messages page" rule.
 
-**Lawyer nav:** My Day · My cases · My calendar · Tasks. **Admin nav:** Dashboard · Cases · Calendar · Closure requests · Users · Reports · Import · Settings. Profile & preferences from the user card.
+**Nav, same list for every role (revised 2026-10-08 terminology pass — org-wide visibility means Admin and lawyers now share one nav, not two):** Legal Dashboard · Legal Matters · Legal Calendar · Tasks & Legal Deadlines · Legal Documents · External Counsel & Law Firms · Legal Resources & Links · Matter Chat · Legal Reports & Analytics. **Admin additionally gets:** Matter Closure Requests · Users & Access · Legal System Settings. Profile & preferences from the user card. Sidebar brand reads "CAA Legal Department".
 
 **Confidential feel:** "Confidential" / "Highly Confidential" lock chip on case headers and documents; subtle, never alarming. Blur/mask amounts and party names on the dashboard until hovered (optional setting) — useful when screens are visible in meetings.
 
@@ -400,21 +425,23 @@ Direction from the client: white and clean like the reference images, warm (not 
 
 ## 12. Build phases (feed to Claude Code one at a time)
 
-0. **Setup** — git repo, Next.js, Tailwind + design tokens (§10, both themes), shadcn, Prisma, Docker Compose, app shell (sidebar + top bar) with empty pages, seed (1 admin with temp password, 4 lawyers).
-1. **Auth & security base** — login screen, invite activation, 2FA + backup codes, forced password change, forgot password, roles, route protection, audit log, session management & lockout.
-2. **Admin Settings** — categories, matter types & lifecycle templates, forums, outcomes, reminder rules (seeded with defaults).
-3. **Users** — list, create, deactivate, reassign.
-4. **Cases core** — wizard, case list with sort/filter/time filter, assignment. Seed grows to 15 realistic cases (the mockup case among them).
-5. **Case page** — header, lifecycle diagram, catch-up panel, timeline, parties, notes, stage moves.
-6. **Secure documents** — encrypted upload, scan, versions, viewer with watermark, access log.
-7. **Calendar, hearings, deadlines, tasks** — outcome recording, deadline rules, clash detection, .ics.
-8. **Notifications** — in-app, email, reminder jobs, digest.
-9. **Case discussion (chat)** — realtime, mentions, pins, attachments.
-10. **Closure workflow** — request, approve/return, reopen.
-11. **Dashboards & reports** — with filters, drill-down, exports, scheduled reports.
-12. **Import** — template, mapping, validation, rollback.
-13. **Hardening** — rate limits, CSP, backups + restore test, accessibility, e2e tests, pen-test fixes.
-14. **AI assistant** — behind Admin switch.
+Status as of 2026-10-11 marked inline — **DONE**, **PARTIAL**, or **NOT BUILT** — so the phase list doubles as the real build tracker, not just the original plan.
+
+0. **Setup** — git repo, Next.js, Tailwind + design tokens (§10, both themes), shadcn, Prisma, Docker Compose, app shell (sidebar + top bar) with empty pages, seed (1 admin with temp password, 4 lawyers). **DONE**
+1. **Auth & security base** — login screen, invite activation, 2FA + backup codes, forced password change, forgot password, roles, route protection, audit log, session management & lockout. **DONE** (plus a `DEMO_LOGIN_PASSWORD` prototype shortcut, §4 — must be unset before go-live)
+2. **Admin Settings** — categories, matter types & lifecycle templates, forums, outcomes, reminder rules (seeded with defaults). **DONE**
+3. **Users** — list, create, deactivate, reassign. **DONE** (plus soft delete, filters, Excel/PDF export, flexible import+rollback — see CHANGELOG)
+4. **Cases core** — wizard, case list with sort/filter/time filter, assignment. Seed grows to 15 realistic cases (the mockup case among them). **DONE** (wizard later became the 9-step intake, §5.5)
+5. **Case page** — header, lifecycle diagram, catch-up panel, timeline, parties, notes, stage moves. **DONE** (catch-up panel became the Overview panel, §5.7)
+6. **Secure documents** — encrypted upload, scan, versions, viewer with watermark, access log. **DONE**
+7. **Calendar, hearings, deadlines, tasks** — outcome recording, deadline rules, clash detection, .ics. **DONE**
+8. **Notifications** — in-app, email, reminder jobs, digest. **PARTIAL** — `Notification`/`NotificationRule`/`NotificationPreference` exist and event-triggered notifications fire (assignment, upload, mention, task-assigned); no job runner exists yet, so **time-based sends don't happen**: hearing 7/3/1-day reminders, deadline 7/3/1-day + overdue reminders, "hearing passed with no outcome" escalation, practising-certificate-expiring alerts, and the 7am digest email are all still unbuilt.
+9. **Case discussion (chat)** — realtime, mentions, pins, attachments. **DONE**
+10. **Closure workflow** — request, approve/return, reopen. **NOT BUILT** — no `ClosureRequest` model yet; `/closure-requests` is a placeholder; case header has no working "Request closure" action.
+11. **Dashboards & reports** — with filters, drill-down, exports, scheduled reports. **NOT BUILT** — `/reports` is a placeholder (the shared dashboard from §5.3 is done; this is the separate Reports module, §5.10).
+12. **Import** — template, mapping, validation, rollback **for matters**. **NOT BUILT** — `/import` is a placeholder; do not confuse with the already-built *user* import at `/users/import` (Phase 3).
+13. **Hardening** — rate limits, CSP, backups + restore test, accessibility, e2e tests, pen-test fixes. **NOT BUILT** — only baseline security headers exist today (no CSP, no rate limiting, no backup/restore script).
+14. **AI assistant** — behind Admin switch. **NOT BUILT** (as planned — Later v2).
 
 Each phase ends with a working demo, updated seed data and a CHANGELOG entry. The seed grows with each phase — it only seeds tables that exist.
 
@@ -428,7 +455,7 @@ Each phase ends with a working demo, updated seed data and a CHANGELOG entry. Th
 
 ## 14. Remaining questions for the client
 1. Roughly how many lawyers and active cases today? (sizing, import planning)
-2. Do they brief **external law firms** on some cases? (external counsel fields / limited access later)
+2. Do they brief **external law firms** on some cases? Partially answered by the prototype: `externalCounselName`/`externalCounselContact` fields on intake plus a shared **External Counsel & Law Firms** directory (§5.14) exist; an external firm *login/portal* is still open.
 3. Email system (Outlook/Exchange?) for sending mail and calendar subscription
 4. Retention period for closed files
 5. Official logo files (the colour direction is agreed — see §10)
@@ -455,3 +482,10 @@ Each phase ends with a working demo, updated seed data and a CHANGELOG entry. Th
 | 2026-09-26 | Primary blue revised to `#4169E1` (bolder/more saturated); login is a split layout, not a centred card; input fields are sharp-cornered |
 | 2026-09-26 | 2FA enforcement made a togglable env flag (`REQUIRE_2FA`) for easier testing — must be `true` before go-live (spec still requires 2FA on every account) |
 | 2026-09-27 | Inputs/selects/dropdowns switched from sharp corners to the same rounded corners as buttons — seeing sharp inputs next to rounded buttons live read as inconsistent |
+| 2026-09-29 | **Client approved the pitch prototype as the new v1 baseline.** Permission model revised: org-wide read access to every matter (not assigned-only); editing (stage, parties, summary, notes, closure) stays gated to Admin/Lead/Support. Per-case Discussion chat is the one thing that stays strictly assignment-scoped. Dashboard unified into one shared component, scoped per role rather than two separate designs; `/my-day` redirects to it. |
+| 2026-09-29 | `DEMO_LOGIN_PASSWORD` added: an env-gated shared password so every lawyer can sign in immediately for demos, bypassing the real invite-link/2FA-setup path. Off (unset) by default outside the demo; must stay unset in production. `REQUIRE_PASSWORD_CHANGE` added alongside `REQUIRE_2FA` as the same kind of dev-only togglable gate. |
+| 2026-09-30 | Four org-wide pages added outside any single case: Legal Documents library, External Counsel & Law Firms, Legal Resources & Links, and a department-wide Matter Chat (`GroupMessage`). The last one **supersedes** the earlier "no global Messages page" decision — per-case Discussion remains separate and stays assignment-scoped. |
+| 2026-10-01 | New case wizard redone as a 9-step intake (was 5 steps) matching client-provided intake mockups; "Case in 30 seconds" renamed **Overview**, gaining a status banner and the intake fields (service/process, court/forum, representation) as read-back; Parties folded into the Overview panel rather than kept as a separate case-page tab. |
+| 2026-10-01 | Soft delete extended to `User` and `Matter` (Admin-only; never hard-delete, per CLAUDE.md) — a deleted case 404s everywhere but keeps its documents and audit history. |
+| 2026-10-08 | Full legal-terminology pass applied across the UI (nav, dashboard copy, stage names) per the department's language standard — "Case" gives way to "Matter" in headings; nav renamed to Legal Dashboard / Legal Matters / Legal Calendar / Tasks & Legal Deadlines / Legal Documents / External Counsel & Law Firms / Legal Resources & Links / Matter Chat / Legal Reports & Analytics / Matter Closure Requests / Users & Access / Legal System Settings. Sidebar brand reads "CAA Legal Department". |
+| 2026-10-15 | Client feedback from the prototype demo: added a **Contract** matter type (lifecycle Draft → Under Review → Sent for Amendments → Approved → Signed/Rejected) with an explicit `contractSigned` Yes/No field, to track the organisation's contracts. Placeholder/example text swapped from generic "XYZ" to a relatable seeded matter. |

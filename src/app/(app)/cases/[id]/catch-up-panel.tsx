@@ -21,6 +21,7 @@ export type KeyFacts = {
   opposingCounsel: string | null;
   categoryName: string;
   lastActivityAt: string;
+  contractSigned: boolean | null;
 };
 
 export type Snapshot = {
@@ -191,6 +192,14 @@ export function CatchUpPanel({
               <dt className="text-text-muted">Last activity</dt>
               <dd className="m-0 text-right font-medium">{formatDate(new Date(facts.lastActivityAt))}</dd>
             </div>
+            {facts.contractSigned !== null && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-text-muted">Signed</dt>
+                <dd className="m-0 text-right font-medium">
+                  <Badge tone={facts.contractSigned ? "success" : "warning"}>{facts.contractSigned ? "Yes" : "No"}</Badge>
+                </dd>
+              </div>
+            )}
           </dl>
         </div>
 

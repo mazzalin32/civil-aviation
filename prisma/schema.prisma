@@ -450,6 +450,7 @@ model Matter {
   outcomeId              String?
   outcome                Outcome?          @relation(fields: [outcomeId], references: [id])
   closingNote            String?
+  contractSigned         Boolean? // Yes/No for Contract matters; null = not applicable to this matter type
   createdById            String
   createdBy              User              @relation("MatterCreatedBy", fields: [createdById], references: [id])
   createdAt              DateTime          @default(now())

@@ -1,5 +1,24 @@
 # Changelog
 
+## Contracts tracking (2026-10-15)
+
+Client feedback from the prototype demo: track the organisation's contracts (signed/unsigned, approval, sent back for amendments), and swap the generic "XYZ" placeholder for a relatable example.
+
+### Added
+- New **Contract** matter type with its own lifecycle: Draft → Under Review → Sent for Amendments → Approved → Signed / Rejected. Reuses the existing Matter/case-page machinery (Overview, Documents, Timeline, Deadlines) — no new module needed.
+- `Matter.contractSigned` (nullable boolean) — explicit "Signed: Yes/No" captured on the Matter stage intake step (shown only for Contract matters), surfaced as a chip on the case page's Key facts card.
+- Two seeded example contracts (one Signed, one Sent for Amendments) demonstrating the new matter type.
+
+### Changed
+- The "e.g. XYZ Aviation Ltd v Civil Aviation Authority" placeholder in the matter-title field, and the two illustrative examples in `FLOWS.md`, replaced with a relatable name already used by the seeded demo data (Nile Horizon Aviation Ltd).
+
+## Spec/flows reconciliation (2026-10-11)
+
+### Changed
+- **No code changes.** `PROJECT_SPEC.md` and `FLOWS.md` rewritten to describe what actually shipped since the client approved the pitch-prototype pivot, instead of the original pre-pivot design: org-wide read / assignment-gated edit permission model, the unified shared dashboard, the 9-step intake flow, Overview panel (Parties folded in, not its own tab), the `DEMO_LOGIN_PASSWORD`/`REQUIRE_2FA`/`REQUIRE_PASSWORD_CHANGE` env toggles, the four new org-wide pages (Legal Documents library, External Counsel & Law Firms, Legal Resources & Links, Matter Chat — which supersedes the old "no global Messages page" decision), the 2026-10-08 terminology/nav rename, and the additive schema fields (`LawFirm`, `ResourceLink`, `GroupMessage`, `MatterMessageAttachment`/`Mention`, soft-delete columns, intake fields).
+- `PROJECT_SPEC.md` §12 (build phases) now carries an explicit DONE/PARTIAL/NOT BUILT status per phase, verified against the code (not the changelog's narrative) during this pass: Phases 0–7 and 9 done; **Phase 8 (Notifications) partial** — event-triggered notifications work, but nothing sends time-based reminders yet (hearing/deadline offsets, overdue escalation, cert-expiry, digest email — no job runner exists); **Phases 10 (closure workflow), 11 (reports), 12 (case import), 13 (hardening) not built** — their pages are placeholders; Phase 14 (AI) correctly not started.
+- `FLOWS.md`'s site map, onboarding, "My Day", case-page, notifications, closure, reports and import flows updated to match, with explicit "not yet built" callouts on flows 12 (reminder sends), 13 (closure), 15 (reports) and 16 (case import) so the flow doc doesn't read as already-shipped.
+
 ## Legal terminology pass (2026-10-08)
 
 Applied `correct-terms.docx` — the department's legal-language standard — across the interface.

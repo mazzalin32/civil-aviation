@@ -206,7 +206,7 @@ export function WizardForm({
             {step === 3 && <PartiesStep value={data.parties ?? {}} onChange={(p) => patch("parties", p)} />}
             {step === 4 && <CourtStep value={data.court ?? {}} onChange={(p) => patch("court", p)} forums={forums} />}
             {step === 5 && <RepresentationStep value={data.representation ?? {}} onChange={(p) => patch("representation", p)} errors={errors} lawyers={lawyers} />}
-            {step === 6 && <StageStep value={data.stage ?? {}} onChange={(p) => patch("stage", p)} errors={errors} stages={stages} hasMatterType={Boolean(matterType)} />}
+            {step === 6 && <StageStep value={data.stage ?? {}} onChange={(p) => patch("stage", p)} errors={errors} stages={stages} hasMatterType={Boolean(matterType)} isContract={matterType?.name === "Contract"} />}
             {step === 7 && <DocumentsStep files={files} onFiles={setFiles} folders={folders} folderId={folderId} onFolder={setFolderId} />}
             {step === 8 && (
               <ReviewStep

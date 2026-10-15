@@ -183,6 +183,18 @@ const MATTER_TYPES: {
     ],
   },
   {
+    name: "Contract",
+    referencePrefix: "CTR",
+    stages: [
+      { name: "Draft" },
+      { name: "Under Review" },
+      { name: "Sent for Amendments" },
+      { name: "Approved" },
+      { name: "Signed", allowsClosure: true },
+      { name: "Rejected", allowsClosure: true },
+    ],
+  },
+  {
     name: "Interlocutory application",
     isSubProcess: true,
     stages: [{ name: "Filed" }, { name: "Heard" }, { name: "Ruling", allowsClosure: true }],
@@ -312,7 +324,7 @@ type CaseSeed = {
   categoryName: string;
   matterTypeName: string;
   stageName: string;
-  ucaaRole: "PLAINTIFF" | "DEFENDANT" | "APPLICANT" | "RESPONDENT" | "ADVISOR";
+  ucaaRole: "PLAINTIFF" | "DEFENDANT" | "APPLICANT" | "RESPONDENT" | "ADVISOR" | "OTHER";
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   status?: "OPEN" | "ON_HOLD" | "CLOSURE_REQUESTED" | "CLOSED";
   forumName?: string;
@@ -329,6 +341,7 @@ type CaseSeed = {
   leadEmail: string;
   supportEmails?: string[];
   opposing?: { name: string; counselName?: string; counselFirm?: string }[];
+  contractSigned?: boolean;
 };
 
 const CASE_SEEDS: CaseSeed[] = [
@@ -561,6 +574,34 @@ const CASE_SEEDS: CaseSeed[] = [
     leadEmail: "carol.atim@caa.go.ug",
     supportEmails: ["david.ssemwogerere@caa.go.ug"],
     opposing: [{ name: "Prime Construction Uganda Ltd", counselName: "Ariko & Ariko Advocates" }],
+  },
+  {
+    title: "Ground handling services agreement — SkyLink Aviation Services",
+    categoryName: "Contracts & Commercial",
+    matterTypeName: "Contract",
+    stageName: "Signed",
+    ucaaRole: "OTHER",
+    priority: "MEDIUM",
+    referralNote: "Three-year ground handling services agreement for Entebbe International Airport, countersigned by both parties.",
+    openedAt: "2026-04-02",
+    lastActivityAt: "2026-05-20",
+    leadEmail: "agnes.nakato@caa.go.ug",
+    opposing: [{ name: "SkyLink Aviation Services Ltd" }],
+    contractSigned: true,
+  },
+  {
+    title: "Fuel supply agreement renewal — Meridian Fuel Supplies Ltd",
+    categoryName: "Contracts & Commercial",
+    matterTypeName: "Contract",
+    stageName: "Sent for Amendments",
+    ucaaRole: "OTHER",
+    priority: "MEDIUM",
+    referralNote: "Renewal terms returned to the supplier for amendment of the pricing-review clause.",
+    openedAt: "2026-08-14",
+    lastActivityAt: "2026-09-30",
+    leadEmail: "carol.atim@caa.go.ug",
+    opposing: [{ name: "Meridian Fuel Supplies Ltd" }],
+    contractSigned: false,
   },
 ];
 
@@ -807,6 +848,7 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
         amountAgainst: c.amountAgainst ?? null,
         causeOfActionDate: c.causeOfActionDate ? new Date(c.causeOfActionDate) : null,
         referralNote: c.referralNote ?? null,
+        contractSigned: c.contractSigned ?? null,
         ...intakeFields(c, leadId, c.matterTypeName),
         createdById: adminId,
         createdAt,

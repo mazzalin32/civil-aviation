@@ -23,26 +23,23 @@ flowchart LR
     H --> R
 ```
 
-**Site map**
+**Site map (revised 2026-09-29/2026-10-08 — client-approved prototype: one shared nav for every role, org-wide read access; see PROJECT_SPEC.md §4/§10/§15)**
 
 ```
-Admin                                   Lawyer
-├── Dashboard                           ├── My Day (dashboard)
-├── Cases (all) ─ Case page             ├── My cases ─ Case page
-├── Calendar (department)               ├── My calendar
-├── Closure requests                    └── Tasks
-├── Users
-├── Reports                             Top bar (both): search · bell (notifications + @mentions)
-├── Import                              User card (both): Profile & preferences (theme, digest, mutes)
-└── Settings                            Chat lives inside each case — no global Messages page
-    ├── Categories
-    ├── Matter types & lifecycles
-    ├── Courts & forums
-    ├── Outcomes / event & document types
-    ├── Deadline rules & reminders
-    ├── Security
-    ├── Branding
-    └── AI assistant
+Shared nav (every role)                 Admin-only additions
+├── Legal Dashboard (scoped per role)   ├── Matter Closure Requests *(not built — Phase 10)*
+├── Legal Matters ─ Case page           ├── Users & Access
+├── Legal Calendar                      └── Legal System Settings
+├── Tasks & Legal Deadlines                 ├── Categories
+├── Legal Documents (org-wide library)      ├── Matter types & lifecycles
+├── External Counsel & Law Firms            ├── Courts & forums
+├── Legal Resources & Links                 ├── Outcomes / event & document types
+├── Matter Chat (department-wide)            ├── Deadline rules & reminders
+└── Legal Reports & Analytics *(not built — Phase 11)*  ├── Security
+                                             ├── Branding
+Top bar: search · bell (notifications + @mentions)      └── AI assistant
+User card: Profile & preferences (theme, digest, mutes)
+Per-case Discussion is still its own thread, assignment-scoped (not the department-wide Matter Chat above)
 ```
 
 ---
@@ -104,8 +101,10 @@ flowchart TD
 
 1. 🟦 Users → **Add lawyer**: name, email, phone, title, practising certificate no. + expiry.
 2. ⚙️ Account created with a one-time invite link (valid 72 h). 🔔 Email to the lawyer. 📝
-3. 🟩 Lawyer opens link → sets password → sets up 2FA → lands on an empty My Day with a short 3-step welcome ("Your cases will appear here", "Your calendar fills automatically", "Turn on email digests").
+3. 🟩 Lawyer opens link → sets password → sets up 2FA → lands on an empty dashboard with a short 3-step welcome ("Your matters will appear here", "Your calendar fills automatically", "Turn on email digests").
 4. Invite expired? 🟦 Admin clicks **Resend invite**.
+
+**Prototype shortcut (env-gated, `DEMO_LOGIN_PASSWORD` — see PROJECT_SPEC.md §4/§15):** when set, every invited/seeded lawyer can instead sign in immediately with one shared password — skips steps 2–3's activation link entirely. Must be unset in production; the real invite-link flow above is what ships to the client.
 
 **Offboarding:** 🟦 Users → lawyer → **Deactivate** → system shows their open cases → Admin reassigns them (all to one person or one by one) → ⚙️ sessions revoked, account disabled, history kept, 🔔 new lead lawyers notified. 📝
 
@@ -113,15 +112,19 @@ flowchart TD
 
 ## 4. Creating & assigning a case (Admin)
 
-1. 🟦 **+ New case** (top bar) → 5-step wizard with progress bar, draft auto-saved:
-   1. **Basics** — title, category/sub-category, matter type (this picks the lifecycle), UCAA's role, priority, confidentiality.
-   2. **Forum** — court/tribunal, division, location, case number, ECCMIS number, judge. (Skippable for advisory matters.)
-   3. **Parties** — opposing parties & counsel, witnesses, internal UCAA contact.
-   4. **Facts & value** — description, amount claimed/against, cause-of-action date, referral memo.
-   5. **Assign & start** — lead lawyer (dropdown shows each lawyer's current workload + next free day), supporting lawyers, starting stage, first deadline/hearing, initial documents.
+1. 🟦 **+ New matter** (Cases page) → 9-step intake with progress rail, draft auto-saved (revised 2026-10-01 from the original 5-step wizard — see PROJECT_SPEC.md §5.5):
+   1. **Matter identification** — title, reference preview, category/sub-category, matter type (this picks the lifecycle).
+   2. **CAA position & reporting** — UCAA's role, priority, confidentiality, how it was reported to Legal.
+   3. **Service / legal process** — service direction, process nature, issued/received dates, response-deadline countdown.
+   4. **Parties** — opposing parties & counsel, witnesses, internal UCAA contact.
+   5. **Court & judicial information** — court/tribunal, division, court station, location, case number, ECCMIS number, judge. (Skippable for advisory matters.)
+   6. **Legal representation** — representation status, external counsel name/contact.
+   7. **Matter stage** — starting stage, first deadline/hearing.
+   8. **Documents** — initial documents (uploaded right after creation through the normal encrypted pipeline).
+   9. **Review & submit** — full read-back before creating.
 2. ⚙️ Duplicate check: warns if a case with the same court number or same parties exists.
 3. ⚙️ Generates reference (e.g. `UCAA/LIT/2026/0042`, pattern set in Settings), creates first timeline event "Case opened", places dates on assigned lawyers' calendars. 📝
-4. 🔔 Assigned lawyers: "You've been assigned *UCAA v. XYZ Aviation Ltd* as Lead Counsel."
+4. 🔔 Assigned lawyers: "You've been assigned *UCAA v. Nile Horizon Aviation Ltd* as Lead Counsel."
 
 ```mermaid
 sequenceDiagram
@@ -129,7 +132,7 @@ sequenceDiagram
     participant App
     participant DB
     actor Lawyer
-    Admin->>App: New case wizard (5 steps)
+    Admin->>App: New matter intake (9 steps)
     App->>DB: Check duplicates
     DB-->>App: None / warning
     Admin->>App: Confirm & assign lawyers
@@ -142,17 +145,18 @@ sequenceDiagram
 
 ---
 
-## 5. A lawyer's day ("My Day")
+## 5. A lawyer's day (shared Legal Dashboard, revised 2026-09-29 — "My Day" is no longer a separate page; `/my-day` redirects here)
 
-1. 🟩 Logs in → **My Day** shows, in order:
+1. 🟩 Logs in → **Legal Dashboard** shows, in order:
    - 🔴 Overdue items (always pinned on top)
    - Today: hearings (time, court, courtroom, purpose) and deadlines
    - "Record outcome" cards for yesterday's hearings not yet updated
    - This week (compact list)
-   - My cases (stage chip + next date), unread messages & mentions
+   - My matters (stage chip + next date), unread messages & mentions
    - (Later, v2) ✨ "Your week at a glance" AI briefing
-2. 🟩 Clicks any item → goes straight to the right case tab (e.g. hearing → Hearings tab with that hearing open).
-3. ⚙️ Optional 7:00 AM email digest with the same "today" list.
+2. 🟩 Clicks any item → goes straight to the right case tab (e.g. hearing → Deadlines tab with that hearing open).
+3. ⚙️ Optional 7:00 AM email digest with the same "today" list — **not yet sending** (Phase 8 is partial, see PROJECT_SPEC.md §12: the schedule/preference exists, nothing dispatches it yet).
+4. The same page is what Admin sees too — Admin's view is unscoped (whole portfolio); a lawyer's is scoped to matters they lead/support. There is no separate Admin dashboard design.
 
 ---
 
@@ -160,23 +164,25 @@ sequenceDiagram
 
 **Opening a case — what the lawyer sees in the first 30 seconds:**
 (Visual reference: `docs/design/case-page.html`.)
-1. Header: title, reference, court no., ECCMIS no., court, status, priority, confidentiality lock chip, team avatars; buttons Add event · Upload · **Move stage** · ⋯ (Schedule hearing, Add deadline, New application, Reassign, Put on hold, Request closure).
+1. Header: title, reference, court no., ECCMIS no., court, status, priority, confidentiality lock chip, team avatars; buttons Add event · Upload · **Move stage** · ⋯ (Schedule hearing, Add deadline, New application, Reassign, Put on hold, Request closure *(not yet built — Phase 10)*).
 2. Lifecycle tracker: where the case is now, "Stage X of Y · N days open"; click a stage → dates + key events in it; sub-processes as branches underneath.
-3. "Case in 30 seconds": summary (What it's about · Where it stands · What's next) + pinned messages. Right column: Key facts (next date & purpose, amount, UCAA role, judge, opposing counsel, category, last activity) · Deadlines · Team.
-4. Tabs: Timeline · Documents · Hearings & deadlines · Tasks · Discussion · Parties · Notes · Activity.
+3. **Overview** panel (renamed from "Case in 30 seconds", 2026-10-01): status banner + intake read-back (how it came in, parties, service/process, court & forum, representation), then summary (What it's about · Where it stands · What's next) + pinned messages. Right column: Key facts (next date & purpose, amount, UCAA role, judge, opposing counsel, category, last activity) · Deadlines · Team.
+4. Tabs: Timeline · Legal Documents · Deadlines · Tasks · Discussion · Notes · Activity. (Parties CRUD lives in the Overview panel, not its own tab — see PROJECT_SPEC.md §5.7.)
 
 **Everyday actions (all logged 📝, all update "last activity"):**
 
 | Action | Steps | Automatic effects |
 |---|---|---|
 | **Add event** | + Add event → type (filing, correspondence, ruling, …) → date, description, attach documents | Added to timeline; ⚙️ if a Deadline Rule matches the event type, the system **suggests** a deadline (e.g. judgment logged → suggests "Notice of appeal due in N days"); lawyer confirms or dismisses |
-| **Schedule hearing** | + Hearing → date/time, court, courtroom, purpose | On calendars of all assigned lawyers; reminders scheduled; clash check |
-| **Add deadline** | + Deadline → title, due date, critical?, assignee | Calendar + reminders |
+| **Schedule hearing** | + Hearing → date/time, court, courtroom, purpose | On calendars of all assigned lawyers; clash check. Time-based reminders (7/1-day/morning-of) are **not yet sent** — see note below. |
+| **Add deadline** | + Deadline → title, due date, critical?, assignee | Calendar entry created; 7/3/1-day/overdue reminders are **not yet sent** — see note below. |
 | **Add task** | + Task → title, assignee, due | Assignee's task list + calendar |
 | **Write note** | Notes → shared or private | Private visible only to author + Admin |
-| **Edit summary** | Catch-up panel → Edit | Previous versions kept |
+| **Edit summary** | Overview panel → Edit | Previous versions kept |
 | **Upload document** | See flow 9 | |
 | **Message team** | See flow 10 | |
+
+> **Reminder sending status (2026-10-11):** every reminder "scheduled" above means a `CalendarEntry`/`Task` row exists with the right date — the in-app bell fires immediately for direct events (assignment, upload, mention, task-assigned), but nothing yet wakes up *later* to send the 7/3/1-day and overdue reminders described in flow 12, or the hearing-outcome escalation in flow 7 step 5. That needs a job runner and is the rest of Phase 8 (PROJECT_SPEC.md §12).
 
 ---
 
@@ -228,7 +234,7 @@ flowchart TD
 1. 🟩 Documents tab → drag & drop (or Upload) → choose folder, tags, confidentiality (inherits case level by default).
 2. ⚙️ Pipeline: check type & size → **virus scan** → compute SHA-256 → encrypt with a per-file key → store privately → extract text for search → status "Ready". Infected or invalid files are rejected and 🔔 Admin alerted.
 3. Same file name uploaded again → becomes **version 2** (old versions kept).
-4. 📝 Upload logged. 🔔 team notified (batched: "3 new documents on *UCAA v. XYZ*").
+4. 📝 Upload logged. 🔔 team notified (batched: "3 new documents on *UCAA v. Nile Horizon Aviation Ltd*").
 
 **View / download**
 1. 🟩 Click document → ⚙️ permission check → opens in the **secure viewer** with watermark (name + date/time).
@@ -276,6 +282,8 @@ flowchart LR
 
 ## 12. Notifications
 
+> **Partially built (2026-10-11 — see PROJECT_SPEC.md §12 Phase 8).** The left-hand "event happens" triggers below (assignment, upload, mention, task-assigned) are real and fire today. The "date approaching" triggers — hearing 7/1-day/morning-of, deadline 7/3/1-day + overdue, hearing-no-outcome escalation, cert-expiry, the morning digest — need something to notice time passing with no user action, which doesn't exist yet (no job runner). The rule/preference data model is fully built and ready for it.
+
 ```mermaid
 flowchart LR
     EV[Event happens<br/>assignment, date approaching,<br/>message, upload, stage change] --> RULE{Notification rule}
@@ -293,6 +301,8 @@ flowchart LR
 ---
 
 ## 13. Closing a case
+
+> **Not yet built (2026-10-11) — this is Phase 10.** No `ClosureRequest` model exists; `/closure-requests` (Matter Closure Requests) is a placeholder, and the case header's ⋯ menu has no working "Request closure" action. The flow below is the target design, unchanged from the original spec.
 
 1. ⚙️ **Close** button only appears when the case is at a stage the lifecycle marks as closable.
 2. 🟩 Lead lawyer → **Request closure** → outcome, closing note (what happened, lessons learned), final amounts (awarded / paid / recovered / costs), attach final order.
@@ -329,6 +339,8 @@ stateDiagram-v2
 
 ## 15. Reports (Admin)
 
+> **Not yet built (2026-10-11) — this is Phase 11.** "Legal Reports & Analytics" in the nav is a placeholder; the shared dashboard (flow 5) covers the KPI/overview view but not this module's filtered reports, drill-down or scheduled exports.
+
 1. 🟦 Reports → pick a report (Case register, Outcomes, Workload, Exposure, Durations, Overdue, Inactive, Upcoming hearings).
 2. Apply filters + time range + sort (same controls as case list).
 3. View chart + table → click a bar/segment → drill down into those exact cases.
@@ -337,7 +349,9 @@ stateDiagram-v2
 
 ---
 
-## 16. Import (Admin)
+## 16. Import (Admin) — matters/cases
+
+> **Not yet built (2026-10-11) — this is Phase 12.** `/import` is a placeholder. Don't confuse with the already-working *user* import at Users & Access → Import (template, mapping, preview, create, 24h rollback) — that one exists and follows this same flow shape; this flow is the case-import equivalent, still to be built.
 
 ```mermaid
 flowchart LR

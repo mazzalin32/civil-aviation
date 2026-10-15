@@ -106,6 +106,7 @@ export const stageSchema = z.object({
   confidentiality: z.enum(CONFIDENTIALITIES).default("NORMAL"),
   nextActionDue: optionalDate,
   internalNotes: optionalText(2000),
+  contractSigned: z.boolean().optional(),
 });
 export type Stage = z.infer<typeof stageSchema>;
 

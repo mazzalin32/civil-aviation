@@ -125,6 +125,7 @@ export async function createMatter(raw: unknown): Promise<CreateResult> {
         representationStatus: representation.representationStatus || null,
         externalCounselName: representation.externalCounselName || null,
         externalCounselContact: representation.externalCounselContact || null,
+        contractSigned: stageInput.contractSigned ?? null,
         createdById: admin.id,
       },
     });
