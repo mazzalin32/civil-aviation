@@ -20,6 +20,16 @@ Client feedback from the prototype demo: a dedicated place to track the organisa
 ### Removed
 - `Matter.contractSigned` (superseded by `ContractDetail`'s execution-status fields) and the now-unused `seedNileHorizonDetail` demo-content seeding tied to a removed fictional case.
 
+## Contracts dashboard (2026-10-15, same day)
+
+The client shared a richer reference design for the Contracts register. Built a simpler version of it on real, computed data — no fabricated trend percentages or a "Total Contract Value" we don't track.
+
+### Added
+- Search + filter bar on `/contracts` (contract type/category, department, lifecycle stage, AG vetting status, internal approval status) — same GET-query-param pattern as the Legal Matters list.
+- Three single-hue bar-list breakdowns (Contracts by Type, by Lifecycle Stage, AG Vetting Status) — design-token-compliant (one blue hue for magnitude, per spec §10; no categorical rainbow palette, since the app's tokens don't define one).
+- Excel export (`/api/contracts/export`, Admin-only, audit-logged) respecting whatever filters are active, matching the existing Users export pattern.
+- Table gained Department, Received date, and Execution columns to match the reference design.
+
 ## Spec/flows reconciliation (2026-10-11)
 
 ### Changed
