@@ -346,236 +346,6 @@ type CaseSeed = {
 
 const CASE_SEEDS: CaseSeed[] = [
   {
-    title: "Uganda Civil Aviation Authority v. Nile Horizon Aviation Ltd",
-    categoryName: "Debt Recovery",
-    matterTypeName: "Civil litigation",
-    stageName: "Mediation",
-    ucaaRole: "PLAINTIFF",
-    priority: "HIGH",
-    forumName: "High Court — Commercial Division",
-    courtCaseNo: "CS 412 of 2026",
-    eccmisNo: "HCT-00-CC-CS-0412-2026",
-    amountClaimed: BigInt(1_840_000_000),
-    causeOfActionDate: "2024-03-01",
-    referralNote: "Referral memo from Finance: UGX 1.84bn outstanding in landing, parking and navigation charges.",
-    openedAt: "2026-01-12",
-    lastActivityAt: "2026-09-18",
-    leadEmail: "agnes.nakato@caa.go.ug",
-    supportEmails: ["brian.okello@caa.go.ug", "carol.atim@caa.go.ug"],
-    opposing: [{ name: "Nile Horizon Aviation Ltd", counselName: "M/s Kato & Partners Advocates", counselFirm: "Kato & Partners Advocates" }],
-  },
-  {
-    title: "Advisory: Ground handling concession — competitive process",
-    categoryName: "Procurement",
-    matterTypeName: "Advisory",
-    stageName: "Draft / Pre-Filing",
-    ucaaRole: "ADVISOR",
-    priority: "MEDIUM",
-    referralNote: "Procurement department requests an opinion on structuring the next ground-handling concession tender.",
-    openedAt: "2026-07-02",
-    lastActivityAt: "2026-09-10",
-    leadEmail: "david.ssemwogerere@caa.go.ug",
-  },
-  {
-    title: "Namutebi v. Uganda Civil Aviation Authority",
-    categoryName: "Employment",
-    matterTypeName: "Civil litigation",
-    stageName: "Pleadings",
-    ucaaRole: "DEFENDANT",
-    priority: "MEDIUM",
-    forumName: "Industrial Court",
-    courtCaseNo: "LD 88 of 2026",
-    amountAgainst: BigInt(240_000_000),
-    causeOfActionDate: "2025-11-20",
-    referralNote: "Former ramp supervisor alleges unlawful termination.",
-    openedAt: "2026-02-15",
-    lastActivityAt: "2026-09-05",
-    leadEmail: "carol.atim@caa.go.ug",
-    opposing: [{ name: "Namutebi Sarah", counselName: "Nabwire & Co. Advocates" }],
-  },
-  {
-    title: "Enforcement: Unlicensed ground transport operators, Entebbe apron",
-    categoryName: "Regulatory & Licensing",
-    matterTypeName: "Regulatory enforcement",
-    stageName: "Legal Investigation",
-    ucaaRole: "APPLICANT",
-    priority: "HIGH",
-    referralNote: "Airport security flagged repeated unlicensed vehicle access.",
-    openedAt: "2026-06-01",
-    lastActivityAt: "2026-09-20",
-    leadEmail: "brian.okello@caa.go.ug",
-  },
-  {
-    title: "Uganda Civil Aviation Authority v. Kaggwa Estates Ltd",
-    categoryName: "Land & Property",
-    matterTypeName: "Tribunal proceedings",
-    stageName: "Hearing Stage",
-    ucaaRole: "APPLICANT",
-    priority: "MEDIUM",
-    forumName: "PPDA Appeals Tribunal",
-    courtCaseNo: "PPDA/APP/014/2026",
-    amountClaimed: BigInt(610_000_000),
-    causeOfActionDate: "2025-08-10",
-    openedAt: "2025-10-05",
-    lastActivityAt: "2026-08-28",
-    leadEmail: "david.ssemwogerere@caa.go.ug",
-    opposing: [{ name: "Kaggwa Estates Ltd" }],
-  },
-  {
-    title: "UCAA v. SkyBridge Cargo Handlers (arbitration)",
-    categoryName: "Compensation & Torts",
-    matterTypeName: "Arbitration / ADR",
-    stageName: "Statements of case",
-    ucaaRole: "RESPONDENT",
-    priority: "HIGH",
-    forumName: "CADER (Arbitration)",
-    amountAgainst: BigInt(950_000_000),
-    causeOfActionDate: "2025-12-02",
-    referralNote: "Cargo damage claim following a warehouse incident.",
-    openedAt: "2026-03-20",
-    lastActivityAt: "2026-09-22",
-    leadEmail: "agnes.nakato@caa.go.ug",
-    supportEmails: ["david.ssemwogerere@caa.go.ug"],
-    opposing: [{ name: "SkyBridge Cargo Handlers Ltd", counselName: "Mugisha & Partners" }],
-  },
-  {
-    title: "Recovery: Overdue concession fees — Highland Duty Free",
-    categoryName: "Debt Recovery",
-    matterTypeName: "Debt recovery (pre-suit)",
-    stageName: "Negotiation / payment plan",
-    ucaaRole: "PLAINTIFF",
-    priority: "LOW",
-    amountClaimed: BigInt(84_000_000),
-    causeOfActionDate: "2026-01-15",
-    openedAt: "2026-04-10",
-    lastActivityAt: "2026-08-30",
-    leadEmail: "carol.atim@caa.go.ug",
-    opposing: [{ name: "Highland Duty Free Ltd" }],
-  },
-  {
-    title: "UCAA v. Attorney General & Minister of Works (judicial review)",
-    categoryName: "Judicial Review",
-    matterTypeName: "Civil litigation",
-    stageName: "Filed and Served",
-    ucaaRole: "APPLICANT",
-    priority: "URGENT",
-    forumName: "High Court — Civil Division",
-    courtCaseNo: "MC 21 of 2026",
-    causeOfActionDate: "2026-08-01",
-    referralNote: "Challenging a directive affecting airspace management authority.",
-    openedAt: "2026-08-20",
-    lastActivityAt: "2026-09-24",
-    leadEmail: "david.ssemwogerere@caa.go.ug",
-    supportEmails: ["agnes.nakato@caa.go.ug"],
-  },
-  {
-    title: "Republic v. Byaruhanga (cargo theft, tribunal referral)",
-    categoryName: "Criminal / Prosecution",
-    matterTypeName: "Tribunal proceedings",
-    stageName: "Response",
-    ucaaRole: "APPLICANT",
-    priority: "HIGH",
-    forumName: "Chief Magistrate's Court",
-    courtCaseNo: "CR 310 of 2026",
-    openedAt: "2026-05-18",
-    lastActivityAt: "2026-09-12",
-    leadEmail: "brian.okello@caa.go.ug",
-    opposing: [{ name: "Byaruhanga Moses" }],
-  },
-  {
-    title: "Advisory: Drone operator licensing framework — regional carriers",
-    categoryName: "Regulatory & Licensing",
-    matterTypeName: "Advisory",
-    stageName: "Issued",
-    status: "CLOSED",
-    ucaaRole: "ADVISOR",
-    priority: "LOW",
-    openedAt: "2025-09-01",
-    lastActivityAt: "2025-11-15",
-    closedAt: "2025-11-15",
-    leadEmail: "agnes.nakato@caa.go.ug",
-  },
-  {
-    title: "UCAA v. Meridian Fuel Supplies Ltd (settled)",
-    categoryName: "Contracts & Commercial",
-    matterTypeName: "Civil litigation",
-    stageName: "Closed",
-    status: "CLOSED",
-    ucaaRole: "PLAINTIFF",
-    priority: "MEDIUM",
-    forumName: "High Court — Commercial Division",
-    courtCaseNo: "CS 77 of 2025",
-    amountClaimed: BigInt(320_000_000),
-    openedAt: "2025-03-10",
-    lastActivityAt: "2025-12-01",
-    closedAt: "2025-12-01",
-    leadEmail: "carol.atim@caa.go.ug",
-    opposing: [{ name: "Meridian Fuel Supplies Ltd", counselFirm: "Byamugisha & Co. Advocates" }],
-  },
-  {
-    title: "Kintu v. Uganda Civil Aviation Authority (on hold pending mediation)",
-    categoryName: "Employment",
-    matterTypeName: "Civil litigation",
-    stageName: "Scheduling conference",
-    status: "ON_HOLD",
-    ucaaRole: "DEFENDANT",
-    priority: "MEDIUM",
-    forumName: "Industrial Court",
-    courtCaseNo: "LD 45 of 2026",
-    causeOfActionDate: "2026-01-05",
-    openedAt: "2026-02-28",
-    lastActivityAt: "2026-07-14",
-    leadEmail: "david.ssemwogerere@caa.go.ug",
-    opposing: [{ name: "Kintu Robert" }],
-  },
-  {
-    title: "UCAA v. Greenview Properties (way-leave dispute)",
-    categoryName: "Land & Property",
-    matterTypeName: "Tribunal proceedings",
-    stageName: "Judgment / Ruling",
-    ucaaRole: "APPLICANT",
-    priority: "HIGH",
-    forumName: "Tax Appeals Tribunal",
-    amountClaimed: BigInt(145_000_000),
-    openedAt: "2025-06-12",
-    lastActivityAt: "2026-09-01",
-    leadEmail: "agnes.nakato@caa.go.ug",
-    opposing: [{ name: "Greenview Properties Ltd" }],
-  },
-  {
-    title: "Recovery: Written-off parking charges — Coastal Air Charters",
-    categoryName: "Debt Recovery",
-    matterTypeName: "Debt recovery (pre-suit)",
-    stageName: "Recovered / written off",
-    status: "CLOSED",
-    ucaaRole: "PLAINTIFF",
-    priority: "LOW",
-    amountClaimed: BigInt(12_500_000),
-    openedAt: "2025-08-01",
-    lastActivityAt: "2025-10-20",
-    closedAt: "2025-10-20",
-    leadEmail: "brian.okello@caa.go.ug",
-    opposing: [{ name: "Coastal Air Charters Ltd" }],
-  },
-  {
-    title: "UCAA v. Prime Construction Uganda Ltd (terminal works dispute)",
-    categoryName: "Procurement",
-    matterTypeName: "Civil litigation",
-    stageName: "Submissions",
-    ucaaRole: "DEFENDANT",
-    priority: "URGENT",
-    forumName: "High Court — Commercial Division",
-    courtCaseNo: "CS 205 of 2025",
-    amountAgainst: BigInt(2_100_000_000),
-    causeOfActionDate: "2025-05-14",
-    referralNote: "Contractor claims a variation was wrongly rejected on the terminal expansion works.",
-    openedAt: "2025-07-22",
-    lastActivityAt: "2026-09-25",
-    leadEmail: "carol.atim@caa.go.ug",
-    supportEmails: ["david.ssemwogerere@caa.go.ug"],
-    opposing: [{ name: "Prime Construction Uganda Ltd", counselName: "Ariko & Ariko Advocates" }],
-  },
-  {
     title: "Ground handling services agreement — SkyLink Aviation Services",
     categoryName: "Contracts & Commercial",
     matterTypeName: "Contract",
@@ -603,181 +373,50 @@ const CASE_SEEDS: CaseSeed[] = [
     opposing: [{ name: "Meridian Fuel Supplies Ltd" }],
     contractSigned: false,
   },
+  // Real, publicly reported CAA matters (ULII judgments) — added at the client's request as
+  // relatable live examples rather than invented ones. Both already concluded.
+  {
+    title: "Kiiza Besigye v. Civil Aviation Authority & Anor",
+    categoryName: "Compensation & Torts",
+    matterTypeName: "Civil litigation",
+    stageName: "Closed",
+    status: "CLOSED",
+    ucaaRole: "DEFENDANT",
+    priority: "LOW",
+    forumName: "High Court — Civil Division",
+    courtCaseNo: "CS 732 of 2016",
+    judge: "Hon. Justice Ssekaana Musa",
+    amountAgainst: BigInt(300_000_000),
+    causeOfActionDate: "2016-10-03",
+    referralNote:
+      "Constitutional petition after the plaintiff's arrest by Uganda Aviation Police at Entebbe Airport on return from travel; the Attorney General was joined as co-defendant over the conduct of the police. Judgment (15 Mar 2019): the arrest itself was justified but its manner violated Articles 23(3) and 24; the court found CAA not liable (airport security is the Uganda Police Force's responsibility, CAA's role being limited to reflector jackets/access clearance per ICAO SOPs) — the Attorney General was held liable instead and ordered to pay UGX 10,000,000 plus costs.",
+    openedAt: "2016-11-15",
+    lastActivityAt: "2019-03-15",
+    closedAt: "2019-03-15",
+    leadEmail: "david.ssemwogerere@caa.go.ug",
+    opposing: [{ name: "Kizza Besigye Kifefe", counselFirm: "Rwakafuuzi & Co. Advocates" }],
+  },
+  {
+    title: "Makuza v. Civil Aviation Authority & Anor",
+    categoryName: "Employment",
+    matterTypeName: "Civil litigation",
+    stageName: "Closed",
+    status: "CLOSED",
+    ucaaRole: "RESPONDENT",
+    priority: "LOW",
+    forumName: "High Court — Civil Division",
+    courtCaseNo: "MC 205 of 2017",
+    judge: "Hon. Mr. Justice Stephen Musota",
+    amountAgainst: BigInt(600_000_000),
+    referralNote:
+      "Judicial review application by CAA's former Managing Director challenging the Minister of Works and Transport's termination of his contract of service as illegal and ultra vires; sought declarations plus general and aggravated damages. Ruling (21 Dec 2017): preliminary objections upheld — struck out as disclosing no cause of action against CAA (the termination decision was the Minister's, not CAA's) and as improperly brought as Judicial Review when it was in substance an employment dispute that should have been an ordinary suit.",
+    openedAt: "2017-06-01",
+    lastActivityAt: "2017-12-21",
+    closedAt: "2017-12-21",
+    leadEmail: "carol.atim@caa.go.ug",
+    opposing: [{ name: "Dr. Wenceslaus Rama Makuza", counselName: "Mr. Baku Raphael (holding brief for Mr. Rwaganika)" }],
+  },
 ];
-
-/** Phase 5 demo content for the mockup case (docs/design/case-page.html) — a real summary,
- * timeline and note so the Case Page isn't an empty shell the first time it's opened. */
-async function seedNileHorizonDetail(matterId: string, adminId: string, leadId: string) {
-  const alreadyHasEvents = await db.event.count({ where: { matterId } });
-  if (alreadyHasEvents === 0) await seedNileHorizonPhase5Content(matterId, adminId, leadId);
-
-  const alreadyHasCalendar = await db.calendarEntry.count({ where: { matterId } });
-  if (alreadyHasCalendar === 0) await seedNileHorizonPhase7Content(matterId, adminId, leadId);
-
-  const alreadyHasMessages = await db.matterMessage.count({ where: { matterId } });
-  if (alreadyHasMessages === 0) await seedNileHorizonPhase9Content(matterId, adminId, leadId);
-}
-
-async function seedNileHorizonPhase5Content(matterId: string, adminId: string, leadId: string) {
-  const typeIdByName = new Map((await db.eventType.findMany({ select: { id: true, name: true } })).map((t) => [t.name, t.id]));
-  const typeId = (name: string) => typeIdByName.get(name)!;
-
-  await db.summaryVersion.create({
-    data: {
-      matterId,
-      authorId: leadId,
-      body: [
-        "What it's about. UCAA is recovering UGX 1.84 billion in unpaid landing, parking and navigation charges from Nile Horizon for flights between March 2024 and June 2025.",
-        "Where it stands. Pleadings are closed. The defendant admits the flights but disputes the parking rate applied after the July 2024 tariff revision. Court-annexed mediation has had one session, and the defendant proposed a 24-month payment plan.",
-        "What's next. Second mediation session on Friday 2 October. We need the Finance department's reconciliation of the disputed parking invoices before then.",
-      ].join("\n\n"),
-    },
-  });
-
-  const events: { title: string; type: string; date: string; description?: string }[] = [
-    { title: "Referral memo from Finance: UGX 1.84bn outstanding", type: "Correspondence", date: "2026-01-12" },
-    { title: "Plaint filed on ECCMIS", type: "Filing", date: "2026-02-20" },
-    { title: "Summons served on defendant", type: "Filing", date: "2026-03-04" },
-    { title: "Written statement of defence received", type: "Filing", date: "2026-03-18" },
-    { title: "Reply filed", type: "Filing", date: "2026-04-01" },
-    { title: "Ruling on security for costs", type: "Ruling", date: "2026-08-12", description: "Application dismissed with costs to UCAA." },
-    {
-      title: "First mediation session",
-      type: "Mediation session",
-      date: "2026-09-18",
-      description: "Defendant proposed a 24-month plan and asked for waiver of interest. Mediator adjourned to 2 Oct for UCAA to respond.",
-    },
-  ];
-  for (const e of events) {
-    await db.event.create({
-      data: { matterId, typeId: typeId(e.type), title: e.title, description: e.description ?? null, date: new Date(`${e.date}T09:00:00Z`), createdById: leadId },
-    });
-  }
-
-  await db.note.create({
-    data: {
-      matterId,
-      authorId: adminId,
-      isPrivate: false,
-      body: "Head of Legal approved settling for no less than 85% of the principal, with interest waived only if paid within 12 months.",
-    },
-  });
-}
-
-// Phase 7 demo content — matches the mockup's "Deadlines" card and "Next date" fact exactly.
-async function seedNileHorizonPhase7Content(matterId: string, adminId: string, leadId: string) {
-  const carol = await db.user.findUnique({ where: { email: "carol.atim@caa.go.ug" } });
-  await db.calendarEntry.create({
-    data: {
-      matterId,
-      kind: "MEDIATION",
-      title: "Second mediation session",
-      startsAt: new Date("2026-10-02T10:00:00Z"),
-      purpose: "Respond to the defendant's 24-month payment-plan proposal",
-      assigneeId: leadId,
-    },
-  });
-  if (carol) {
-    await db.task.create({ data: { matterId, title: "Finance reconciliation", assigneeId: carol.id, dueAt: new Date("2026-10-02T09:00:00Z"), createdById: adminId } });
-  }
-  await db.task.create({ data: { matterId, title: "Witness statements", assigneeId: leadId, dueAt: new Date("2026-10-24T09:00:00Z"), createdById: adminId } });
-}
-
-// Phase 9 demo content — discussion messages on the mockup case, including a pinned message,
-// @mentions, and attachments (both direct upload and linked document).
-async function seedNileHorizonPhase9Content(matterId: string, adminId: string, leadId: string) {
-  const [lead, brian, carol] = await Promise.all([
-    db.user.findUnique({ where: { id: leadId } }),
-    db.user.findUnique({ where: { email: "brian.okello@caa.go.ug" } }),
-    db.user.findUnique({ where: { email: "carol.atim@caa.go.ug" } }),
-  ]);
-
-  const brianId = brian?.id ?? adminId;
-  const carolId = carol?.id ?? adminId;
-
-  // 1. Initial message from Brian with direct attachment (preliminary reconciliation note)
-  const directBody = Buffer.from(
-    "Finance Preliminary Reconciliation - Nile Horizon Parking Charges\n\n1. Period: July 2024 - Dec 2024\n2. Billed: UGX 420,000,000\n3. Disputed Delta: UGX 65,000,000\nStatus: Pending confirmation from airport ops.",
-    "utf8",
-  );
-  const msg1 = await db.matterMessage.create({
-    data: {
-      matterId,
-      authorId: brianId,
-      body: "I reviewed the parking invoices with the Finance team. There is a dispute regarding the tariff rate applied after the July 2024 revision. I've attached our preliminary reconciliation note.",
-      createdAt: new Date("2026-09-26T10:15:00Z"),
-    },
-  });
-
-  if (process.env.DOCUMENT_MASTER_KEY) {
-    const enc = seedEncryptFile(directBody);
-    const storageKey = `chat/${matterId}/${msg1.id}/prelim_reconciliation.txt`;
-    await seedPutObject(storageKey, enc.ciphertext);
-    await db.matterMessageAttachment.create({
-      data: {
-        messageId: msg1.id,
-        name: "prelim_reconciliation.txt",
-        size: directBody.length,
-        mimeType: "text/plain",
-        storageKey,
-        sha256: crypto.createHash("sha256").update(directBody).digest("hex"),
-        encryptedDataKey: enc.encryptedDataKey,
-        iv: enc.iv,
-        authTag: enc.authTag,
-        scanStatus: "CLEAN",
-      },
-    });
-  }
-
-  // 2. Message from Carol with @mention to lead lawyer and linked case document if available
-  const existingDoc = await db.document.findFirst({
-    where: { matterId, deletedAt: null },
-    include: { currentVersion: true },
-  });
-
-  const leadName = lead?.name ?? "Agnes Nakato";
-  const msg2 = await db.matterMessage.create({
-    data: {
-      matterId,
-      authorId: carolId,
-      body: `@[${leadName}](user:${leadId}) please note the mediator requested our position in writing before Friday. I have linked the relevant case file for quick reference.`,
-      createdAt: new Date("2026-09-27T14:30:00Z"),
-    },
-  });
-
-  await db.matterMessageMention.create({
-    data: {
-      messageId: msg2.id,
-      userId: leadId,
-    },
-  });
-
-  if (existingDoc && existingDoc.currentVersion) {
-    await db.matterMessageAttachment.create({
-      data: {
-        messageId: msg2.id,
-        name: existingDoc.name,
-        size: existingDoc.currentVersion.size,
-        mimeType: existingDoc.currentVersion.mimeType,
-        documentId: existingDoc.id,
-      },
-    });
-  }
-
-  // 3. Pinned message from Lead Lawyer (Agnes) establishing case settlement strategy
-  const pinnedDate = new Date("2026-09-28T09:00:00Z");
-  await db.matterMessage.create({
-    data: {
-      matterId,
-      authorId: leadId,
-      body: "Key strategy agreed with Head of Legal: We can accept a 12-month payment schedule with 85% principal minimum, but will NOT waive interest if extended beyond 12 months. Please keep all submissions aligned with this threshold.",
-      isPinned: true,
-      pinnedAt: pinnedDate,
-      pinnedById: leadId,
-      createdAt: pinnedDate,
-    },
-  });
-}
 
 /** Intake fields (9-step New case flow) derived from what each seed case already says, so sample cases look as if they came through the intake. */
 function intakeFields(c: CaseSeed, leadId: string, matterTypeName: string) {
@@ -826,7 +465,6 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
       // demo content (e.g. Phase 5's timeline/summary/note) may still need to be added.
       // Backfill intake fields on cases seeded before the 9-step intake existed (only where still empty).
       await db.matter.updateMany({ where: { id: existing.id, reportedAt: null }, data: intakeFields(c, leadId, c.matterTypeName) });
-      if (c.title.includes("Nile Horizon")) await seedNileHorizonDetail(existing.id, adminId, leadId);
       continue;
     }
 
@@ -865,12 +503,6 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
     }
     for (const p of c.opposing ?? []) {
       await db.party.create({ data: { matterId: matter.id, name: p.name, kind: PartyKind.OPPOSING, counselName: p.counselName ?? null, counselFirm: p.counselFirm ?? null } });
-    }
-
-    // Phase 5 demo content — real events/summary/note on the mockup case so the Case Page
-    // has something to show, not an empty shell.
-    if (c.title.includes("Nile Horizon")) {
-      await seedNileHorizonDetail(matter.id, adminId, leadId);
     }
   }
 
