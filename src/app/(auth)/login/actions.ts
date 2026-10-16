@@ -34,7 +34,12 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   } catch (err) {
     if (isPrismaRequestError(err)) {
       console.error("loginAction: database unavailable", err);
-      return { error: "Sign-in is temporarily unavailable. Make sure Postgres is running (`docker compose up -d`), then try again." };
+      return {
+        error:
+          process.env.NODE_ENV === "production"
+            ? "Sign-in is temporarily unavailable. Please wait a moment and try again."
+            : "Sign-in is temporarily unavailable. Make sure Postgres is running (`docker compose up -d`), then try again.",
+      };
     }
     throw err;
   }

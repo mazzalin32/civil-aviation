@@ -377,6 +377,7 @@ type CaseSeed = {
   leadEmail: string;
   supportEmails?: string[];
   opposing?: { name: string; counselName?: string; counselFirm?: string }[];
+  sourceUrl?: string; // published judgment/ruling (e.g. ULII) for lawyers to read in full
   contractDetail?: {
     originatingDepartment?: string;
     dateOfReceipt?: string;
@@ -474,6 +475,7 @@ const CASE_SEEDS: CaseSeed[] = [
     closedAt: "2019-03-15",
     leadEmail: "david.ssemwogerere@caa.go.ug",
     opposing: [{ name: "Kizza Besigye Kifefe", counselFirm: "Rwakafuuzi & Co. Advocates" }],
+    sourceUrl: "https://ulii.org/en/akn/ug/judgment/ughccd/2019/39/eng@2019-03-15",
   },
   {
     title: "Makuza v. Civil Aviation Authority & Anor",
@@ -494,6 +496,47 @@ const CASE_SEEDS: CaseSeed[] = [
     closedAt: "2017-12-21",
     leadEmail: "carol.atim@caa.go.ug",
     opposing: [{ name: "Dr. Wenceslaus Rama Makuza", counselName: "Mr. Baku Raphael (holding brief for Mr. Rwaganika)" }],
+    sourceUrl: "https://ulii.org/en/akn/ug/judgment/ughccd/2017/194/eng@2017-12-21",
+  },
+  {
+    title: "Okalany v. Civil Aviation Authority & Anor",
+    categoryName: "Employment",
+    matterTypeName: "Civil litigation",
+    stageName: "Closed",
+    status: "CLOSED",
+    ucaaRole: "RESPONDENT",
+    priority: "LOW",
+    forumName: "High Court — Civil Division",
+    courtCaseNo: "MC 111 of 2015",
+    judge: "Hon. Mr. Justice Stephen Musota",
+    amountAgainst: BigInt(1_288_324_583),
+    causeOfActionDate: "2015-06-16",
+    referralNote:
+      "John Okalany, former General Manager of Entebbe International Airport, sought judicial review after the Minister of Works and Transport directed his re-deployment while he was on sick leave; the Minister later withdrew the directive and the parties agreed Okalany would take early retirement, but disputed the retirement package. Ruling (14 Sep 2016): treated as a compromise of the suit rather than judgment on admission — the court entered a decree for the agreed, uncontested retirement benefits (gratuity, salary, long service award, air tickets, 13th cheque, certificate of service, repatriation), leaving three disputed items (rental refund, salary arrears, leave) to be claimed separately.",
+    openedAt: "2015-08-01",
+    lastActivityAt: "2016-09-14",
+    closedAt: "2016-09-14",
+    leadEmail: "carol.atim@caa.go.ug",
+    opposing: [{ name: "John Okalany", counselName: "Prof. Barya & Mr. Deo Bitaguma" }],
+    sourceUrl: "https://ulii.org/en/akn/ug/judgment/ughccd/2016/77/eng@2016-09-14",
+  },
+  {
+    title: "Nsamba Michael v. Civil Aviation Authority & Anor",
+    categoryName: "Land & Property",
+    matterTypeName: "Civil litigation",
+    stageName: "Scheduling conference",
+    ucaaRole: "DEFENDANT",
+    priority: "MEDIUM",
+    forumName: "High Court — Land Division",
+    courtCaseNo: "HCCS 471 of 2019",
+    judge: "Hon. Justice Naluzze Aisha Batala",
+    referralNote:
+      "Land suit (HCCS 471 of 2019) brought against CAA and the Uganda Land Commission; dismissed for want of prosecution on 18 Apr 2023 after the plaintiff missed a hearing. Ruling on Misc. Application 791 of 2023 (10 Nov 2023): the dismissal was reviewed and set aside — the trial judge had dismissed under the wrong procedural rule and the plaintiff had in fact been represented by counsel — the suit is reinstated for hearing inter partes on its merits, each party bearing its own costs.",
+    openedAt: "2019-05-01",
+    lastActivityAt: "2023-11-10",
+    leadEmail: "agnes.nakato@caa.go.ug",
+    opposing: [{ name: "Nsamba Michael" }],
+    sourceUrl: "https://ulii.org/en/akn/ug/judgment/ughcld/2023/363/eng@2023-11-10",
   },
 ];
 
@@ -588,6 +631,9 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
         const data = await resolveContractDetail(c.contractDetail);
         await db.contractDetail.upsert({ where: { matterId: existing.id }, update: data, create: { matterId: existing.id, ...data } });
       }
+      if (c.sourceUrl && existing.sourceUrl !== c.sourceUrl) {
+        await db.matter.update({ where: { id: existing.id }, data: { sourceUrl: c.sourceUrl } });
+      }
       continue;
     }
 
@@ -609,6 +655,7 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
         amountAgainst: c.amountAgainst ?? null,
         causeOfActionDate: c.causeOfActionDate ? new Date(c.causeOfActionDate) : null,
         referralNote: c.referralNote ?? null,
+        sourceUrl: c.sourceUrl ?? null,
         ...intakeFields(c, leadId, c.matterTypeName),
         createdById: adminId,
         createdAt,

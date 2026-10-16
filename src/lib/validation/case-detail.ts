@@ -55,6 +55,11 @@ export const holdSchema = z.object({
   reason: optionalText(300),
 });
 
+export const updateSourceUrlSchema = z.object({
+  matterId: z.string().min(1),
+  sourceUrl: z.string().trim().url("Enter a valid URL").max(500).optional().or(z.literal("")),
+});
+
 const optionalDate = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date").optional().or(z.literal(""));
 
 /** Contracts register (client feedback 2026-10-15) — the five parallel tracking statuses

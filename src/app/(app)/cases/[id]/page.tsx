@@ -279,6 +279,7 @@ export default async function CasePage({
             opposingCounsel: matter.parties.find((p) => p.kind === "OPPOSING")?.counselFirm ?? matter.parties.find((p) => p.kind === "OPPOSING")?.counselName ?? null,
             categoryName: matter.category.name,
             lastActivityAt: matter.lastActivityAt.toISOString(),
+            sourceUrl: matter.sourceUrl,
           }}
           team={team}
           canMutate={canEdit}

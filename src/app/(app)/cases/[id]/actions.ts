@@ -16,6 +16,7 @@ import {
   reassignSchema,
   holdSchema,
   updateContractDetailSchema,
+  updateSourceUrlSchema,
 } from "@/lib/validation/case-detail";
 
 type ActionResult = { error?: string } | void;
@@ -113,6 +114,20 @@ export async function updateSummary(raw: unknown): Promise<ActionResult> {
     const version = await tx.summaryVersion.create({ data: { matterId, body, authorId: user.id } });
     await tx.matter.update({ where: { id: matterId }, data: { lastActivityAt: new Date() } });
     await writeAudit({ userId: user.id, action: "matter.summary.update", entity: "SummaryVersion", entityId: version.id }, tx);
+  });
+
+  reload(matterId);
+}
+
+export async function updateSourceUrl(raw: unknown): Promise<ActionResult> {
+  const parsed = updateSourceUrlSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
+  const { matterId, sourceUrl } = parsed.data;
+  const user = await requireMatterEdit(matterId);
+
+  await db.$transaction(async (tx) => {
+    await tx.matter.update({ where: { id: matterId }, data: { sourceUrl: sourceUrl || null } });
+    await writeAudit({ userId: user.id, action: "matter.sourceUrl.update", entity: "Matter", entityId: matterId, after: { sourceUrl: sourceUrl || null } }, tx);
   });
 
   reload(matterId);

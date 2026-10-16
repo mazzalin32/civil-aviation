@@ -2,14 +2,16 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { CalendarClock, FileText, ListChecks, MessageSquare, Pencil, Pin, UserPlus } from "lucide-react";
+import { CalendarClock, ExternalLink, FileText, ListChecks, MessageSquare, Pencil, Pin, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Field } from "@/components/ui/field";
 import { Avatar } from "@/components/app/avatar";
 import { SlideOver } from "@/components/ui/slide-over";
 import { formatDate, formatUGX } from "@/lib/time";
 import { UCAA_POSITIONS } from "@/lib/validation/matter";
-import { updateSummary } from "./actions";
+import { updateSummary, updateSourceUrl } from "./actions";
 import { ReassignDialog } from "./reassign-dialog";
 import { IntakeDetails, StatusBanner, type Intake, type StatusInfo } from "./overview-details";
 import { withToast } from "@/components/ui/toast";
@@ -21,6 +23,7 @@ export type KeyFacts = {
   opposingCounsel: string | null;
   categoryName: string;
   lastActivityAt: string;
+  sourceUrl: string | null;
 };
 
 export type Snapshot = {
@@ -81,6 +84,7 @@ export function CatchUpPanel({
 }) {
   const [editing, setEditing] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
+  const [sourceUrlOpen, setSourceUrlOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
   const [now] = useState(() => Date.now());
@@ -165,7 +169,14 @@ export function CatchUpPanel({
 
       <div className="grid content-start gap-4">
         <div className="rounded-card border border-border bg-surface p-5 shadow-card">
-          <h2 className="m-0 mb-3 text-base font-semibold">Key facts</h2>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="m-0 text-base font-semibold">Key facts</h2>
+            {canMutate && (
+              <Button type="button" size="sm" className="ml-auto" onClick={() => setSourceUrlOpen(true)}>
+                <Pencil className="size-3.5" /> Source link
+              </Button>
+            )}
+          </div>
           <dl className="m-0 grid gap-2.5 text-[13px]">
             <div className="flex justify-between gap-3">
               <dt className="text-text-muted">Amount claimed</dt>
@@ -192,7 +203,19 @@ export function CatchUpPanel({
               <dd className="m-0 text-right font-medium">{formatDate(new Date(facts.lastActivityAt))}</dd>
             </div>
           </dl>
+          {facts.sourceUrl && (
+            <a
+              href={facts.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex items-center gap-1.5 text-[13px] font-medium text-primary hover:underline"
+            >
+              <ExternalLink className="size-3.5" /> View full judgment / source document
+            </a>
+          )}
         </div>
+
+        <SourceUrlEditor matterId={matterId} currentUrl={facts.sourceUrl} open={sourceUrlOpen} onClose={() => setSourceUrlOpen(false)} />
 
         <div className="rounded-card border border-border bg-surface p-5 shadow-card">
           <h2 className="m-0 mb-3 text-base font-semibold">Deadlines</h2>
@@ -269,5 +292,38 @@ export function CatchUpPanel({
         </form>
       </SlideOver>
     </div>
+  );
+}
+
+function SourceUrlEditor({ matterId, currentUrl, open, onClose }: { matterId: string; currentUrl: string | null; open: boolean; onClose: () => void }) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string>();
+
+  function save(formData: FormData) {
+    setError(undefined);
+    startTransition(async () => {
+      const result = await withToast(updateSourceUrl({ matterId, sourceUrl: formData.get("sourceUrl") }), "Source link saved");
+      if (result?.error) return setError(result.error);
+      onClose();
+    });
+  }
+
+  return (
+    <SlideOver open={open} onClose={onClose} title="Source document link">
+      <form action={save} className="grid gap-4">
+        {error && <p className="m-0 text-xs text-danger">{error}</p>}
+        <Field label="Link to the published judgment / ruling" htmlFor="su-url" hint="e.g. the ULII page for this case. Leave blank to remove.">
+          <Input id="su-url" name="sourceUrl" type="url" defaultValue={currentUrl ?? ""} placeholder="https://ulii.org/…" autoFocus />
+        </Field>
+        <div className="flex gap-2 border-t border-border pt-4">
+          <Button type="submit" variant="primary" disabled={pending}>
+            {pending ? "Saving…" : "Save"}
+          </Button>
+          <Button type="button" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </SlideOver>
   );
 }

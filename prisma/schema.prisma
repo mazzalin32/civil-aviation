@@ -424,6 +424,7 @@ model Matter {
   courtCaseNo            String?
   eccmisNo               String?
   eccmisUrl              String?
+  sourceUrl              String? // link to the published judgment/ruling (e.g. ULII) for lawyers to read in full
   judge                  String?
   amountClaimed          BigInt? // integer UGX (CLAUDE.md) — BigInt, not Int, so a large national claim can't overflow
   amountAgainst          BigInt?
