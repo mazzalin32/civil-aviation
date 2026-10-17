@@ -110,3 +110,32 @@ export async function requireTaskAssign(matterId: string) {
   if (!allowed) redirect("/forbidden");
   return user;
 }
+
+async function contractAssignmentRole(userId: string, contractId: string) {
+  const assignment = await db.contractAssignment.findFirst({ where: { contractId, userId, removedAt: null } });
+  return assignment?.role ?? null;
+}
+
+/** Contracts are org-wide readable, same as Matters. */
+export async function requireContractAccess(_contractId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  assertOnboarded(user);
+  return user;
+}
+
+/** Admin, or the contract's Lead/Support lawyer — gates edits to contract data and team. */
+export async function canEditContract(userId: string, role: Role, contractId: string) {
+  if (role === "ADMIN") return true;
+  const assignmentRole = await contractAssignmentRole(userId, contractId);
+  return assignmentRole === "LEAD" || assignmentRole === "SUPPORT";
+}
+
+export async function requireContractEdit(contractId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  assertOnboarded(user);
+  const allowed = await canEditContract(user.id, user.role, contractId);
+  if (!allowed) redirect("/forbidden");
+  return user;
+}

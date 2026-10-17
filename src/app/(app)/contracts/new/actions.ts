@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { PartyKind } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
@@ -9,9 +8,10 @@ import { generateReference } from "@/lib/reference";
 import { notify } from "@/lib/notify";
 import { createContractSchema } from "@/lib/validation/contract";
 
-type CreateResult = { error: string } | { matterId: string; reference: string };
+type CreateResult = { error: string } | { contractId: string; reference: string };
 
 const dateOnly = (v?: string) => (v ? new Date(`${v}T00:00:00.000Z`) : null);
+const CONTRACT_REFERENCE_PREFIX = "CTR";
 
 export async function getContractIntakeOptions() {
   await requireRole("ADMIN");
@@ -19,11 +19,11 @@ export async function getContractIntakeOptions() {
     db.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.user.findMany({
       where: { role: "LAWYER", isActive: true },
-      select: { id: true, name: true, _count: { select: { matterAssignments: { where: { removedAt: null, matter: { status: { in: ["OPEN", "ON_HOLD"] } } } } } } },
+      select: { id: true, name: true, _count: { select: { contractAssignments: { where: { removedAt: null, contract: { deletedAt: null } } } } } },
       orderBy: { name: "asc" },
     }),
   ]);
-  return { categories, lawyers: lawyers.map((l) => ({ id: l.id, name: l.name, workload: l._count.matterAssignments })) };
+  return { categories, lawyers: lawyers.map((l) => ({ id: l.id, name: l.name, workload: l._count.contractAssignments })) };
 }
 
 export async function createContract(raw: unknown): Promise<CreateResult> {
@@ -32,61 +32,48 @@ export async function createContract(raw: unknown): Promise<CreateResult> {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields and try again." };
   const data = parsed.data;
 
-  const matterType = await db.matterType.findUnique({ where: { name: "Contract" }, include: { stages: { where: { isActive: true }, orderBy: { order: "asc" } } } });
-  if (!matterType?.referencePrefix) return { error: "The Contract matter type isn't configured (Settings → Matter types)." };
-  const initialStage = matterType.stages[0];
-  if (!initialStage) return { error: "The Contract matter type has no lifecycle stages configured." };
+  const initialStage = await db.contractStage.findFirst({ where: { isActive: true }, orderBy: { order: "asc" } });
+  if (!initialStage) return { error: "No contract lifecycle stages are configured (Settings → Contract stages)." };
 
   const lead = await db.user.findUnique({ where: { id: data.leadUserId }, select: { isActive: true, role: true } });
   if (!lead?.isActive || lead.role !== "LAWYER") return { error: "Choose an active lawyer as the responsible legal officer." };
 
-  const matter = await db.$transaction(async (tx) => {
-    const reference = await generateReference(matterType.referencePrefix!, tx);
+  const contract = await db.$transaction(async (tx) => {
+    const reference = await generateReference(CONTRACT_REFERENCE_PREFIX, tx);
 
-    const created = await tx.matter.create({
+    const created = await tx.contract.create({
       data: {
         reference,
         title: data.title,
         categoryId: data.categoryId,
-        matterTypeId: matterType.id,
-        ucaaRole: "OTHER",
-        currentStageId: initialStage.id,
-        reportedAt: new Date(),
-        representationStatus: "In-house counsel",
-        createdById: admin.id,
-      },
-    });
-
-    await tx.matterStage.create({ data: { matterId: created.id, stageTemplateId: initialStage.id, movedById: admin.id, note: "Contract opened" } });
-    await tx.matterAssignment.create({ data: { matterId: created.id, userId: data.leadUserId, role: "LEAD", assignedById: admin.id } });
-    await tx.party.create({ data: { matterId: created.id, name: data.counterpartyName, kind: PartyKind.OTHER, roleInMatter: "Counterparty" } });
-    await tx.contractDetail.create({
-      data: {
-        matterId: created.id,
+        counterpartyName: data.counterpartyName,
         originatingDepartment: data.originatingDepartment || null,
         dateOfReceipt: dateOnly(data.dateOfReceipt),
         commencementDate: dateOnly(data.commencementDate),
         expiryDate: dateOnly(data.expiryDate),
+        currentStageId: initialStage.id,
+        createdById: admin.id,
       },
     });
 
-    await writeAudit({ userId: admin.id, action: "matter.create", entity: "Matter", entityId: created.id, after: { reference: created.reference, title: created.title } }, tx);
+    await tx.contractAssignment.create({ data: { contractId: created.id, userId: data.leadUserId, role: "LEAD", assignedById: admin.id } });
+
+    await writeAudit({ userId: admin.id, action: "contract.create", entity: "Contract", entityId: created.id, after: { reference: created.reference, title: created.title } }, tx);
 
     return created;
   });
 
   revalidatePath("/contracts");
-  revalidatePath("/cases");
 
   await notify({
     userId: data.leadUserId,
     type: "CASE_ASSIGNED",
-    matterId: matter.id,
-    payload: { reference: matter.reference, title: data.title, role: "Lead Counsel" },
+    contractId: contract.id,
+    payload: { reference: contract.reference, title: data.title, role: "Lead Counsel" },
     subject: `You've been assigned ${data.title}`,
-    message: `You've been assigned "${data.title}" (${matter.reference}) as Lead Counsel.`,
-    url: `/cases/${matter.id}`,
+    message: `You've been assigned "${data.title}" (${contract.reference}) as Lead Counsel.`,
+    url: `/contracts/${contract.id}`,
   });
 
-  return { matterId: matter.id, reference: matter.reference };
+  return { contractId: contract.id, reference: contract.reference };
 }

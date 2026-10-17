@@ -31,35 +31,37 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const filters = parseContractFilters(Object.fromEntries(url.searchParams));
 
-  const contracts = await db.matter.findMany({
+  const contracts = await db.contract.findMany({
     where: buildContractWhere(filters),
     orderBy: { lastActivityAt: "desc" },
     include: {
       category: true,
       currentStage: true,
       assignments: { where: { removedAt: null, role: "LEAD" }, include: { user: { select: { name: true } } } },
-      parties: { where: { roleInMatter: "Counterparty" }, take: 1 },
-      contractDetail: { include: { legalReviewStatus: true, internalApprovalStatus: true, agVettingStatus: true, amendmentsStatus: true } },
+      legalReviewStatus: true,
+      internalApprovalStatus: true,
+      agVettingStatus: true,
+      amendmentsStatus: true,
     },
   });
 
-  await writeAudit({ userId: me.id, action: "contract.export", entity: "Matter", after: { format: "xlsx", count: contracts.length } });
+  await writeAudit({ userId: me.id, action: "contract.export", entity: "Contract", after: { format: "xlsx", count: contracts.length } });
 
   const rows = contracts.map((c) => ({
     reference: c.reference,
     title: c.title,
-    counterparty: c.parties[0]?.name ?? "",
+    counterparty: c.counterpartyName,
     type: c.category.name,
-    department: c.contractDetail?.originatingDepartment ?? "",
-    received: c.contractDetail?.dateOfReceipt ? formatDate(c.contractDetail.dateOfReceipt) : "",
-    legalReview: c.contractDetail?.legalReviewStatus?.label ?? "",
-    internalApproval: c.contractDetail?.internalApprovalStatus?.label ?? "",
-    agVetting: c.contractDetail?.agVettingStatus?.label ?? "",
-    amendments: c.contractDetail?.amendmentsStatus?.label ?? "",
-    caaExecution: c.contractDetail?.caaExecutionStatus === "SIGNED" ? "Signed" : "Pending",
-    counterpartyExecution: c.contractDetail?.counterpartyExecutionStatus === "SIGNED" ? "Signed" : "Pending",
+    department: c.originatingDepartment ?? "",
+    received: c.dateOfReceipt ? formatDate(c.dateOfReceipt) : "",
+    legalReview: c.legalReviewStatus?.label ?? "",
+    internalApproval: c.internalApprovalStatus?.label ?? "",
+    agVetting: c.agVettingStatus?.label ?? "",
+    amendments: c.amendmentsStatus?.label ?? "",
+    caaExecution: c.caaExecutionStatus === "SIGNED" ? "Signed" : "Pending",
+    counterpartyExecution: c.counterpartyExecutionStatus === "SIGNED" ? "Signed" : "Pending",
     stage: c.currentStage?.name ?? "",
-    expiry: c.contractDetail?.expiryDate ? formatDate(c.contractDetail.expiryDate) : "",
+    expiry: c.expiryDate ? formatDate(c.expiryDate) : "",
     lead: c.assignments[0]?.user.name ?? "",
   }));
 

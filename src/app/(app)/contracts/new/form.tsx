@@ -25,7 +25,7 @@ export function NewContractForm({
     startTransition(async () => {
       const result = await withToast(createContract(Object.fromEntries(formData)), "Contract registered");
       if ("error" in result) return setError(result.error);
-      router.push(`/cases/${result.matterId}`);
+      router.push(`/contracts/${result.contractId}`);
     });
   }
 

@@ -24,20 +24,20 @@ export function parseContractFilters(sp: Record<string, string | string[] | unde
   };
 }
 
-export function buildContractWhere(f: ContractFilters): Prisma.MatterWhereInput {
-  const where: Prisma.MatterWhereInput = { matterType: { name: "Contract" }, deletedAt: null };
+export function buildContractWhere(f: ContractFilters): Prisma.ContractWhereInput {
+  const where: Prisma.ContractWhereInput = { deletedAt: null };
 
   if (f.categoryId) where.categoryId = f.categoryId;
   if (f.stage) where.currentStage = { name: f.stage };
-  if (f.department) where.contractDetail = { ...(where.contractDetail as object), originatingDepartment: f.department };
-  if (f.agVettingStatusId) where.contractDetail = { ...(where.contractDetail as object), agVettingStatusId: f.agVettingStatusId };
-  if (f.internalApprovalStatusId) where.contractDetail = { ...(where.contractDetail as object), internalApprovalStatusId: f.internalApprovalStatusId };
+  if (f.department) where.originatingDepartment = f.department;
+  if (f.agVettingStatusId) where.agVettingStatusId = f.agVettingStatusId;
+  if (f.internalApprovalStatusId) where.internalApprovalStatusId = f.internalApprovalStatusId;
 
   if (f.q) {
     where.OR = [
       { title: { contains: f.q, mode: "insensitive" } },
       { reference: { contains: f.q, mode: "insensitive" } },
-      { parties: { some: { name: { contains: f.q, mode: "insensitive" } } } },
+      { counterpartyName: { contains: f.q, mode: "insensitive" } },
     ];
   }
 

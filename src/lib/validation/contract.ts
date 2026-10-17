@@ -16,3 +16,36 @@ export const createContractSchema = z.object({
   expiryDate: optionalDate,
 });
 export type CreateContractInput = z.infer<typeof createContractSchema>;
+
+/** The five parallel tracking statuses, execution and key dates — edited from the contract's
+ * own detail page, not the litigation wizard (Contracts are fully independent of Matter). */
+export const updateContractSchema = z.object({
+  contractId: z.string().min(1),
+  originatingDepartment: optionalText(120),
+  dateOfReceipt: optionalDate,
+  dateSubmittedForReview: optionalDate,
+  receiptStatusId: optionalText(40),
+  legalReviewStatusId: optionalText(40),
+  internalApprovalStatusId: optionalText(40),
+  agVettingStatusId: optionalText(40),
+  amendmentsStatusId: optionalText(40),
+  caaExecutionStatus: z.enum(["PENDING", "SIGNED"]).default("PENDING"),
+  counterpartyExecutionStatus: z.enum(["PENDING", "SIGNED"]).default("PENDING"),
+  dateOfSignature: optionalDate,
+  dateOfFullExecution: optionalDate,
+  commencementDate: optionalDate,
+  expiryDate: optionalDate,
+  outstandingAction: optionalText(500),
+  sourceUrl: z.string().trim().url("Enter a valid URL").max(500).optional().or(z.literal("")),
+});
+
+export const moveContractStageSchema = z.object({
+  contractId: z.string().min(1),
+  stageId: z.string().min(1, "Choose a stage"),
+});
+
+export const reassignContractSchema = z.object({
+  contractId: z.string().min(1),
+  leadUserId: z.string().min(1, "Choose a lead lawyer"),
+  supportUserIds: z.array(z.string()).default([]),
+});

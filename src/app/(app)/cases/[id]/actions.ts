@@ -15,7 +15,6 @@ import {
   partyFormSchema,
   reassignSchema,
   holdSchema,
-  updateContractDetailSchema,
   updateSourceUrlSchema,
 } from "@/lib/validation/case-detail";
 
@@ -273,44 +272,6 @@ export async function putOnHold(raw: unknown): Promise<ActionResult> {
   await db.$transaction(async (tx) => {
     await tx.matter.update({ where: { id: matterId }, data: { status: "ON_HOLD", lastActivityAt: new Date() } });
     await writeAudit({ userId: user.id, action: "matter.hold", entity: "Matter", entityId: matterId, after: { reason: reason || null } }, tx);
-  });
-
-  reload(matterId);
-}
-
-const dateOnly = (v?: string) => (v ? new Date(`${v}T00:00:00.000Z`) : null);
-
-export async function updateContractDetail(raw: unknown): Promise<ActionResult> {
-  const parsed = updateContractDetailSchema.safeParse(raw);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
-  const { matterId, ...fields } = parsed.data;
-  const user = await requireMatterEdit(matterId);
-
-  const matter = await db.matter.findUniqueOrThrow({ where: { id: matterId }, include: { matterType: true } });
-  if (matter.matterType.name !== "Contract") return { error: "This matter isn't a Contract." };
-
-  const data = {
-    originatingDepartment: fields.originatingDepartment || null,
-    dateOfReceipt: dateOnly(fields.dateOfReceipt),
-    dateSubmittedForReview: dateOnly(fields.dateSubmittedForReview),
-    receiptStatusId: fields.receiptStatusId || null,
-    legalReviewStatusId: fields.legalReviewStatusId || null,
-    internalApprovalStatusId: fields.internalApprovalStatusId || null,
-    agVettingStatusId: fields.agVettingStatusId || null,
-    amendmentsStatusId: fields.amendmentsStatusId || null,
-    caaExecutionStatus: fields.caaExecutionStatus,
-    counterpartyExecutionStatus: fields.counterpartyExecutionStatus,
-    dateOfSignature: dateOnly(fields.dateOfSignature),
-    dateOfFullExecution: dateOnly(fields.dateOfFullExecution),
-    commencementDate: dateOnly(fields.commencementDate),
-    expiryDate: dateOnly(fields.expiryDate),
-    outstandingAction: fields.outstandingAction || null,
-  };
-
-  await db.$transaction(async (tx) => {
-    await tx.contractDetail.upsert({ where: { matterId }, update: data, create: { matterId, ...data } });
-    await tx.matter.update({ where: { id: matterId }, data: { lastActivityAt: new Date() } });
-    await writeAudit({ userId: user.id, action: "matter.contract.update", entity: "Matter", entityId: matterId }, tx);
   });
 
   reload(matterId);

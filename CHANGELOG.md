@@ -1,5 +1,24 @@
 # Changelog
 
+## Contracts made fully independent of Legal Matters (2026-10-17)
+
+A contract was accidentally deleted via the Legal Matters list's "Delete" action — a direct consequence of Contracts being built as a Matter subtype. Restructured Contracts to be a genuinely separate data model with full feature parity (documents, team, audit, notifications), so it can never again be touched by a Matter-scoped action.
+
+### Added
+- `Contract` — a standalone top-level model (own reference series, e.g. `UCAA/CTR/2026/0001`), replacing the `ContractDetail`/Matter combination. Holds the five tracking statuses, execution status, key dates and a source-document link directly.
+- `ContractStage` — the contract lifecycle vocabulary (Not Yet Effective → Active/In Force → … → Closed/Archived), independent of `MatterType`/`StageTemplate` (the old "Contract" matter type is deactivated, not deleted, per CLAUDE.md).
+- `ContractAssignment`, `ContractDocument`, `ContractDocumentVersion`, `ContractDocumentAccessLog` — mirror `MatterAssignment`/`Document`/`DocumentVersion`/`DocumentAccessLog` so contracts keep the same encrypted/scanned/versioned document pipeline, team assignment and access logging Matters have, built specifically for Contracts rather than borrowed from them.
+- `/contracts/[id]` — a dedicated contract detail page (status editor, lifecycle-stage mover, team card, document upload/download/delete, a danger-zone delete reachable only from within Contracts) — contracts no longer open at `/cases/[id]`.
+- `canEditContract`/`requireContractAccess`/`requireContractEdit` in `authz.ts` — the same Admin-or-Lead/Support permission model Matters use, scoped to `ContractAssignment` instead of `MatterAssignment`.
+- `Notification.contractId` (nullable, alongside the existing `matterId`) so contract assignment/document notifications link to `/contracts/[id]`.
+
+### Changed
+- `/contracts`, `/contracts/new` and the Excel export now read/write the `Contract` model instead of `Matter`-with-`matterType=Contract`.
+- A one-time data migration carried both existing contracts (SkyLink, Meridian) and their team assignments from the old `Matter`/`ContractDetail` rows into the new `Contract` table before those old rows were soft-deleted — no data lost, applied to both local and production.
+
+### Removed
+- `ContractDetail` model and the Contract-specific UI on the case page (`contract-details-card.tsx`) — a Matter can no longer represent a contract at all.
+
 ## Contracts register (2026-10-15)
 
 Client feedback from the prototype demo: a dedicated place to track the organisation's contracts through receipt, legal review, internal approval, Attorney General vetting, amendments and signature — as its own register, not folded into the litigation wizard. Replaces an earlier same-day quick version (a single "Signed Yes/No" field).

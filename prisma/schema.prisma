@@ -91,6 +91,13 @@ model User {
   lawFirmsAdded           LawFirm[]
   resourceLinksAdded      ResourceLink[]
 
+  contractsCreated           Contract[]                  @relation("ContractCreatedBy")
+  contractAssignments        ContractAssignment[]        @relation("ContractAssignee")
+  contractAssignmentsBy      ContractAssignment[]        @relation("ContractAssignedBy")
+  contractDocumentsUploaded  ContractDocument[]
+  contractDocumentVersions   ContractDocumentVersion[]
+  contractDocumentAccessLogs ContractDocumentAccessLog[]
+
   @@index([role, isActive])
   @@index([importBatchId])
 }
@@ -205,7 +212,8 @@ model Category {
   order    Int        @default(0)
   isActive Boolean    @default(true)
 
-  matters Matter[]
+  matters   Matter[]
+  contracts Contract[]
 
   @@unique([name])
   @@index([parentId])
@@ -284,7 +292,8 @@ model DocumentFolder {
   order    Int     @default(0)
   isActive Boolean @default(true)
 
-  documents Document[]
+  documents         Document[]
+  contractDocuments ContractDocument[]
 }
 
 /// Matter outcome (Won, Lost, Settled, …).
@@ -316,8 +325,10 @@ model Notification {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String // matches NotificationRule.trigger
-  matterId  String?
-  matter    Matter?   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  matterId   String?
+  matter     Matter?   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  contractId String?
+  contract   Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
   payload   Json
   readAt    DateTime?
   emailedAt DateTime?
@@ -472,7 +483,6 @@ model Matter {
   tasks           Task[]
   notifications   Notification[]
   messages        MatterMessage[]
-  contractDetail  ContractDetail?
 
   @@index([status, priority])
   @@index([categoryId])
@@ -482,39 +492,158 @@ model Matter {
   @@index([lastActivityAt])
 }
 
-/// Contract-specific fields for Matters of type "Contract" (spec §5, Contracts register —
-/// client feedback 2026-10-15). 1:1 with Matter; its overall lifecycle (Not Yet Effective →
-/// Active → Expired/Terminated/Closed) uses Matter's ordinary currentStage/StageTemplate —
-/// these are the five parallel tracking statuses plus the contract-specific dates.
-model ContractDetail {
-  matterId                 String                  @id
-  matter                   Matter                  @relation(fields: [matterId], references: [id], onDelete: Cascade)
-  originatingDepartment    String?
-  dateOfReceipt             DateTime?               @db.Date
-  dateSubmittedForReview    DateTime?               @db.Date
-  receiptStatusId           String?
-  receiptStatus             ContractStatusOption?   @relation("ContractReceiptStatus", fields: [receiptStatusId], references: [id])
-  legalReviewStatusId       String?
-  legalReviewStatus         ContractStatusOption?   @relation("ContractLegalReviewStatus", fields: [legalReviewStatusId], references: [id])
-  internalApprovalStatusId  String?
-  internalApprovalStatus    ContractStatusOption?   @relation("ContractInternalApprovalStatus", fields: [internalApprovalStatusId], references: [id])
-  agVettingStatusId         String?
-  agVettingStatus            ContractStatusOption?   @relation("ContractAgVettingStatus", fields: [agVettingStatusId], references: [id])
-  amendmentsStatusId         String?
-  amendmentsStatus            ContractStatusOption?   @relation("ContractAmendmentsStatus", fields: [amendmentsStatusId], references: [id])
+/// Contract lifecycle stage (independent of Matter/StageTemplate — spec §5, Contracts
+/// register, restructured 2026-10-17 to be fully independent of Legal Matters after a
+/// contract was accidentally deleted via the shared matter-delete action). Admin-configurable
+/// the same way StageTemplate is for Matters.
+model ContractStage {
+  id            String  @id @default(cuid())
+  name          String  @unique
+  description   String?
+  order         Int     @default(0)
+  allowsClosure Boolean @default(false)
+  isActive      Boolean @default(true)
+
+  contractsCurrent Contract[]
+
+  @@index([order])
+}
+
+/// A contract the organisation holds, tracked from receipt through legal review, internal
+/// approval, Attorney General vetting, amendments and signature to its operational lifecycle.
+/// Deliberately NOT a Matter — its own reference series, team, documents and audit trail, so
+/// it can never be deleted or modified through the Legal Matters screens.
+model Contract {
+  id                     String                  @id @default(cuid())
+  reference              String                  @unique // e.g. "UCAA/CTR/2026/0001"
+  title                  String
+  categoryId             String
+  category               Category                @relation(fields: [categoryId], references: [id])
+  counterpartyName       String
+  counterpartyContact    String?
+  originatingDepartment  String?
+  dateOfReceipt          DateTime?               @db.Date
+  dateSubmittedForReview DateTime?               @db.Date
+  receiptStatusId        String?
+  receiptStatus          ContractStatusOption?   @relation("ContractReceiptStatus", fields: [receiptStatusId], references: [id])
+  legalReviewStatusId    String?
+  legalReviewStatus      ContractStatusOption?   @relation("ContractLegalReviewStatus", fields: [legalReviewStatusId], references: [id])
+  internalApprovalStatusId String?
+  internalApprovalStatus ContractStatusOption?   @relation("ContractInternalApprovalStatus", fields: [internalApprovalStatusId], references: [id])
+  agVettingStatusId      String?
+  agVettingStatus        ContractStatusOption?   @relation("ContractAgVettingStatus", fields: [agVettingStatusId], references: [id])
+  amendmentsStatusId     String?
+  amendmentsStatus       ContractStatusOption?   @relation("ContractAmendmentsStatus", fields: [amendmentsStatusId], references: [id])
   caaExecutionStatus          ContractExecutionStatus @default(PENDING)
   counterpartyExecutionStatus ContractExecutionStatus @default(PENDING)
-  dateOfSignature              DateTime?               @db.Date
-  dateOfFullExecution          DateTime?               @db.Date
-  commencementDate              DateTime?               @db.Date
-  expiryDate                     DateTime?               @db.Date
-  outstandingAction               String?
+  dateOfSignature        DateTime?               @db.Date
+  dateOfFullExecution    DateTime?               @db.Date
+  commencementDate       DateTime?               @db.Date
+  expiryDate             DateTime?               @db.Date
+  outstandingAction      String?
+  currentStageId         String?
+  currentStage           ContractStage?          @relation(fields: [currentStageId], references: [id])
+  sourceUrl              String?
+  createdById            String
+  createdBy              User                    @relation("ContractCreatedBy", fields: [createdById], references: [id])
+  createdAt              DateTime                @default(now())
+  lastActivityAt         DateTime                @default(now())
+  deletedAt              DateTime? // soft delete by an Admin: hidden everywhere, rows kept for audit
+  deletedById            String?
 
+  assignments ContractAssignment[]
+  documents   ContractDocument[]
+  notifications Notification[]
+
+  @@index([categoryId])
+  @@index([currentStageId])
   @@index([receiptStatusId])
   @@index([legalReviewStatusId])
   @@index([internalApprovalStatusId])
   @@index([agVettingStatusId])
   @@index([amendmentsStatusId])
+  @@index([lastActivityAt])
+}
+
+/// Lead/supporting lawyer on a contract — mirrors MatterAssignment.
+model ContractAssignment {
+  id           String         @id @default(cuid())
+  contractId   String
+  contract     Contract       @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User           @relation("ContractAssignee", fields: [userId], references: [id])
+  role         AssignmentRole
+  assignedAt   DateTime       @default(now())
+  assignedById String
+  assignedBy   User           @relation("ContractAssignedBy", fields: [assignedById], references: [id])
+  removedAt    DateTime?
+
+  @@index([contractId, removedAt])
+  @@index([userId, removedAt])
+}
+
+/// A document attached to a contract — mirrors Document/DocumentVersion/DocumentAccessLog
+/// (same encrypted-at-rest, virus-scanned, versioned pipeline, spec §9).
+model ContractDocument {
+  id               String                   @id @default(cuid())
+  contractId       String
+  contract         Contract                 @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  folderId         String
+  folder           DocumentFolder           @relation(fields: [folderId], references: [id])
+  name             String
+  tags             String[]
+  confidentiality  Confidentiality          @default(NORMAL)
+  currentVersionId String?                  @unique
+  currentVersion   ContractDocumentVersion? @relation("ContractCurrentVersion", fields: [currentVersionId], references: [id])
+  uploadedById     String
+  uploadedBy       User                     @relation(fields: [uploadedById], references: [id])
+  createdAt        DateTime                 @default(now())
+  deletedAt        DateTime?
+  deletedById      String?
+
+  versions   ContractDocumentVersion[] @relation("ContractDocumentVersions")
+  accessLogs ContractDocumentAccessLog[]
+
+  @@index([contractId, deletedAt])
+  @@index([folderId])
+}
+
+model ContractDocumentVersion {
+  id               String     @id @default(cuid())
+  documentId       String
+  document         ContractDocument @relation("ContractDocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  version          Int
+  storageKey       String
+  sha256           String
+  mimeType         String
+  size             Int
+  encryptedDataKey String
+  iv               String
+  authTag          String
+  scanStatus       ScanStatus @default(PENDING)
+  scanDetail       String?
+  extractedText    String?
+  uploadedById     String
+  uploadedBy       User       @relation(fields: [uploadedById], references: [id])
+  uploadedAt       DateTime   @default(now())
+
+  currentFor ContractDocument? @relation("ContractCurrentVersion")
+
+  @@unique([documentId, version])
+}
+
+model ContractDocumentAccessLog {
+  id         String           @id @default(cuid())
+  documentId String
+  document   ContractDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  action     DocumentAction
+  ip         String?
+  at         DateTime         @default(now())
+
+  @@index([documentId, at])
+  @@index([userId, at])
 }
 
 enum ContractExecutionStatus {
@@ -522,7 +651,7 @@ enum ContractExecutionStatus {
   SIGNED
 }
 
-/// Admin-configurable dropdown options backing ContractDetail's five status fields
+/// Admin-configurable dropdown options backing Contract's five status fields
 /// (CLAUDE.md: statuses are data, never hard-coded) — one table, grouped by category,
 /// editable the same way Outcome/Forum are.
 model ContractStatusOption {
@@ -532,11 +661,11 @@ model ContractStatusOption {
   order    Int                    @default(0)
   isActive Boolean                @default(true)
 
-  receiptFor          ContractDetail[] @relation("ContractReceiptStatus")
-  legalReviewFor      ContractDetail[] @relation("ContractLegalReviewStatus")
-  internalApprovalFor ContractDetail[] @relation("ContractInternalApprovalStatus")
-  agVettingFor        ContractDetail[] @relation("ContractAgVettingStatus")
-  amendmentsFor       ContractDetail[] @relation("ContractAmendmentsStatus")
+  receiptFor          Contract[] @relation("ContractReceiptStatus")
+  legalReviewFor      Contract[] @relation("ContractLegalReviewStatus")
+  internalApprovalFor Contract[] @relation("ContractInternalApprovalStatus")
+  agVettingFor        Contract[] @relation("ContractAgVettingStatus")
+  amendmentsFor       Contract[] @relation("ContractAmendmentsStatus")
 
   @@unique([category, label])
   @@index([category, order])

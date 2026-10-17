@@ -40,27 +40,29 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
   const where = buildContractWhere(filters);
 
   const [contracts, categories, allDepartments, allStages, agVettingOptions, internalApprovalOptions] = await Promise.all([
-    db.matter.findMany({
+    db.contract.findMany({
       where,
       orderBy: { lastActivityAt: "desc" },
       include: {
         category: true,
         currentStage: true,
         assignments: { where: { removedAt: null, role: "LEAD" }, include: { user: { select: { name: true } } } },
-        parties: { where: { roleInMatter: "Counterparty" }, take: 1 },
-        contractDetail: { include: { legalReviewStatus: true, internalApprovalStatus: true, agVettingStatus: true, amendmentsStatus: true } },
+        legalReviewStatus: true,
+        internalApprovalStatus: true,
+        agVettingStatus: true,
+        amendmentsStatus: true,
       },
     }),
     db.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    db.contractDetail.findMany({ where: { originatingDepartment: { not: null } }, distinct: ["originatingDepartment"], select: { originatingDepartment: true } }),
-    db.stageTemplate.findMany({ where: { isActive: true, matterType: { name: "Contract" } }, orderBy: { order: "asc" }, select: { name: true } }),
+    db.contract.findMany({ where: { originatingDepartment: { not: null }, deletedAt: null }, distinct: ["originatingDepartment"], select: { originatingDepartment: true } }),
+    db.contractStage.findMany({ where: { isActive: true }, orderBy: { order: "asc" }, select: { name: true } }),
     db.contractStatusOption.findMany({ where: { isActive: true, category: "AG_VETTING" }, orderBy: { order: "asc" }, select: { id: true, label: true } }),
     db.contractStatusOption.findMany({ where: { isActive: true, category: "INTERNAL_APPROVAL" }, orderBy: { order: "asc" }, select: { id: true, label: true } }),
   ]);
 
   const now = new Date().getTime();
   const expiringWithin90 = contracts.filter((c) => {
-    const expiry = c.contractDetail?.expiryDate;
+    const expiry = c.expiryDate;
     if (!expiry) return false;
     const diff = expiry.getTime() - now;
     return diff >= 0 && diff <= 90 * 24 * 60 * 60 * 1000;
@@ -68,32 +70,32 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
 
   const kpis = [
     { label: "Total Contracts", value: contracts.length },
-    { label: "Under Legal Review", value: contracts.filter((c) => c.contractDetail?.legalReviewStatus?.label === "Under Legal Review").length },
-    { label: "Awaiting Internal Approval", value: contracts.filter((c) => c.contractDetail?.internalApprovalStatus?.label === "Pending Approval").length },
+    { label: "Under Legal Review", value: contracts.filter((c) => c.legalReviewStatus?.label === "Under Legal Review").length },
+    { label: "Awaiting Internal Approval", value: contracts.filter((c) => c.internalApprovalStatus?.label === "Pending Approval").length },
     {
       label: "Pending AG Vetting",
       value: contracts.filter((c) => {
-        const label = c.contractDetail?.agVettingStatus?.label;
+        const label = c.agVettingStatus?.label;
         return label && label !== "Not Required" && label !== "Cleared / No Objection Recorded";
       }).length,
     },
     {
       label: "Requiring Amendments",
-      value: contracts.filter((c) => ["Amendments Required", "Amendments in Progress", "Amended Draft Submitted"].includes(c.contractDetail?.amendmentsStatus?.label ?? "")).length,
+      value: contracts.filter((c) => ["Amendments Required", "Amendments in Progress", "Amended Draft Submitted"].includes(c.amendmentsStatus?.label ?? "")).length,
       tone: "warning" as const,
     },
     {
       label: "Awaiting Signature",
-      value: contracts.filter((c) => c.contractDetail?.caaExecutionStatus === "PENDING" || c.contractDetail?.counterpartyExecutionStatus === "PENDING").length,
+      value: contracts.filter((c) => c.caaExecutionStatus === "PENDING" || c.counterpartyExecutionStatus === "PENDING").length,
     },
-    { label: "Fully Executed", value: contracts.filter((c) => c.contractDetail?.caaExecutionStatus === "SIGNED" && c.contractDetail?.counterpartyExecutionStatus === "SIGNED").length },
+    { label: "Fully Executed", value: contracts.filter((c) => c.caaExecutionStatus === "SIGNED" && c.counterpartyExecutionStatus === "SIGNED").length },
     { label: "Active Contracts", value: contracts.filter((c) => c.currentStage?.name === "Active / In Force").length },
     { label: "Expiring Within 90 Days", value: expiringWithin90, tone: expiringWithin90 > 0 ? ("warning" as const) : undefined },
   ];
 
   const byType = countBy(contracts, (c) => c.category.name);
   const byStage = countBy(contracts, (c) => c.currentStage?.name);
-  const byAgVetting = countBy(contracts, (c) => c.contractDetail?.agVettingStatus?.label);
+  const byAgVetting = countBy(contracts, (c) => c.agVettingStatus?.label);
 
   const departments = allDepartments.map((d) => d.originatingDepartment!).sort();
   const exportQuery = new URLSearchParams(sp as Record<string, string>).toString();
@@ -174,27 +176,27 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
                 </thead>
                 <tbody>
                   {contracts.map((c) => {
-                    const fullyExecuted = c.contractDetail?.caaExecutionStatus === "SIGNED" && c.contractDetail?.counterpartyExecutionStatus === "SIGNED";
+                    const fullyExecuted = c.caaExecutionStatus === "SIGNED" && c.counterpartyExecutionStatus === "SIGNED";
                     return (
                       <tr key={c.id} className="border-b border-border last:border-0 hover:bg-surface-muted">
                         <td className="px-4 py-3">
-                          <Link href={`/cases/${c.id}`} className="font-medium text-text hover:text-primary">
+                          <Link href={`/contracts/${c.id}`} className="font-medium text-text hover:text-primary">
                             {c.title}
                           </Link>
                           <div className="font-mono text-[11px] text-text-muted">{c.reference}</div>
                         </td>
-                        <td className="px-4 py-3">{c.parties[0]?.name ?? "—"}</td>
+                        <td className="px-4 py-3">{c.counterpartyName}</td>
                         <td className="px-4 py-3">{c.category.name}</td>
-                        <td className="px-4 py-3">{c.contractDetail?.originatingDepartment ?? "—"}</td>
-                        <td className="px-4 py-3">{c.contractDetail?.dateOfReceipt ? formatDate(c.contractDetail.dateOfReceipt) : "—"}</td>
-                        <td className="px-4 py-3">{c.contractDetail?.legalReviewStatus?.label ?? "—"}</td>
-                        <td className="px-4 py-3">{c.contractDetail?.internalApprovalStatus?.label ?? "—"}</td>
-                        <td className="px-4 py-3">{c.contractDetail?.agVettingStatus?.label ?? "—"}</td>
+                        <td className="px-4 py-3">{c.originatingDepartment ?? "—"}</td>
+                        <td className="px-4 py-3">{c.dateOfReceipt ? formatDate(c.dateOfReceipt) : "—"}</td>
+                        <td className="px-4 py-3">{c.legalReviewStatus?.label ?? "—"}</td>
+                        <td className="px-4 py-3">{c.internalApprovalStatus?.label ?? "—"}</td>
+                        <td className="px-4 py-3">{c.agVettingStatus?.label ?? "—"}</td>
                         <td className="px-4 py-3">
                           <Badge tone={fullyExecuted ? "success" : "warning"}>{fullyExecuted ? "Fully executed" : "Pending"}</Badge>
                         </td>
                         <td className="px-4 py-3">{c.currentStage?.name ?? "—"}</td>
-                        <td className="px-4 py-3">{c.contractDetail?.expiryDate ? formatDate(c.contractDetail.expiryDate) : "—"}</td>
+                        <td className="px-4 py-3">{c.expiryDate ? formatDate(c.expiryDate) : "—"}</td>
                         <td className="px-4 py-3">{c.assignments[0]?.user.name ?? "—"}</td>
                       </tr>
                     );

@@ -7,6 +7,7 @@ export type NotifyInput = {
   userId: string;
   type: string; // matches NotificationRule.trigger
   matterId?: string | null;
+  contractId?: string | null;
   payload: Record<string, unknown>;
   subject: string;
   message: string;
@@ -30,7 +31,14 @@ export async function notify(input: NotifyInput, client: Client = db) {
   if (!wantsInApp && !wantsEmail) return null;
 
   const created = await client.notification.create({
-    data: { userId: input.userId, type: input.type, matterId: input.matterId ?? null, payload: input.payload as Prisma.InputJsonValue, emailedAt: wantsEmail ? new Date() : null },
+    data: {
+      userId: input.userId,
+      type: input.type,
+      matterId: input.matterId ?? null,
+      contractId: input.contractId ?? null,
+      payload: input.payload as Prisma.InputJsonValue,
+      emailedAt: wantsEmail ? new Date() : null,
+    },
   });
 
   if (wantsEmail) {
