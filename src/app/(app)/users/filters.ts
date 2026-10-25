@@ -11,9 +11,11 @@ export function parseUserFilters(sp: Record<string, string | string[] | undefine
   return { status: one(sp.status), department: one(sp.department), certExpiring: one(sp.certExpiring) };
 }
 
-/** Shared between the list page and the export routes, so "export" always matches what's on screen. */
+/** Shared between the list page and the export routes, so "export" always matches what's on screen.
+ * Users & Access manages this one organisation's Admin/Lawyer accounts — Superadmin accounts
+ * belong to no organisation and are managed from /superadmin instead, so they're always excluded. */
 export function buildUserWhere(filters: UserFilters): Prisma.UserWhereInput {
-  const where: Prisma.UserWhereInput = { deletedAt: null };
+  const where: Prisma.UserWhereInput = { deletedAt: null, role: { not: "SUPERADMIN" } };
 
   if (filters.status === "active") where.isActive = true;
   else if (filters.status === "deactivated") where.isActive = false;

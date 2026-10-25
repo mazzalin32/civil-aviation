@@ -19,7 +19,9 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     where: { id },
     include: { accounts: { where: { providerId: "credential" }, select: { id: true } } },
   });
-  if (!user) notFound();
+  // Users & Access manages this organisation's Admin/Lawyer accounts only — Superadmin
+  // accounts belong to no organisation and are managed from /superadmin instead.
+  if (!user || user.role === "SUPERADMIN") notFound();
 
   const activity = await db.auditLog.findMany({
     where: { entity: "User", entityId: id },

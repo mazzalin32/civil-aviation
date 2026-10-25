@@ -29,7 +29,7 @@ export default async function Page() {
       select: { id: true, reference: true, title: true },
       orderBy: { reference: "asc" },
     }),
-    db.user.findMany({ where: { isActive: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { isActive: true, deletedAt: null, role: { not: "SUPERADMIN" } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const tasks = await db.task.findMany({

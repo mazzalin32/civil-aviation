@@ -91,12 +91,15 @@ export async function createMatter(raw: unknown): Promise<CreateResult> {
 
   const reportedAt = new Date(`${identification.reportedDate}T${identification.reportedTime || "00:00"}:00+03:00`);
 
+  if (!admin.organizationId) return { error: "Your account isn't linked to an organisation." };
+
   const matter = await db.$transaction(async (tx) => {
     const reference = await generateReference(matterType.referencePrefix!, tx);
 
     const created = await tx.matter.create({
       data: {
         reference,
+        organizationId: admin.organizationId!,
         title: identification.title,
         categoryId: identification.categoryId,
         matterTypeId: identification.matterTypeId,

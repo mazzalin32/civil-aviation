@@ -67,6 +67,19 @@ const monthsFromNow = (months: number) => {
   return d;
 };
 
+// Multi-tenancy foundation (2026-10-25) — CAA is the only real organisation today; Superadmin
+// is the platform-level account (belongs to no organisation) that creates/brands organisations
+// and invites their first Admin.
+const ORGANIZATION_NAME = "Uganda Civil Aviation Authority";
+const ORGANIZATION_DEFAULTS = { logoUrl: "/CAA-Uganda-logo-1.png", primaryColor: "#4169E1" };
+
+const superadmin = {
+  email: process.env.SEED_SUPERADMIN_EMAIL ?? "owner@caa-legal.app",
+  name: process.env.SEED_SUPERADMIN_NAME ?? "Platform Owner",
+  role: Role.SUPERADMIN,
+  mustChangePassword: false,
+};
+
 const admin = {
   email: process.env.SEED_ADMIN_EMAIL ?? "head.legal@caa.go.ug",
   name: process.env.SEED_ADMIN_NAME ?? "Head of Legal",
@@ -598,7 +611,7 @@ async function resolveContractStatuses(c: ContractSeed) {
   };
 }
 
-async function seedContracts(lawyersByEmail: Map<string, string>, adminId: string) {
+async function seedContracts(lawyersByEmail: Map<string, string>, adminId: string, organizationId: string) {
   for (const c of CONTRACT_SEEDS) {
     const existing = await db.contract.findFirst({ where: { title: c.title } });
     const category = await db.category.findUniqueOrThrow({ where: { name: c.categoryName } });
@@ -627,6 +640,7 @@ async function seedContracts(lawyersByEmail: Map<string, string>, adminId: strin
     const contract = await db.contract.create({
       data: {
         reference,
+        organizationId,
         title: c.title,
         categoryId: category.id,
         counterpartyName: c.counterpartyName,
@@ -639,7 +653,7 @@ async function seedContracts(lawyersByEmail: Map<string, string>, adminId: strin
   }
 }
 
-async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
+async function seedCases(lawyersByEmail: Map<string, string>, adminId: string, organizationId: string) {
   const referenceCounters = new Map<string, number>(); // `${prefix}:${year}` -> next number to use
 
   for (const c of CASE_SEEDS) {
@@ -680,6 +694,7 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string) {
     const matter = await db.matter.create({
       data: {
         reference,
+        organizationId,
         title: c.title,
         categoryId: category.id,
         matterTypeId: matterType.id,
@@ -815,7 +830,18 @@ async function seedPitchExtras(adminId: string, firstLawyerId: string) {
 
 async function main() {
   const passwordHash = await hashPassword(SEED_PASSWORD);
-  const adminUser = await db.user.upsert({ where: { email: admin.email }, update: {}, create: admin });
+
+  const organization = await db.organization.upsert({ where: { name: ORGANIZATION_NAME }, update: {}, create: { name: ORGANIZATION_NAME, ...ORGANIZATION_DEFAULTS } });
+
+  const superadminUser = await db.user.upsert({ where: { email: superadmin.email }, update: {}, create: superadmin });
+  await db.user.update({ where: { id: superadminUser.id }, data: { mustChangePassword: false, passwordChangedAt: new Date() } });
+  await db.account.upsert({
+    where: { id: (await db.account.findFirst({ where: { userId: superadminUser.id, providerId: "credential" }, select: { id: true } }))?.id ?? "missing" },
+    update: { password: passwordHash },
+    create: { userId: superadminUser.id, providerId: "credential", accountId: superadminUser.id, password: passwordHash },
+  });
+
+  const adminUser = await db.user.upsert({ where: { email: admin.email }, update: { organizationId: organization.id }, create: { ...admin, organizationId: organization.id } });
   await db.user.update({ where: { id: adminUser.id }, data: { mustChangePassword: false, passwordChangedAt: new Date() } });
   await db.account.upsert({
     where: { id: (await db.account.findFirst({ where: { userId: adminUser.id, providerId: "credential" }, select: { id: true } }))?.id ?? "missing" },
@@ -828,12 +854,13 @@ async function main() {
     const existing = await db.user.findUnique({ where: { email: l.email } });
     const user = await db.user.upsert({
       where: { email: l.email },
-      update: {},
+      update: { organizationId: organization.id },
       create: {
         name: l.name,
         email: l.email,
         title: l.title,
         role: Role.LAWYER,
+        organizationId: organization.id,
         department: "Legal",
         phone: `+256 772 000 10${i}`,
         practisingCertNo: `PC/${String(1040 + i).padStart(5, "0")}`,
@@ -851,17 +878,19 @@ async function main() {
   await seedReferenceData();
 
   const lawyersByEmail = new Map(lawyerUsers.map((u) => [u.email, u.id]));
-  await seedCases(lawyersByEmail, adminUser.id);
-  await seedContracts(lawyersByEmail, adminUser.id);
+  await seedCases(lawyersByEmail, adminUser.id, organization.id);
+  await seedContracts(lawyersByEmail, adminUser.id, organization.id);
   await seedPitchExtras(adminUser.id, lawyerUsers[0]?.id ?? adminUser.id);
 
   await db.auditLog.create({
     data: { userId: null, action: "seed.run", entity: "System", after: { phase: 4, users: lawyers.length + 1, cases: CASE_SEEDS.length, contracts: CONTRACT_SEEDS.length } },
   });
 
+  console.log(`\nSeeded Superadmin: ${superadminUser.email}`);
+  console.log(`  Development password: ${SEED_PASSWORD}`);
   console.log(`\nSeeded Admin: ${adminUser.email}`);
   console.log(`  Development password: ${SEED_PASSWORD}`);
-  console.log("  This password is assigned to the Admin and all seeded lawyers.");
+  console.log("  This password is assigned to the Superadmin, the Admin and all seeded lawyers.");
   if (demoPassword) {
     console.log(`\nPrototype lawyer login — password for every lawyer: ${SEED_PASSWORD}`);
     for (const u of lawyerUsers) {

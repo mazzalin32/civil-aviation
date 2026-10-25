@@ -16,12 +16,33 @@ datasource db {
 }
 
 enum Role {
+  SUPERADMIN // platform-level: manages Organizations and their Admins, belongs to none itself
   ADMIN
   LAWYER
 }
 
+/// A tenant on the platform (2026-10-25 — multi-tenancy foundation; CAA is the only real
+/// Organization today, but every Admin/Lawyer, Matter and Contract is scoped to one so the
+/// platform can onboard further organisations later without another retrofit). White-labelling
+/// is deliberately minimal: logo, display name, one accent colour — nothing else varies per org.
+model Organization {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  logoUrl      String?
+  primaryColor String? // hex, overrides the --primary design token for this org's signed-in users
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users     User[]
+  matters   Matter[]
+  contracts Contract[]
+}
+
 model User {
   id                 String    @id @default(cuid())
+  organizationId     String? // null only for SUPERADMIN — every Admin/Lawyer belongs to exactly one
+  organization       Organization? @relation(fields: [organizationId], references: [id])
   name               String
   email              String    @unique
   emailVerified      Boolean   @default(false)
@@ -98,6 +119,7 @@ model User {
   contractDocumentVersions   ContractDocumentVersion[]
   contractDocumentAccessLogs ContractDocumentAccessLog[]
 
+  @@index([organizationId])
   @@index([role, isActive])
   @@index([importBatchId])
 }
@@ -418,6 +440,8 @@ enum PartyKind {
 /// workflow so this table doesn't need another migration then.
 model Matter {
   id                     String            @id @default(cuid())
+  organizationId         String
+  organization           Organization      @relation(fields: [organizationId], references: [id])
   reference              String            @unique // generated, e.g. "UCAA/LIT/2026/0042" — never hand-edited
   title                  String
   categoryId             String
@@ -484,6 +508,7 @@ model Matter {
   notifications   Notification[]
   messages        MatterMessage[]
 
+  @@index([organizationId])
   @@index([status, priority])
   @@index([categoryId])
   @@index([matterTypeId])
@@ -515,6 +540,8 @@ model ContractStage {
 /// it can never be deleted or modified through the Legal Matters screens.
 model Contract {
   id                     String                  @id @default(cuid())
+  organizationId         String
+  organization           Organization            @relation(fields: [organizationId], references: [id])
   reference              String                  @unique // e.g. "UCAA/CTR/2026/0001"
   title                  String
   categoryId             String
@@ -555,6 +582,7 @@ model Contract {
   documents   ContractDocument[]
   notifications Notification[]
 
+  @@index([organizationId])
   @@index([categoryId])
   @@index([currentStageId])
   @@index([receiptStatusId])

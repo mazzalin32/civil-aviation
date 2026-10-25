@@ -76,7 +76,9 @@ export default async function CasePage({
       select: { id: true, name: true, title: true, _count: { select: { matterAssignments: { where: { removedAt: null, matter: { status: { in: ["OPEN", "ON_HOLD"] } } } } } } },
       orderBy: { name: "asc" },
     }),
-    tab === "tasks" ? db.user.findMany({ where: { isActive: true, deletedAt: null }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([] as { id: string; name: string }[]),
+    tab === "tasks"
+      ? db.user.findMany({ where: { isActive: true, deletedAt: null, role: { not: "SUPERADMIN" } }, select: { id: true, name: true }, orderBy: { name: "asc" } })
+      : Promise.resolve([] as { id: string; name: string }[]),
     db.eventType.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
     db.calendarEntry.findMany({ where: { matterId: id }, orderBy: { startsAt: "desc" } }),
     db.task.findMany({ where: { matterId: id }, include: { assignee: { select: { name: true } } }, orderBy: { dueAt: "asc" } }),

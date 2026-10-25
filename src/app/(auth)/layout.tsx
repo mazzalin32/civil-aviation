@@ -1,3 +1,5 @@
+import { db } from "@/lib/db";
+
 // The brand panel's two-line title is set in Times New Roman (a system font, nothing to load).
 const BRAND_SERIF = '"Times New Roman", Times, serif';
 
@@ -26,15 +28,21 @@ const LIGHT_VARS = {
   colorScheme: "light",
 } as React.CSSProperties;
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  // No session exists yet on an auth screen, so there's no org to key off — CAA is the only
+  // organisation in practice, so this just shows whichever logo/colour it has set (spec §4).
+  const org = await db.organization.findFirst({ where: { isActive: true }, orderBy: { createdAt: "asc" }, select: { logoUrl: true, primaryColor: true } });
+  const logoUrl = org?.logoUrl ?? "/CAA-Uganda-logo-1.png";
+  const vars = org?.primaryColor ? { ...LIGHT_VARS, "--primary": org.primaryColor } : LIGHT_VARS;
+
   return (
-    <div style={LIGHT_VARS} className="grid min-h-dvh lg:grid-cols-[minmax(380px,460px)_1fr]">
+    <div style={vars} className="grid min-h-dvh lg:grid-cols-[minmax(380px,460px)_1fr]">
       <aside className="flex flex-col items-center bg-primary px-10 pt-10 pb-8 text-center text-on-primary lg:min-h-dvh">
         {/* Logo + title: centred in the panel, nudged a little above true centre. */}
         <div className="flex flex-1 flex-col items-center justify-center pb-14 lg:pb-20">
           <div aria-hidden className="grid size-[220px] shrink-0 place-items-center rounded-full border-[6px] border-white/25 bg-white p-8">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/CAA-Uganda-logo-1.png" alt="" width={168} height={80} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
+            <img src={logoUrl} alt="" width={168} height={80} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
           </div>
           <h2 style={{ fontFamily: BRAND_SERIF }} className="m-0 mt-9 text-[30px] leading-[1.25] text-on-primary">
             <span className="block font-bold">Civil Aviation Authority</span>

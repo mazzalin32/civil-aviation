@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "./auth";
 import { db } from "./db";
 
-export type Role = "ADMIN" | "LAWYER";
+export type Role = "SUPERADMIN" | "ADMIN" | "LAWYER";
 
 export type CurrentUser = {
   id: string;
@@ -15,6 +15,8 @@ export type CurrentUser = {
   isActive: boolean;
   mustChangePassword: boolean;
   twoFactorEnabled: boolean;
+  organizationId: string | null;
+  organization: { name: string; logoUrl: string | null; primaryColor: string | null } | null;
 };
 
 /** The Better Auth session for this request, or null if signed out / expired. */
@@ -44,6 +46,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       mustChangePassword: true,
       twoFactorEnabled: true,
       deletedAt: true,
+      organizationId: true,
+      organization: { select: { name: true, logoUrl: true, primaryColor: true } },
     },
   });
   if (!user || !user.isActive || user.deletedAt) return null;

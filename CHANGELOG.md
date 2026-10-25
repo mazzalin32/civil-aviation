@@ -1,5 +1,19 @@
 # Changelog
 
+## Multi-tenancy foundation: Superadmin, Organisation, white-label (2026-10-25)
+
+Back on the phased build after the prototype detour. First step of making the database/backend real rather than demo-shaped: a platform layer above Admin, so organisations (CAA today, others later) can be provisioned and branded without touching code. The capability is real multi-tenancy; in practice CAA remains the only organisation.
+
+### Added
+- `Role.SUPERADMIN` — platform-level, belongs to no organisation, manages Organisations and their Admins.
+- `Organization` model — name, logo, one accent colour ("just in case they want to change the logo"), `isActive`. `User.organizationId` (nullable — null only for Superadmin), `Matter.organizationId` and `Contract.organizationId` (both required) tag every piece of content to its organisation, foundational for later per-org isolation.
+- `/superadmin` — organisation list + create; `/superadmin/[id]` — edit branding, list Admins, invite a new one. Invite reuses the same single-use-link mechanism an Admin already uses to invite a Lawyer (spec §4), one tier up.
+- Sidebar and the login split-panel now read logo/name/colour from the signed-in user's organisation (or, pre-login, the one active organisation) instead of hard-coded CAA assets — the "white-label" half of this.
+- A data migration created "Uganda Civil Aviation Authority" as organisation #1 and backfilled every existing User/Matter/Contract onto it — nothing lost, applied to local and production.
+
+### Fixed
+- Three places that listed "every active user" without excluding Superadmin (Users & Access, and two task-assignee pickers) would have shown the platform account as if it were a lawyer. Excluded there; a fuller per-organisation query sweep is the next phase of this work ("page per page").
+
 ## Contracts made fully independent of Legal Matters (2026-10-17)
 
 A contract was accidentally deleted via the Legal Matters list's "Delete" action — a direct consequence of Contracts being built as a Matter subtype. Restructured Contracts to be a genuinely separate data model with full feature parity (documents, team, audit, notifications), so it can never again be touched by a Matter-scoped action.

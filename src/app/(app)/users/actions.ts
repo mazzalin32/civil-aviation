@@ -54,8 +54,8 @@ export async function createLawyer(formData: FormData) {
 
   // A previously deleted account is brought back (same history) instead of colliding on the unique email.
   const created = existing
-    ? await db.user.update({ where: { id: existing.id }, data: { name: parsed.data.name, deletedAt: null, isActive: true, ...fields(parsed.data) } })
-    : await db.user.create({ data: { name: parsed.data.name, email: parsed.data.email, role: Role.LAWYER, ...fields(parsed.data) } });
+    ? await db.user.update({ where: { id: existing.id }, data: { name: parsed.data.name, deletedAt: null, isActive: true, organizationId: admin.organizationId, ...fields(parsed.data) } })
+    : await db.user.create({ data: { name: parsed.data.name, email: parsed.data.email, role: Role.LAWYER, organizationId: admin.organizationId, ...fields(parsed.data) } });
   await writeAudit({ userId: admin.id, action: existing ? "user.restore" : "user.create", entity: "User", entityId: created.id, after: { name: created.name, email: created.email } });
 
   await sendInvite(created);

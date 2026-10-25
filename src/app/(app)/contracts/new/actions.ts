@@ -37,6 +37,7 @@ export async function createContract(raw: unknown): Promise<CreateResult> {
 
   const lead = await db.user.findUnique({ where: { id: data.leadUserId }, select: { isActive: true, role: true } });
   if (!lead?.isActive || lead.role !== "LAWYER") return { error: "Choose an active lawyer as the responsible legal officer." };
+  if (!admin.organizationId) return { error: "Your account isn't linked to an organisation." };
 
   const contract = await db.$transaction(async (tx) => {
     const reference = await generateReference(CONTRACT_REFERENCE_PREFIX, tx);
@@ -44,6 +45,7 @@ export async function createContract(raw: unknown): Promise<CreateResult> {
     const created = await tx.contract.create({
       data: {
         reference,
+        organizationId: admin.organizationId!,
         title: data.title,
         categoryId: data.categoryId,
         counterpartyName: data.counterpartyName,

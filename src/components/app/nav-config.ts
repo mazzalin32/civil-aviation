@@ -13,7 +13,8 @@ export type NavIcon =
   | "closure"
   | "users"
   | "settings"
-  | "contracts";
+  | "contracts"
+  | "org";
 
 export type NavItem = {
   href: string;
@@ -54,6 +55,8 @@ export const NAV: Record<Role, NavItem[]> = {
     { href: "/users", label: "Users & Access", icon: "users", quickAdd: { href: "/users?new=1", label: "Add lawyer" } },
     { href: "/settings", label: "Legal System Settings", icon: "settings" },
   ],
+  // Platform-level: manages organisations and their Admins, not any one org's legal work.
+  SUPERADMIN: [{ href: "/superadmin", label: "Organisations", icon: "org", quickAdd: { href: "/superadmin/new", label: "New organisation" } }],
 };
 
 export function homePathFor(role: Role) {

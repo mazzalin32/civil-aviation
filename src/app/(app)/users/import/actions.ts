@@ -72,6 +72,7 @@ export async function confirmImport(rows: ParsedRow[]): Promise<ConfirmResult | 
         name: r.name,
         email: r.email,
         role: Role.LAWYER,
+        organizationId: admin.organizationId,
         phone: r.phone || null,
         title: r.title || null,
         department: r.department || null,

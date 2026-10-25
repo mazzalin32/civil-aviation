@@ -7,6 +7,7 @@ import {
   BarChart3,
   Briefcase,
   BriefcaseBusiness,
+  Building2,
   CalendarDays,
   ChevronsLeft,
   ChevronsRight,
@@ -42,6 +43,7 @@ const ICONS: Record<NavIcon, LucideIcon> = {
   reports: BarChart3,
   settings: Settings,
   contracts: FileSignature,
+  org: Building2,
 };
 
 const STORAGE_KEY = "caa-sidebar-collapsed";
@@ -87,9 +89,13 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
     });
   }
 
+  const orgName = user.organization?.name ?? (user.role === "SUPERADMIN" ? "Platform Administration" : "CAA Legal Department");
+  const logoUrl = user.organization?.logoUrl ?? "/CAA-Uganda-logo-1.png";
+
   return (
     <aside
       aria-label="Main navigation"
+      style={user.organization?.primaryColor ? { backgroundColor: user.organization.primaryColor } : undefined}
       className={cn(
         "sticky top-0 hidden h-dvh shrink-0 flex-col gap-1 overflow-hidden border-r border-on-primary/10 bg-primary px-3.5 py-4 text-on-primary lg:flex",
         collapsed ? "w-[76px]" : "w-[288px]",
@@ -98,12 +104,12 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
       <div className={cn("flex items-center gap-2.5", collapsed ? "justify-center px-0" : "px-2")}>
         <div aria-hidden className="grid size-[38px] shrink-0 place-items-center rounded-control bg-white p-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/CAA-Uganda-logo-1.png" alt="" width={80} height={38} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
+          <img src={logoUrl} alt="" width={80} height={38} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
         </div>
         {!collapsed && (
           <div className="min-w-0 flex-1 leading-tight">
-            <b className="block truncate text-sm font-semibold">CAA Legal Department</b>
-            <small className="block truncate text-xs text-on-primary/70">Uganda Civil Aviation Authority</small>
+            <b className="block truncate text-sm font-semibold">{orgName}</b>
+            <small className="block truncate text-xs text-on-primary/70">{user.role === "SUPERADMIN" ? "Platform administration" : orgName}</small>
           </div>
         )}
       </div>
