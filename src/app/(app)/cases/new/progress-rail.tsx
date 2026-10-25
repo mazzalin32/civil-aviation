@@ -50,10 +50,9 @@ export function ProgressRail({
         })}
       </ol>
       <div className="mt-5 hidden rounded-[12px] border border-border bg-surface p-3.5 lg:block">
-        <p className="m-0 flex items-center gap-1.5 text-xs font-medium">
+        <p className="m-0 flex items-center gap-1.5 text-xs font-medium text-text-muted">
           <Save className="size-3.5" /> {saving ? "Saving draft…" : "Draft autosaved"}
         </p>
-        <p className="m-0 mt-1 text-xs text-text-muted">Your progress is saved as a draft when you continue between steps.</p>
       </div>
     </aside>
   );

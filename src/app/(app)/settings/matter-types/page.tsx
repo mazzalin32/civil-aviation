@@ -52,10 +52,7 @@ export default async function MatterTypesPage() {
 
   return (
     <>
-      <PageHeader
-        title="Matter types & lifecycles"
-        description="How a matter runs — picks its lifecycle template. A matter also has a category (its subject); see the Categories tab."
-      />
+      <PageHeader title="Matter types & lifecycles" />
       <div className="grid gap-8">
         <section>
           <div className="mb-3 flex items-center justify-between">

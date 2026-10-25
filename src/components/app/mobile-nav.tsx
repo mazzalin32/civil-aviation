@@ -20,7 +20,7 @@ export function MobileNav({ role }: { role: Role }) {
         {open ? <X className="size-[18px]" /> : <Menu className="size-[18px]" />}
       </Button>
       {open && (
-        <nav className="absolute inset-x-0 top-full grid gap-0.5 border-b border-border bg-surface p-3 shadow-pop">
+        <nav className="scrollbar-hidden absolute inset-x-0 top-full grid max-h-[80vh] gap-1.5 overflow-x-hidden overflow-y-auto border-b border-border bg-surface p-3 shadow-pop">
           {NAV[role].map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
@@ -38,7 +38,7 @@ export function MobileNav({ role }: { role: Role }) {
               </Link>
             );
           })}
-          <Link href="/profile" onClick={() => setOpen(false)} className="rounded-control px-3 py-2 font-medium text-text-muted hover:bg-surface-muted">
+          <Link href="/profile" onClick={() => setOpen(false)} className="mt-1.5 rounded-control px-3 py-2 font-medium text-text-muted hover:bg-surface-muted">
             Profile & preferences
           </Link>
         </nav>

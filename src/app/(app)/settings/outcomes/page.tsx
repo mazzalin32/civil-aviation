@@ -15,7 +15,6 @@ export default async function OutcomesPage() {
     <>
       <PageHeader
         title="Outcomes"
-        description="Recorded when a case closes, and used in the outcomes report."
         actions={<AddReferenceButton label="Add outcome" panelTitle="Add outcome" createAction={createOutcome} />}
       />
       <ReferenceTable

@@ -72,6 +72,10 @@ export async function reassignContract(raw: unknown): Promise<ActionResult> {
   const { contractId, leadUserId, supportUserIds } = parsed.data;
   const user = await requireContractEdit(contractId);
 
+  const allIds = [leadUserId, ...supportUserIds];
+  const validCount = await db.user.count({ where: { id: { in: allIds }, organizationId: user.organizationId } });
+  if (validCount !== new Set(allIds).size) return { error: "Choose lawyers from your organisation." };
+
   const current = await db.contractAssignment.findMany({ where: { contractId, removedAt: null } });
   const currentLead = current.find((a) => a.role === "LEAD");
   const desiredSupportIds = new Set(supportUserIds.filter((id) => id !== leadUserId));
@@ -123,6 +127,7 @@ export async function reassignContract(raw: unknown): Promise<ActionResult> {
 export async function deleteContract(contractId: string): Promise<ActionResult> {
   const admin = await requireRole("ADMIN");
   const contract = await db.contract.findUniqueOrThrow({ where: { id: contractId } });
+  if (contract.organizationId !== admin.organizationId) return { error: "That contract no longer exists." };
 
   await db.$transaction(async (tx) => {
     await tx.contract.update({ where: { id: contractId }, data: { deletedAt: new Date(), deletedById: admin.id } });

@@ -31,7 +31,7 @@ export default async function ImportUsersPage() {
       <Link href="/users" className="mb-4 inline-flex items-center gap-1.5 text-[13px] text-text-muted hover:text-text">
         <ArrowLeft className="size-3.5" /> Users
       </Link>
-      <PageHeader title="Import lawyers" description="Bring in a whole roster from Excel at once — each lawyer still gets the normal invite email." />
+      <PageHeader title="Import lawyers" />
       <div className="grid gap-8">
         <ImportWizard />
 

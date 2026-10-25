@@ -1,17 +1,21 @@
 import { requireRole } from "@/lib/authz";
 import { db } from "@/lib/db";
+import { CalendarKind } from "@/generated/prisma/client";
+import { orgId } from "@/lib/org";
 import { PageHeader } from "@/components/app/page-header";
 import { CalendarClient, type CalendarEvent } from "./calendar-client";
 
 export const metadata = { title: "Calendar" };
 
+// Kind is identity, not status — reuse the avatar ramp for it (decorative, not reserved) and
+// keep --danger/--warning exclusively for their real meaning (overdue/critical) elsewhere.
 const KIND_COLOR: Record<string, string> = {
   HEARING: "var(--primary)",
-  MENTION: "var(--primary)",
-  MEDIATION: "var(--primary)",
-  JUDGMENT: "var(--primary)",
+  MENTION: "var(--avatar-3)",
+  MEDIATION: "var(--success)",
+  JUDGMENT: "var(--avatar-2)",
   DEADLINE: "var(--warning)",
-  PERSONAL: "var(--text-muted)",
+  PERSONAL: "var(--neutral)",
 };
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -21,26 +25,33 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const lawyerFilter = isAdmin && typeof sp.lawyer === "string" ? sp.lawyer : undefined;
 
   // Entries/tasks of a deleted case disappear with it (personal entries have no matter and always show).
+  // Matter-linked entries/tasks never cross organisation boundaries; personal entries have no
+  // matter and are inherently scoped to their owner.
   const notDeleted = { NOT: { matter: { deletedAt: { not: null } } } };
+  const sameOrg = { OR: [{ matterId: null }, { matter: { organizationId: orgId(me.organizationId) } }] };
   const entryWhere = isAdmin
     ? lawyerFilter
-      ? { ...notDeleted, OR: [{ assigneeId: lawyerFilter }, { userId: lawyerFilter }] }
-      : notDeleted
-    : { ...notDeleted, OR: [{ matterId: { not: null } }, { userId: me.id }] }; // the whole department's case calendar + your own personal entries
-  const taskWhere = isAdmin && lawyerFilter ? { ...notDeleted, assigneeId: lawyerFilter } : notDeleted;
+      ? { AND: [notDeleted, sameOrg], OR: [{ assigneeId: lawyerFilter }, { userId: lawyerFilter }] }
+      : { ...notDeleted, ...sameOrg }
+    : { AND: [notDeleted, sameOrg], OR: [{ matterId: { not: null }, kind: { not: CalendarKind.PERSONAL } }, { userId: me.id }] }; // the whole department's case calendar + your own personal entries (even those tagged to a case)
+  const taskWhere = isAdmin && lawyerFilter ? { ...notDeleted, assigneeId: lawyerFilter, matter: { organizationId: orgId(me.organizationId) } } : { ...notDeleted, matter: { organizationId: orgId(me.organizationId) } };
 
   // A Server Component render is already tied to one request — "now" is legitimately
   // request-time here, not a hook needing to be stable across client re-renders.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
 
-  const [entries, tasks, lawyers] = await Promise.all([
+  const [entries, tasks, lawyers, matters, staff] = await Promise.all([
     db.calendarEntry.findMany({
       where: entryWhere,
       include: { matter: { select: { id: true, reference: true, title: true } }, assignee: { select: { id: true, name: true } }, user: { select: { id: true, name: true } } },
     }),
     db.task.findMany({ where: taskWhere, include: { matter: { select: { id: true, reference: true, title: true } }, assignee: { select: { id: true, name: true } } } }),
-    isAdmin ? db.user.findMany({ where: { role: "LAWYER", isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+    isAdmin ? db.user.findMany({ where: { role: "LAWYER", isActive: true, organizationId: orgId(me.organizationId) }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : Promise.resolve([]),
+    db.matter.findMany({ where: { deletedAt: null, organizationId: orgId(me.organizationId) }, select: { id: true, reference: true, title: true }, orderBy: { reference: "asc" } }),
+    isAdmin
+      ? db.user.findMany({ where: { role: { in: ["ADMIN", "LAWYER"] }, isActive: true, organizationId: orgId(me.organizationId) }, select: { id: true, name: true }, orderBy: { name: "asc" } })
+      : Promise.resolve([]),
   ]);
 
   const events: CalendarEvent[] = [
@@ -102,8 +113,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Department calendar" description="Every lawyer's hearings, deadlines and tasks." />
-      <CalendarClient events={events} clashes={clashes} isAdmin={isAdmin} lawyers={lawyers} currentLawyerId={lawyerFilter} />
+      <PageHeader title="Calendar" />
+      <CalendarClient events={events} clashes={clashes} isAdmin={isAdmin} lawyers={lawyers} currentLawyerId={lawyerFilter} matters={matters} staff={staff} currentUserId={me.id} />
     </>
   );
 }

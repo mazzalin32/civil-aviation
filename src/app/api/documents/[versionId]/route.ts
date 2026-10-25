@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { canAccessMatter } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
 import { getObject } from "@/lib/documents/storage";
@@ -20,13 +19,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const version = await db.documentVersion.findUnique({
     where: { id: versionId },
-    include: { document: { include: { matter: { select: { id: true, confidentiality: true } } } } },
+    include: { document: { include: { matter: { select: { id: true, confidentiality: true, organizationId: true } } } } },
   });
   if (!version || version.document.deletedAt) return new NextResponse("Not found", { status: 404 });
 
   const { document } = version;
-  const allowed = await canAccessMatter(user.id, user.role, document.matterId);
-  if (!allowed) return new NextResponse("Forbidden", { status: 403 });
+  // Never serve another organisation's document, even to a signed-in user elsewhere on the platform.
+  if (document.matter.organizationId !== user.organizationId) return new NextResponse("Not found", { status: 404 });
 
   const action = (request.nextUrl.searchParams.get("action") ?? "view") as "view" | "download" | "print";
   const isHighlyConfidential = document.confidentiality === "HIGHLY_CONFIDENTIAL" || document.matter.confidentiality === "HIGHLY_CONFIDENTIAL";

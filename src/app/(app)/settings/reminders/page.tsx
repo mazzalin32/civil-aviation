@@ -12,10 +12,7 @@ export default async function RemindersPage() {
 
   return (
     <>
-      <PageHeader
-        title="Reminder schedules"
-        description="When each notification fires, and whether a lawyer can mute it. Sending reminders is built in a later phase; this is the schedule they'll follow."
-      />
+      <PageHeader title="Reminder schedules" />
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13.5px]">

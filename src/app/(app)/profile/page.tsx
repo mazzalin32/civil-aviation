@@ -9,7 +9,6 @@ export default async function Page() {
   return (
     <ComingSoon
       title="Profile & preferences"
-      description="Your details, security, theme and notification settings."
       icon={UserRound}
       emptyTitle="Preferences aren't built yet"
       emptyDescription="Change your password, manage 2FA, pick light or dark theme and choose which notifications you get."

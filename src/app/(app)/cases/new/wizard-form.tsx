@@ -183,7 +183,6 @@ export function WizardForm({
     <>
       <PageHeader
         title="New Matter"
-        description="Case intake — nine short steps to open a matter and assign the legal team."
         actions={
           <Button type="button" onClick={() => router.push("/cases")}>
             <X className="size-4" /> Save & exit
@@ -195,11 +194,11 @@ export function WizardForm({
         <ProgressRail steps={STEPS} current={step} furthest={furthest} saving={saving} onSelect={goTo} />
 
         <div className="min-w-0 rounded-card border border-border bg-surface shadow-card">
-          <div className="border-b border-border px-6 py-3.5 text-[12px] text-text-muted">
-            Case intake · <span className="font-medium text-text">Step {step + 1} of {STEPS.length}</span>
+          <div className="border-b border-border px-7 py-3.5 text-[12px] font-medium text-text-muted">
+            Step {step + 1} of {STEPS.length}
           </div>
 
-          <div className="p-6">
+          <div className="p-7">
             {step === 0 && <IdentificationStep value={data.identification ?? {}} onChange={(p) => patch("identification", p)} errors={errors} categories={categories} matterTypes={matterTypes} />}
             {step === 1 && <PositionStep value={data.position ?? {}} onChange={(p) => patch("position", p)} errors={errors} />}
             {step === 2 && <ServiceStep value={data.service ?? {}} onChange={(p) => patch("service", p)} position={data.position ?? {}} lawyers={lawyers} />}
@@ -262,7 +261,7 @@ export function WizardForm({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-border px-6 py-4">
+          <div className="flex flex-wrap items-center gap-2 border-t border-border px-7 py-4">
             <Button
               type="button"
               onClick={() => {

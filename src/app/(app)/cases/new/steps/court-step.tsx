@@ -16,7 +16,7 @@ export function CourtStep({
   const skip = value.skip ?? false;
   return (
     <>
-      <StepHeader step={5} eyebrow="Court & judicial information" title="Court & judicial information" description="Capture the forum, jurisdiction and key judicial details for this matter." />
+      <StepHeader title="Court & judicial information" />
       <label className="mb-4 flex items-center gap-2 text-[13px]">
         <input type="checkbox" checked={skip} onChange={(e) => onChange({ skip: e.target.checked })} className="size-4 accent-[var(--primary)]" />
         This matter is not before a court or tribunal yet

@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
+import { orgId } from "./org";
 import type { CurrentUser } from "./session";
 
 const ACTIVE_STATUSES = ["OPEN", "ON_HOLD", "CLOSURE_REQUESTED"] as const;
@@ -40,13 +41,14 @@ export type DashboardData = {
   overdueDeadlineCount: number;
 };
 
-/** Everyone sees the whole department's portfolio on the dashboard; what a lawyer may DO is gated per action. */
-function matterScope(): Prisma.MatterWhereInput {
-  return { deletedAt: null };
+/** Everyone sees their own organisation's whole portfolio on the dashboard (never another
+ *  organisation's); what a lawyer may DO is gated per action. */
+function matterScope(organizationId: string | null): Prisma.MatterWhereInput {
+  return { deletedAt: null, organizationId: orgId(organizationId) };
 }
 
 export async function loadDashboard(user: CurrentUser, now: Date): Promise<Omit<DashboardData, "greeting" | "dateLabel">> {
-  const scope = matterScope();
+  const scope = matterScope(user.organizationId);
   const activeWhere: Prisma.MatterWhereInput = { ...scope, status: { in: [...ACTIVE_STATUSES] } };
   const in30 = new Date(now.getTime() + 30 * 86_400_000);
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));

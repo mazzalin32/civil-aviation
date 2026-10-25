@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { AssignmentRole, CalendarKind, PartyKind } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { writeAudit } from "@/lib/audit";
 import { generateReference } from "@/lib/reference";
 import { notify } from "@/lib/notify";
@@ -35,13 +36,14 @@ export async function discardDraft() {
 
 /** Spec §5.5 step 2: "warns if a case with the same court number or same parties exists." */
 export async function checkDuplicates(courtCaseNo: string, partyNames: string[]) {
-  await requireRole("ADMIN");
+  const admin = await requireRole("ADMIN");
   const names = partyNames.map((n) => n.trim()).filter(Boolean);
   const trimmedCourtNo = courtCaseNo.trim();
   if (!trimmedCourtNo && names.length === 0) return [];
 
   const matches = await db.matter.findMany({
     where: {
+      organizationId: orgId(admin.organizationId),
       OR: [
         ...(trimmedCourtNo ? [{ courtCaseNo: trimmedCourtNo }] : []),
         ...(names.length ? [{ parties: { some: { name: { in: names, mode: "insensitive" as const } } } }] : []),
@@ -54,9 +56,9 @@ export async function checkDuplicates(courtCaseNo: string, partyNames: string[])
 }
 
 export async function getAssignableLawyers() {
-  await requireRole("ADMIN");
+  const admin = await requireRole("ADMIN");
   const lawyers = await db.user.findMany({
-    where: { role: "LAWYER", isActive: true },
+    where: { role: "LAWYER", isActive: true, organizationId: orgId(admin.organizationId) },
     select: {
       id: true,
       name: true,
@@ -86,12 +88,16 @@ export async function createMatter(raw: unknown): Promise<CreateResult> {
   const stage = await db.stageTemplate.findUnique({ where: { id: stageInput.stageTemplateId } });
   if (!stage || stage.matterTypeId !== identification.matterTypeId) return { error: "Choose a current stage that belongs to the selected matter type." };
 
-  const lead = await db.user.findUnique({ where: { id: representation.leadUserId }, select: { isActive: true, role: true } });
-  if (!lead?.isActive || lead.role !== "LAWYER") return { error: "Choose an active lawyer as the responsible legal officer." };
+  if (!admin.organizationId) return { error: "Your account isn't linked to an organisation." };
+  const lead = await db.user.findUnique({ where: { id: representation.leadUserId }, select: { isActive: true, role: true, organizationId: true } });
+  if (!lead?.isActive || lead.role !== "LAWYER" || lead.organizationId !== admin.organizationId) return { error: "Choose an active lawyer as the responsible legal officer." };
+
+  if (representation.supportUserIds.length > 0) {
+    const supportCount = await db.user.count({ where: { id: { in: representation.supportUserIds }, organizationId: admin.organizationId } });
+    if (supportCount !== representation.supportUserIds.length) return { error: "Choose active lawyers from your organisation to support this case." };
+  }
 
   const reportedAt = new Date(`${identification.reportedDate}T${identification.reportedTime || "00:00"}:00+03:00`);
-
-  if (!admin.organizationId) return { error: "Your account isn't linked to an organisation." };
 
   const matter = await db.$transaction(async (tx) => {
     const reference = await generateReference(matterType.referencePrefix!, tx);

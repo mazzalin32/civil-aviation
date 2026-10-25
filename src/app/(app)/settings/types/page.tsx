@@ -27,7 +27,7 @@ export default async function TypesPage() {
 
   return (
     <>
-      <PageHeader title="Event & document types" description="What can be logged on a case timeline, and the folders documents sort into." />
+      <PageHeader title="Event & document types" />
       <div className="grid gap-8">
         <section>
           <div className="mb-3 flex items-center justify-between">

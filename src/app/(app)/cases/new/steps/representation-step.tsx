@@ -23,14 +23,14 @@ export function RepresentationStep({
 
   return (
     <>
-      <StepHeader step={6} eyebrow="Legal representation" title="Legal representation" description="Identify counsel and internal responsibility for the matter." />
+      <StepHeader title="Legal representation" />
       <FieldGrid>
         <Field label="Representation status" htmlFor="r-status">
           <Select id="r-status" value={value.representationStatus ?? ""} onChange={(e) => onChange({ representationStatus: e.target.value })}>
             <Options values={REPRESENTATION_STATUSES} />
           </Select>
         </Field>
-        <Field label="Responsible legal officer" htmlFor="r-lead" error={errors.leadUserId} hint="Becomes the lead lawyer on the case.">
+        <Field label="Responsible legal officer" htmlFor="r-lead" error={errors.leadUserId} hint="Becomes the lead lawyer.">
           <Select id="r-lead" value={value.leadUserId ?? ""} onChange={(e) => onChange({ leadUserId: e.target.value, supportUserIds: support.filter((s) => s !== e.target.value) })}>
             <option value="">Select a lawyer</option>
             {lawyers.map((l) => (

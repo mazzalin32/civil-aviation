@@ -150,6 +150,7 @@ export async function updateNote(raw: unknown): Promise<ActionResult> {
   const user = await requireMatterEdit(matterId);
 
   const existing = await db.note.findUniqueOrThrow({ where: { id } });
+  if (existing.matterId !== matterId) return { error: "That note no longer exists." };
   if (existing.authorId !== user.id && user.role !== "ADMIN") return { error: "Only the author or an Admin can edit this note." };
 
   await db.note.update({ where: { id }, data: { body, isPrivate } });
@@ -160,6 +161,7 @@ export async function updateNote(raw: unknown): Promise<ActionResult> {
 export async function deleteNote(matterId: string, id: string): Promise<ActionResult> {
   const user = await requireMatterEdit(matterId);
   const existing = await db.note.findUniqueOrThrow({ where: { id } });
+  if (existing.matterId !== matterId) return { error: "That note no longer exists." };
   if (existing.authorId !== user.id && user.role !== "ADMIN") return { error: "Only the author or an Admin can delete this note." };
 
   await db.note.delete({ where: { id } });
@@ -187,6 +189,9 @@ export async function updateParty(raw: unknown): Promise<ActionResult> {
   if (!id) return { error: "Missing party id." };
   const user = await requireMatterEdit(matterId);
 
+  const existingParty = await db.party.findUnique({ where: { id }, select: { matterId: true } });
+  if (!existingParty || existingParty.matterId !== matterId) return { error: "That party no longer exists." };
+
   await db.party.update({
     where: { id },
     data: { name, kind, counselName: counselName || null, counselFirm: counselFirm || null, email: email || null, phone: phone || null, address: address || null, department: department || null },
@@ -197,6 +202,8 @@ export async function updateParty(raw: unknown): Promise<ActionResult> {
 
 export async function removeParty(matterId: string, id: string): Promise<ActionResult> {
   const user = await requireMatterEdit(matterId);
+  const existingParty = await db.party.findUnique({ where: { id }, select: { matterId: true } });
+  if (!existingParty || existingParty.matterId !== matterId) return { error: "That party no longer exists." };
   await db.party.delete({ where: { id } });
   await writeAudit({ userId: user.id, action: "matter.party.remove", entity: "Party", entityId: id });
   reload(matterId);
@@ -207,6 +214,10 @@ export async function reassign(raw: unknown): Promise<ActionResult> {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, leadUserId, supportUserIds, reason } = parsed.data;
   const user = await requireMatterEdit(matterId);
+
+  const allIds = [leadUserId, ...supportUserIds];
+  const validCount = await db.user.count({ where: { id: { in: allIds }, organizationId: user.organizationId } });
+  if (validCount !== new Set(allIds).size) return { error: "Choose lawyers from your organisation." };
 
   const current = await db.matterAssignment.findMany({ where: { matterId, removedAt: null } });
   const currentLead = current.find((a) => a.role === "LEAD");
@@ -297,7 +308,7 @@ export async function resumeCase(matterId: string): Promise<ActionResult> {
 export async function deleteCase(matterId: string): Promise<ActionResult> {
   const admin = await requireRole("ADMIN");
   const matter = await db.matter.findUnique({ where: { id: matterId } });
-  if (!matter || matter.deletedAt) return { error: "That case no longer exists." };
+  if (!matter || matter.deletedAt || matter.organizationId !== admin.organizationId) return { error: "That case no longer exists." };
 
   await db.$transaction(async (tx) => {
     await tx.matter.update({ where: { id: matterId }, data: { deletedAt: new Date(), deletedById: admin.id } });

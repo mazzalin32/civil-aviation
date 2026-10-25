@@ -1,5 +1,5 @@
 import "server-only";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "./db";
 import { env } from "./env";
 import { getCurrentUser, type CurrentUser, type Role } from "./session";
@@ -28,11 +28,12 @@ export async function requireRole(...roles: Role[]) {
   return user;
 }
 
-/** Everyone in the org reads every matter (prototype: "the whole org sees the same data") —
- *  kept as a function, not a constant, since a later phase may reintroduce confidentiality
- *  tiers that narrow this again. */
-export async function canAccessMatter(_userId: string, _role: Role, _matterId: string) {
-  return true;
+/** Everyone in their own organisation reads every matter in it (prototype: "the whole org
+ *  sees the same data") — but never another organisation's. Kept as a function, not a
+ *  constant, since a later phase may reintroduce confidentiality tiers that narrow this. */
+export async function canAccessMatter(_userId: string, _role: Role, matterId: string, organizationId: string | null) {
+  const matter = await db.matter.findUnique({ where: { id: matterId }, select: { organizationId: true } });
+  return Boolean(matter && matter.organizationId === organizationId);
 }
 
 /**
@@ -52,6 +53,7 @@ export async function requireMatterChatAccess(matterId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   assertOnboarded(user);
+  await assertMatterInOwnOrg(user, matterId);
   const allowed = await canAccessMatterChat(user.id, user.role, matterId);
   if (!allowed) redirect("/forbidden");
   return user;
@@ -82,12 +84,21 @@ export function canUploadDocument(_userId: string, _role: Role, _matterId: strin
   return true;
 }
 
-/** The matter-page equivalent of requireRole() — view access is org-wide, so this now only
- *  checks that someone is signed in (kept as its own helper so callers read clearly). */
-export async function requireMatterAccess(_matterId: string) {
+/** A matter from another organisation must 404, not just redirect — it shouldn't even be
+ *  confirmed to exist. Superadmin (organizationId null) never has a matching organisation,
+ *  so this also correctly keeps Superadmin out of every organisation's matters. */
+async function assertMatterInOwnOrg(user: CurrentUser, matterId: string) {
+  const matter = await db.matter.findUnique({ where: { id: matterId }, select: { organizationId: true } });
+  if (!matter || matter.organizationId !== user.organizationId) notFound();
+}
+
+/** The matter-page equivalent of requireRole() — view access is org-wide *within* the
+ *  signed-in user's own organisation (never another one's). */
+export async function requireMatterAccess(matterId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   assertOnboarded(user);
+  await assertMatterInOwnOrg(user, matterId);
   return user;
 }
 
@@ -96,6 +107,7 @@ export async function requireMatterEdit(matterId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   assertOnboarded(user);
+  await assertMatterInOwnOrg(user, matterId);
   const allowed = await canEditMatter(user.id, user.role, matterId);
   if (!allowed) redirect("/forbidden");
   return user;
@@ -106,6 +118,7 @@ export async function requireTaskAssign(matterId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   assertOnboarded(user);
+  await assertMatterInOwnOrg(user, matterId);
   const allowed = await canAssignTasks(user.id, user.role, matterId);
   if (!allowed) redirect("/forbidden");
   return user;
@@ -116,11 +129,18 @@ async function contractAssignmentRole(userId: string, contractId: string) {
   return assignment?.role ?? null;
 }
 
-/** Contracts are org-wide readable, same as Matters. */
-export async function requireContractAccess(_contractId: string) {
+/** Same cross-organisation check as matters, for contracts. */
+async function assertContractInOwnOrg(user: CurrentUser, contractId: string) {
+  const contract = await db.contract.findUnique({ where: { id: contractId }, select: { organizationId: true } });
+  if (!contract || contract.organizationId !== user.organizationId) notFound();
+}
+
+/** Contracts are org-wide readable, same as Matters — within the signed-in user's own organisation. */
+export async function requireContractAccess(contractId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   assertOnboarded(user);
+  await assertContractInOwnOrg(user, contractId);
   return user;
 }
 
@@ -135,6 +155,7 @@ export async function requireContractEdit(contractId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   assertOnboarded(user);
+  await assertContractInOwnOrg(user, contractId);
   const allowed = await canEditContract(user.id, user.role, contractId);
   if (!allowed) redirect("/forbidden");
   return user;

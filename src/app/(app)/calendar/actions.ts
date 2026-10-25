@@ -32,19 +32,39 @@ export async function addPersonalEntry(formData: FormData): Promise<ActionResult
     title: formData.get("title"),
     startsAt: formData.get("startsAt"),
     endsAt: formData.get("endsAt"),
+    matterId: formData.get("matterId"),
+    forUserId: formData.get("forUserId"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
 
+  let ownerId = user.id;
+  if (parsed.data.forUserId && parsed.data.forUserId !== user.id) {
+    if (user.role !== "ADMIN") return { error: "Only an Admin can add an entry to someone else's calendar." };
+    const target = await db.user.findUnique({ where: { id: parsed.data.forUserId }, select: { organizationId: true, isActive: true, deletedAt: true } });
+    if (!target || !target.isActive || target.deletedAt || target.organizationId !== user.organizationId) {
+      return { error: "Choose an active person from your organisation." };
+    }
+    ownerId = parsed.data.forUserId;
+  }
+
+  let matterId: string | null = null;
+  if (parsed.data.matterId) {
+    const matter = await db.matter.findUnique({ where: { id: parsed.data.matterId }, select: { organizationId: true, deletedAt: true } });
+    if (!matter || matter.deletedAt || matter.organizationId !== user.organizationId) return { error: "That case no longer exists." };
+    matterId = parsed.data.matterId;
+  }
+
   const entry = await db.calendarEntry.create({
     data: {
-      userId: user.id,
+      userId: ownerId,
+      matterId,
       kind: "PERSONAL",
       title: parsed.data.title,
       startsAt: new Date(parsed.data.startsAt),
       endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : null,
     },
   });
-  await writeAudit({ userId: user.id, action: "calendar.personal.add", entity: "CalendarEntry", entityId: entry.id });
+  await writeAudit({ userId: user.id, action: "calendar.personal.add", entity: "CalendarEntry", entityId: entry.id, after: { ownerId, matterId } });
   revalidatePath("/calendar");
 }
 
@@ -54,7 +74,7 @@ export async function scheduleEntry(raw: unknown): Promise<ActionResult> {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the fields." };
   const { matterId, kind, title, startsAt, forumId, courtroom, purpose, isCritical, assigneeId } = parsed.data;
   const user = await requireUser();
-  const allowed = await canAccessMatter(user.id, user.role, matterId);
+  const allowed = await canAccessMatter(user.id, user.role, matterId, user.organizationId);
   if (!allowed) return { error: "You don't have access to this case." };
 
   const entry = await db.calendarEntry.create({
@@ -78,8 +98,11 @@ export async function scheduleEntry(raw: unknown): Promise<ActionResult> {
 
 export async function deletePersonalEntry(id: string): Promise<ActionResult> {
   const user = await requireUser();
-  const entry = await db.calendarEntry.findUnique({ where: { id } });
-  if (!entry || entry.userId !== user.id) return { error: "You can only remove your own personal entries." };
+  const entry = await db.calendarEntry.findUnique({ where: { id }, include: { user: { select: { organizationId: true } } } });
+  if (!entry) return { error: "That entry no longer exists." };
+  const ownEntry = entry.userId === user.id;
+  const adminOnOwnOrg = user.role === "ADMIN" && entry.user?.organizationId === user.organizationId;
+  if (!ownEntry && !adminOnOwnOrg) return { error: "You can only remove your own personal entries." };
   await db.calendarEntry.delete({ where: { id } });
   await writeAudit({ userId: user.id, action: "calendar.personal.remove", entity: "CalendarEntry", entityId: id });
   revalidatePath("/calendar");
@@ -97,7 +120,7 @@ export async function recordOutcome(raw: unknown): Promise<ActionResult> {
   const entry = await db.calendarEntry.findUnique({ where: { id: entryId } });
   if (!entry) return { error: "That calendar entry no longer exists." };
   if (entry.matterId) {
-    const allowed = await canAccessMatter(user.id, user.role, entry.matterId);
+    const allowed = await canAccessMatter(user.id, user.role, entry.matterId, user.organizationId);
     if (!allowed) return { error: "You don't have access to this case." };
   }
   if (entry.status !== "OPEN") return { error: "This entry's outcome was already recorded." };

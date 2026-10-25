@@ -9,7 +9,7 @@ export function PositionStep({ value, onChange, errors }: { value: Partial<Posit
   const chosen = UCAA_POSITIONS.find((p) => p.value === value.ucaaRole);
   return (
     <>
-      <StepHeader step={2} eyebrow="CAA position & reporting" title="CAA position & parties" description="Establish whether CAA is bringing or responding to the matter." />
+      <StepHeader title="CAA position & parties" />
       <p className="m-0 mb-2 text-[13px] font-medium">CAA&apos;s position</p>
       <div role="radiogroup" aria-label="CAA's position" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {UCAA_POSITIONS.map((p) => (
@@ -33,8 +33,8 @@ export function PositionStep({ value, onChange, errors }: { value: Partial<Posit
       </p>
 
       {chosen && (
-        <p className="m-0 mt-3 mb-5 rounded-[12px] border border-primary/20 bg-primary-soft px-4 py-3 text-[13px]">
-          <strong>CAA is the {chosen.label}.</strong> The information below identifies the party on the other side of this matter.
+        <p className="m-0 mt-3 mb-5 rounded-[12px] border border-primary/20 bg-primary-soft px-4 py-3 text-[13px] font-medium">
+          CAA is the {chosen.label}.
         </p>
       )}
 

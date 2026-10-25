@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const filters = parseUserFilters(Object.fromEntries(url.searchParams));
 
   const users = await db.user.findMany({
-    where: buildUserWhere(filters),
+    where: buildUserWhere(filters, me.organizationId),
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
     include: { accounts: { where: { providerId: "credential" }, select: { id: true } } },
   });

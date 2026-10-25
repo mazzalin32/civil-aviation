@@ -6,6 +6,9 @@ export const personalEntrySchema = z.object({
   title: z.string().trim().min(1, "Enter a title").max(200),
   startsAt: z.string().min(1, "Choose a date/time"),
   endsAt: optionalText(40),
+  matterId: optionalText(40),
+  // Who this entry is for — only an Admin may set this to someone other than themselves.
+  forUserId: optionalText(40),
 });
 
 export const recordOutcomeSchema = z.object({

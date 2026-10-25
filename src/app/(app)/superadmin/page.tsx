@@ -21,7 +21,6 @@ export default async function SuperadminPage() {
     <div>
       <PageHeader
         title="Organisations"
-        description="Every organisation on the platform — create one, brand it, and invite its first Admin."
         actions={
           <Link href="/superadmin/new" className={buttonVariants({ variant: "primary" })}>
             <Plus className="size-4" /> New organisation

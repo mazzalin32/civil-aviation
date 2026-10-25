@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createEvents, type EventAttributes } from "ics";
 import { db } from "@/lib/db";
+import { orgId } from "@/lib/org";
 
 function toDateArray(d: Date): [number, number, number, number, number] {
   return [d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes()];
@@ -15,14 +16,22 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
   if (!token) return new NextResponse("Missing token", { status: 401 });
 
-  const user = await db.user.findUnique({ where: { icsToken: token }, select: { id: true, role: true } });
+  const user = await db.user.findUnique({ where: { icsToken: token }, select: { id: true, role: true, organizationId: true } });
   if (!user) return new NextResponse("Invalid token", { status: 401 });
 
   const notDeleted = { NOT: { matter: { deletedAt: { not: null } } } };
-  const where = user.role === "ADMIN" ? notDeleted : { ...notDeleted, OR: [{ assigneeId: user.id }, { userId: user.id }] };
+  const sameOrg = { OR: [{ matterId: null }, { matter: { organizationId: orgId(user.organizationId) } }] };
+  const where =
+    user.role === "ADMIN" ? { ...notDeleted, ...sameOrg } : { AND: [notDeleted, sameOrg], OR: [{ assigneeId: user.id }, { userId: user.id }] };
   const [entries, tasks] = await Promise.all([
     db.calendarEntry.findMany({ where, include: { matter: { select: { reference: true } } } }),
-    db.task.findMany({ where: user.role === "ADMIN" ? notDeleted : { ...notDeleted, assigneeId: user.id }, include: { matter: { select: { reference: true } } } }),
+    db.task.findMany({
+      where:
+        user.role === "ADMIN"
+          ? { ...notDeleted, matter: { organizationId: orgId(user.organizationId) } }
+          : { ...notDeleted, assigneeId: user.id, matter: { organizationId: orgId(user.organizationId) } },
+      include: { matter: { select: { reference: true } } },
+    }),
   ]);
 
   const events: EventAttributes[] = [

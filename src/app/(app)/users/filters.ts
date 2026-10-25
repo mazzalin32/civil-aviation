@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { orgId } from "@/lib/org";
 
 export type UserFilters = {
   status?: string; // "active" | "invited" | "deactivated"
@@ -12,10 +13,11 @@ export function parseUserFilters(sp: Record<string, string | string[] | undefine
 }
 
 /** Shared between the list page and the export routes, so "export" always matches what's on screen.
- * Users & Access manages this one organisation's Admin/Lawyer accounts — Superadmin accounts
- * belong to no organisation and are managed from /superadmin instead, so they're always excluded. */
-export function buildUserWhere(filters: UserFilters): Prisma.UserWhereInput {
-  const where: Prisma.UserWhereInput = { deletedAt: null, role: { not: "SUPERADMIN" } };
+ * Users & Access manages this one organisation's Admin/Lawyer accounts — never another
+ * organisation's, and never Superadmin accounts (which belong to no organisation at all and
+ * are managed from /superadmin instead). */
+export function buildUserWhere(filters: UserFilters, organizationId: string | null): Prisma.UserWhereInput {
+  const where: Prisma.UserWhereInput = { deletedAt: null, role: { not: "SUPERADMIN" }, organizationId: orgId(organizationId) };
 
   if (filters.status === "active") where.isActive = true;
   else if (filters.status === "deactivated") where.isActive = false;

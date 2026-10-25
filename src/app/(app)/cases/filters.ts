@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { resolveDateRange, type TimePreset } from "@/lib/date-range";
+import { orgId } from "@/lib/org";
 
 export type DateField = "createdAt" | "closedAt" | "lastActivityAt";
 export type SortKey = "lastActivityAt" | "createdAt" | "priority" | "value" | "title";
@@ -52,8 +53,8 @@ export function parseCaseFilters(sp: Record<string, string | string[] | undefine
   };
 }
 
-export function buildCaseWhere(f: CaseFilters): Prisma.MatterWhereInput {
-  const where: Prisma.MatterWhereInput = { deletedAt: null };
+export function buildCaseWhere(f: CaseFilters, organizationId: string | null): Prisma.MatterWhereInput {
+  const where: Prisma.MatterWhereInput = { deletedAt: null, organizationId: orgId(organizationId) };
 
   if (f.status) where.status = f.status as Prisma.EnumMatterStatusFilter["equals"];
   if (f.stage) where.currentStage = { name: f.stage };

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { requireRole, canEditMatter } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { CaseChatHub, type CaseConversationSummary } from "./chat-hub";
 import type { CaseChatData } from "./actions";
 
@@ -17,9 +18,10 @@ export default async function ChatPage({
   // Strictly scoped per case — assigned counsel + admins
   const matters = await db.matter.findMany({
     where: isAdmin
-      ? { deletedAt: null }
+      ? { deletedAt: null, organizationId: orgId(user.organizationId) }
       : {
           deletedAt: null,
+          organizationId: orgId(user.organizationId),
           assignments: {
             some: {
               userId: user.id,
@@ -189,7 +191,7 @@ export default async function ChatPage({
 
   // Active lawyers for @mentions
   const allLawyers = await db.user.findMany({
-    where: { role: "LAWYER", isActive: true },
+    where: { role: "LAWYER", isActive: true, organizationId: orgId(user.organizationId) },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

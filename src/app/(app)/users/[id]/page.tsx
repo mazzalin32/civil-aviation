@@ -11,7 +11,7 @@ import { ActivityList } from "./activity-list";
 export const metadata = { title: "User details" };
 
 export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole("ADMIN");
+  const admin = await requireRole("ADMIN");
   const me = await getCurrentUser();
   const { id } = await params;
 
@@ -20,8 +20,9 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     include: { accounts: { where: { providerId: "credential" }, select: { id: true } } },
   });
   // Users & Access manages this organisation's Admin/Lawyer accounts only — Superadmin
-  // accounts belong to no organisation and are managed from /superadmin instead.
-  if (!user || user.role === "SUPERADMIN") notFound();
+  // accounts belong to no organisation and are managed from /superadmin instead, and another
+  // organisation's user must 404 rather than be confirmed to exist.
+  if (!user || user.role === "SUPERADMIN" || user.organizationId !== admin.organizationId) notFound();
 
   const activity = await db.auditLog.findMany({
     where: { entity: "User", entityId: id },

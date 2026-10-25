@@ -16,6 +16,9 @@ export async function GET(
   const user = await getCurrentUser();
   if (!user) return new NextResponse("Unauthorized", { status: 401 });
 
+  const matter = await db.matter.findUnique({ where: { id: matterId }, select: { organizationId: true } });
+  if (!matter || matter.organizationId !== user.organizationId) return new NextResponse("Not found", { status: 404 });
+
   const allowed = await canAccessMatterChat(user.id, user.role, matterId);
   if (!allowed) return new NextResponse("Forbidden", { status: 403 });
 

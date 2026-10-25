@@ -20,11 +20,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const version = await db.contractDocumentVersion.findUnique({
     where: { id: versionId },
-    include: { document: true },
+    include: { document: { include: { contract: { select: { organizationId: true } } } } },
   });
   if (!version || version.document.deletedAt) return new NextResponse("Not found", { status: 404 });
 
   const { document } = version;
+  // Never serve another organisation's document, even to a signed-in user elsewhere on the platform.
+  if (document.contract.organizationId !== user.organizationId) return new NextResponse("Not found", { status: 404 });
 
   const action = (request.nextUrl.searchParams.get("action") ?? "view") as "view" | "download" | "print";
   if (document.confidentiality === "HIGHLY_CONFIDENTIAL" && action !== "view" && user.role !== "ADMIN") {

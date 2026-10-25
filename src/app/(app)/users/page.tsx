@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Upload } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
@@ -27,11 +28,11 @@ export default async function UsersPage({
 
   const [users, departmentRows] = await Promise.all([
     db.user.findMany({
-      where: buildUserWhere(filters),
+      where: buildUserWhere(filters, me?.organizationId ?? null),
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
       include: { accounts: { where: { providerId: "credential" }, select: { id: true } } },
     }),
-    db.user.findMany({ where: { department: { not: null } }, select: { department: true }, distinct: ["department"] }),
+    db.user.findMany({ where: { department: { not: null }, organizationId: orgId(me?.organizationId ?? null) }, select: { department: true }, distinct: ["department"] }),
   ]);
   const departments = departmentRows.map((d) => d.department!).sort();
 
@@ -45,7 +46,6 @@ export default async function UsersPage({
     <>
       <PageHeader
         title="Users"
-        description="Lawyer accounts: invite, edit, deactivate, and manage sessions."
         actions={
           <>
             <ExportButtons query={queryString} />

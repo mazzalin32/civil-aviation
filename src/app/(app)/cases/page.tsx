@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
@@ -32,7 +33,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
   // Everyone in the org sees every matter (prototype) — only case creation stays Admin-only.
   const created = typeof sp.created === "string" ? sp.created : undefined;
 
-  const where = buildCaseWhere(filters);
+  const where = buildCaseWhere(filters, user.organizationId);
 
   const [matters, categories, matterTypes, forums, lawyers, stageRows] = await Promise.all([
     db.matter.findMany({
@@ -55,7 +56,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
     db.category.findMany({ where: { isActive: true }, orderBy: { order: "asc" }, select: { id: true, name: true } }),
     db.matterType.findMany({ where: { isActive: true, isSubProcess: false }, orderBy: { order: "asc" }, select: { id: true, name: true } }),
     db.forum.findMany({ where: { isActive: true }, orderBy: { order: "asc" }, select: { id: true, name: true } }),
-    db.user.findMany({ where: { role: "LAWYER", isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.user.findMany({ where: { role: "LAWYER", isActive: true, organizationId: orgId(user.organizationId) }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.stageTemplate.findMany({ where: { isActive: true }, select: { name: true }, distinct: ["name"], orderBy: { name: "asc" } }),
   ]);
 
@@ -101,8 +102,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader
-        title="Legal Matters"
-        description="Every matter in the department."
+        title="Matters"
         actions={
           isAdmin && (
             <Link href="/cases/new" className={buttonVariants({ variant: "primary" })}>

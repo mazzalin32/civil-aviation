@@ -34,7 +34,7 @@ export function DocumentsStep({
 
   return (
     <>
-      <StepHeader step={8} eyebrow="Documents" title="Supporting documents" description="Attach the originating process and any documents required for legal review. Files are scanned and encrypted when the case is submitted." />
+      <StepHeader title="Supporting documents" />
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -47,7 +47,7 @@ export function DocumentsStep({
           <Upload className="size-5" />
         </span>
         <p className="m-0 text-[13.5px] font-medium">Upload case documents</p>
-        <p className="m-0 text-xs text-text-muted">PDF, Word, Excel, PowerPoint, image or text files up to 25 MB each</p>
+        <p className="m-0 text-xs text-text-muted">PDF, Office, image or text — up to 25 MB each</p>
         <input ref={input} type="file" multiple hidden onChange={(e) => add(e.target.files)} />
         <Button type="button" size="sm" onClick={() => input.current?.click()}>
           Choose files
@@ -69,7 +69,7 @@ export function DocumentsStep({
       )}
 
       {files.length === 0 ? (
-        <p className="m-0 mt-2 rounded-[12px] border border-border px-4 py-3 text-[13px] text-text-muted">No documents attached yet. The originating legal process should be attached before submission.</p>
+        <p className="m-0 mt-2 rounded-[12px] border border-border px-4 py-3 text-[13px] text-text-muted">No documents attached yet.</p>
       ) : (
         <ul className="m-0 mt-2 grid list-none gap-2 p-0">
           {files.map((f, i) => (

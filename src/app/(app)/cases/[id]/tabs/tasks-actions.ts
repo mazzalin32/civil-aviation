@@ -30,10 +30,10 @@ export async function addTask(raw: unknown): Promise<ActionResult> {
 
   const [matter, assignee] = await Promise.all([
     db.matter.findUnique({ where: { id: matterId }, select: { reference: true, title: true, deletedAt: true } }),
-    db.user.findUnique({ where: { id: assigneeId }, select: { isActive: true, deletedAt: true } }),
+    db.user.findUnique({ where: { id: assigneeId }, select: { isActive: true, deletedAt: true, organizationId: true } }),
   ]);
   if (!matter || matter.deletedAt) return { error: "That case no longer exists." };
-  if (!assignee?.isActive || assignee.deletedAt) return { error: "Choose an active person to assign this task to." };
+  if (!assignee?.isActive || assignee.deletedAt || assignee.organizationId !== user.organizationId) return { error: "Choose an active person to assign this task to." };
 
   const task = await db.task.create({ data: { matterId, title, assigneeId, dueAt: new Date(dueAt), createdById: user.id } });
   await writeAudit({ userId: user.id, action: "task.add", entity: "Task", entityId: task.id, after: { title, assigneeId } });

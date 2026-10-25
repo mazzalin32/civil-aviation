@@ -12,7 +12,7 @@ export default async function LawFirmsPage() {
 
   return (
     <>
-      <PageHeader title="Law Firms & Counsel" description="External firm(s) and Counsel(s)" />
+      <PageHeader title="Law Firms" />
       <LawFirmsView isAdmin={user.role === "ADMIN"} firms={firms} />
     </>
   );

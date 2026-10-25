@@ -123,6 +123,9 @@ export async function deleteDocument(matterId: string, documentId: string): Prom
   // Anyone can add documents; only an Admin can delete them.
   const user = await requireRole("ADMIN");
 
+  const document = await db.document.findUnique({ where: { id: documentId }, select: { matterId: true, matter: { select: { organizationId: true } } } });
+  if (!document || document.matterId !== matterId || document.matter.organizationId !== user.organizationId) return { error: "That document no longer exists." };
+
   await db.document.update({ where: { id: documentId }, data: { deletedAt: new Date(), deletedById: user.id } });
   await writeAudit({ userId: user.id, action: "document.delete", entity: "Document", entityId: documentId });
   revalidatePath(`/cases/${matterId}`);
@@ -132,6 +135,9 @@ export async function restoreDocument(matterId: string, documentId: string): Pro
   const user = await requireMatterAccess(matterId);
   if (user.role !== "ADMIN") return { error: "Only an Admin can restore a deleted document." };
 
+  const document = await db.document.findUnique({ where: { id: documentId }, select: { matterId: true } });
+  if (!document || document.matterId !== matterId) return { error: "That document no longer exists." };
+
   await db.document.update({ where: { id: documentId }, data: { deletedAt: null, deletedById: null } });
   await writeAudit({ userId: user.id, action: "document.restore", entity: "Document", entityId: documentId });
   revalidatePath(`/cases/${matterId}`);
@@ -140,6 +146,9 @@ export async function restoreDocument(matterId: string, documentId: string): Pro
 export async function permanentlyDeleteDocument(matterId: string, documentId: string): Promise<ActionResult> {
   const user = await requireMatterAccess(matterId);
   if (user.role !== "ADMIN") return { error: "Only an Admin can permanently delete a document." };
+
+  const document = await db.document.findUnique({ where: { id: documentId }, select: { matterId: true } });
+  if (!document || document.matterId !== matterId) return { error: "That document no longer exists." };
 
   const versions = await db.documentVersion.findMany({ where: { documentId }, select: { storageKey: true } });
   await db.$transaction(async (tx) => {

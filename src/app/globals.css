@@ -166,6 +166,8 @@
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
+    letter-spacing: -0.011em;
+    font-feature-settings: "cv11" 1;
   }
   :focus-visible {
     outline: 2px solid var(--primary);
@@ -175,6 +177,7 @@
   h2,
   h3 {
     text-wrap: balance;
+    letter-spacing: -0.015em;
   }
 }
 
@@ -185,6 +188,195 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Scrolls normally (wheel, trackpad, keyboard, touch) but never shows a scrollbar track/thumb —
+   for internally-scrolling panels (sidebar nav, chat lists, …) where any visible scrollbar reads
+   as clutter against the rest of the UI. */
+.scrollbar-hidden {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge (Chromium) */
+}
+
+/* FullCalendar re-skinned onto our own tokens (components/app/calendar) — it ships with its
+   own Bootstrap-flavoured defaults (navy buttons, square cells, yellow "today") that clash
+   with the rest of the app. Variables first, then the structural bits the variables can't
+   reach (button radius, event chips, the Google-Calendar-style "today" badge). */
+.fc {
+  --fc-small-font-size: 11px;
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--surface);
+  --fc-neutral-bg-color: var(--surface-muted);
+  --fc-neutral-text-color: var(--text-muted);
+  --fc-today-bg-color: var(--primary-soft);
+  --fc-now-indicator-color: var(--danger);
+  --fc-button-text-color: var(--text);
+  --fc-button-bg-color: var(--surface);
+  --fc-button-border-color: var(--border);
+  --fc-button-hover-bg-color: var(--surface-muted);
+  --fc-button-hover-border-color: var(--border);
+  --fc-button-active-bg-color: var(--primary-soft);
+  --fc-button-active-border-color: var(--primary);
+  --fc-list-event-hover-bg-color: var(--surface-muted);
+  --fc-event-text-color: var(--text);
+  font-family: var(--font-sans);
+}
+
+.fc .fc-toolbar {
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.fc .fc-toolbar-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.fc .fc-button {
+  border-radius: var(--radius-control) !important;
+  padding: 0.3125rem 0.75rem;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: capitalize;
+  box-shadow: none !important;
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  color: var(--primary);
+  box-shadow: none !important;
+}
+.fc .fc-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+  box-shadow: none !important;
+}
+.fc .fc-button-group .fc-button {
+  border-radius: var(--radius-control) !important;
+}
+.fc .fc-today-button:disabled {
+  opacity: 0.4;
+}
+
+.fc .fc-col-header-cell {
+  background: transparent;
+}
+.fc .fc-col-header-cell-cushion {
+  padding: 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.fc .fc-daygrid-day-number {
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+/* The current day's number gets a filled circle badge, like Google Calendar. */
+.fc .fc-day-today .fc-daygrid-day-number {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 4px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 600;
+}
+.fc .fc-daygrid-day-frame {
+  padding: 2px;
+}
+.fc .fc-daygrid-more-link {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--primary);
+}
+
+/* Month view: a colour dot + label per event (not a solid block) so a busy day stays
+   legible — the same convention Google Calendar's month view uses. */
+.fc .fc-daygrid-event {
+  display: flex;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+}
+.fc .fc-daygrid-event .fc-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fc .fc-daygrid-event-dot {
+  border-width: 4px;
+}
+.fc .fc-daygrid-day-bottom {
+  margin-top: 1px;
+}
+
+/* Week/day views: filled blocks are the right convention here (matches Google Calendar) —
+   solid colour fill, so the title needs to be light regardless of the default dot-mode ink. */
+.fc .fc-timegrid-event {
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  box-shadow: none;
+  color: var(--on-primary);
+}
+.fc .fc-timegrid-event .fc-event-main {
+  color: inherit;
+}
+.fc .fc-timegrid-slot-label-cushion {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.fc .fc-timegrid-now-indicator-line {
+  border-color: var(--danger);
+}
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.fc .fc-list {
+  border-radius: var(--radius-control);
+  border-color: var(--border);
+}
+.fc .fc-list-day-cushion {
+  background: var(--surface-muted);
+}
+.fc .fc-list-event-time {
+  color: var(--text-muted);
+}
+.fc .fc-list-event-dot {
+  border-width: 5px;
+}
+.fc .fc-list-empty {
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+/* Done entries read as "closed", not as another colour in the mix: grey fill, muted text,
+   in every view (month dot, week/day block, and the list view's own dot). */
+.fc .fc-event-done {
+  --fc-event-bg-color: var(--surface-muted);
+  --fc-event-border-color: var(--border);
+  --fc-event-text-color: var(--text-muted);
+}
+.fc .fc-event-done .fc-daygrid-event-dot,
+.fc .fc-event-done .fc-list-event-dot {
+  border-color: var(--text-muted) !important;
+}
+.fc .fc-timegrid-event.fc-event-done {
+  background-color: var(--surface-muted) !important;
+  border-color: var(--border) !important;
+  color: var(--text-muted) !important;
 }
 
 /* Branded loader: a thin line sweeping under the logo (components/app/brand-loader.tsx). */

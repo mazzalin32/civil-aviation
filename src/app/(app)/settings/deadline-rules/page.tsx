@@ -39,7 +39,6 @@ export default async function DeadlineRulesPage() {
     <>
       <PageHeader
         title="Deadline rules"
-        description="When a timeline event of this type is logged (or a hearing outcome recorded), the app suggests a deadline this many days later — e.g. a judgment suggests an appeal-window deadline."
         actions={<AddReferenceButton label="Add deadline rule" panelTitle="Add deadline rule" fields={fields} createAction={createDeadlineRule} />}
       />
       <ReferenceTable items={items} fields={fields} updateAction={updateDeadlineRule} toggleActiveAction={toggleDeadlineRuleActive} deleteAction={deleteDeadlineRule} />

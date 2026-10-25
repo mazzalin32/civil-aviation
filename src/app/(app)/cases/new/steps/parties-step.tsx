@@ -12,12 +12,7 @@ export function PartiesStep({ value, onChange }: { value: Partial<Parties>; onCh
 
   return (
     <>
-      <StepHeader
-        step={4}
-        eyebrow="Parties"
-        title="Parties to the matter"
-        description="Add every other relevant party, such as witnesses and interested parties, and describe their role. The main other party was captured in step 2."
-      />
+      <StepHeader title="Parties to the matter" />
       <div className="grid gap-4">
         {rows.map((row, i) => (
           <section key={i} className="rounded-[12px] border border-border p-4">

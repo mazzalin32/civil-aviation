@@ -46,12 +46,18 @@ export function CalendarClient({
   isAdmin,
   lawyers,
   currentLawyerId,
+  matters,
+  staff,
+  currentUserId,
 }: {
   events: CalendarEvent[];
   clashes: string[];
   isAdmin: boolean;
   lawyers: { id: string; name: string }[];
   currentLawyerId?: string;
+  matters: { id: string; reference: string; title: string }[];
+  staff: { id: string; name: string }[];
+  currentUserId: string;
 }) {
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -66,9 +72,8 @@ export function CalendarClient({
         title: e.title,
         start: e.start,
         end: e.end,
-        backgroundColor: e.status === "DONE" ? "var(--surface-muted)" : e.color,
-        borderColor: e.color,
-        textColor: e.status === "DONE" ? "var(--text-muted)" : "var(--on-primary)",
+        color: e.color,
+        classNames: e.status === "DONE" ? ["fc-event-done"] : [],
       })),
     [events],
   );
@@ -150,10 +155,16 @@ export function CalendarClient({
           plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           headerToolbar={{ left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek" }}
+          views={{ dayGridMonth: { dayMaxEventRows: 3, eventDisplay: "list-item" } }}
           events={fcEvents}
           eventClick={onEventClick}
           height="auto"
           firstDay={1}
+          nowIndicator
+          slotMinTime="06:00:00"
+          slotMaxTime="21:00:00"
+          eventTimeFormat={{ hour: "numeric", minute: "2-digit", meridiem: "short" }}
+          dayHeaderFormat={{ weekday: "short" }}
         />
       </Card>
 
@@ -208,7 +219,7 @@ export function CalendarClient({
         )}
       </SlideOver>
 
-      <AddPersonalEntryDialog open={addOpen} onClose={() => setAddOpen(false)} />
+      <AddPersonalEntryDialog open={addOpen} onClose={() => setAddOpen(false)} matters={matters} staff={isAdmin ? staff : []} currentUserId={currentUserId} />
       <RecordOutcomeDialog entry={recording} onClose={() => setRecording(null)} />
     </div>
   );

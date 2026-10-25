@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FolderOpen, Download, Eye, FileText, Lock } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/app/empty-state";
 import { Card } from "@/components/ui/card";
@@ -25,7 +26,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
     db.document.findMany({
       where: {
         deletedAt: null,
-        matter: { deletedAt: null },
+        matter: { deletedAt: null, organizationId: orgId(user.organizationId) },
         ...(query
           ? {
               OR: [
@@ -45,13 +46,13 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
       orderBy: sort === "az" ? { name: "asc" } : { createdAt: "desc" },
       take: 200,
     }),
-    db.matter.findMany({ where: { deletedAt: null, status: { in: ["OPEN", "ON_HOLD"] } }, select: { id: true, reference: true, title: true }, orderBy: { reference: "asc" } }),
+    db.matter.findMany({ where: { deletedAt: null, status: { in: ["OPEN", "ON_HOLD"] }, organizationId: orgId(user.organizationId) }, select: { id: true, reference: true, title: true }, orderBy: { reference: "asc" } }),
     db.documentFolder.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { order: "asc" } }),
   ]);
 
   return (
     <>
-      <PageHeader title="Documents" description="Every document across every matter." />
+      <PageHeader title="Documents" />
 
       <DocumentsToolbar query={query} sort={sort} matters={matters} folders={folders} />
 

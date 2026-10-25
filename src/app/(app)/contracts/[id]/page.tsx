@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireContractAccess } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { ContractPanel } from "./contract-panel";
 import { ContractDocumentsSection } from "./documents-section";
 
@@ -28,7 +29,7 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
       },
     }),
     db.user.findMany({
-      where: { role: "LAWYER", isActive: true },
+      where: { role: "LAWYER", isActive: true, organizationId: orgId(me.organizationId) },
       select: { id: true, name: true, _count: { select: { contractAssignments: { where: { removedAt: null, contract: { deletedAt: null } } } } } },
       orderBy: { name: "asc" },
     }),

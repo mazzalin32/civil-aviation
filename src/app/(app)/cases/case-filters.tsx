@@ -18,7 +18,16 @@ export type CaseFilterOptions = {
   stages: string[];
 };
 
-export function CaseFiltersBar({ filters, options }: { filters: CaseFilters; options: CaseFilterOptions }) {
+export function CaseFiltersBar({
+  filters,
+  options,
+  hiddenFields,
+}: {
+  filters: CaseFilters;
+  options: CaseFilterOptions;
+  /** Extra query params a caller needs preserved across a filter change (e.g. Reports' active tab). */
+  hiddenFields?: Record<string, string>;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const submit = () => formRef.current?.requestSubmit();
 
@@ -42,6 +51,8 @@ export function CaseFiltersBar({ filters, options }: { filters: CaseFilters; opt
     <form ref={formRef} className="grid gap-3 border-b border-border bg-surface-muted/50 px-4 py-3">
       <input type="hidden" name="sort" value={filters.sort} />
       <input type="hidden" name="dir" value={filters.dir} />
+      {hiddenFields &&
+        Object.entries(hiddenFields).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[220px] flex-1">

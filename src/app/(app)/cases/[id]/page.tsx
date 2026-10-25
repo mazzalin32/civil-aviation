@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Lock } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireMatterAccess } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { CaseHeader } from "./header";
 import { LifecycleTracker, type TrackerStage } from "./lifecycle-tracker";
 import { CatchUpPanel } from "./catch-up-panel";
@@ -72,12 +73,12 @@ export default async function CasePage({
     db.summaryVersion.findFirst({ where: { matterId: id }, orderBy: { createdAt: "desc" }, include: { author: { select: { name: true } } } }),
     tab === "activity" ? db.summaryVersion.findMany({ where: { matterId: id }, select: { id: true } }) : Promise.resolve([] as { id: string }[]),
     db.user.findMany({
-      where: { role: "LAWYER", isActive: true },
+      where: { role: "LAWYER", isActive: true, organizationId: orgId(me.organizationId) },
       select: { id: true, name: true, title: true, _count: { select: { matterAssignments: { where: { removedAt: null, matter: { status: { in: ["OPEN", "ON_HOLD"] } } } } } } },
       orderBy: { name: "asc" },
     }),
     tab === "tasks"
-      ? db.user.findMany({ where: { isActive: true, deletedAt: null, role: { not: "SUPERADMIN" } }, select: { id: true, name: true }, orderBy: { name: "asc" } })
+      ? db.user.findMany({ where: { isActive: true, deletedAt: null, role: { not: "SUPERADMIN" }, organizationId: orgId(me.organizationId) }, select: { id: true, name: true }, orderBy: { name: "asc" } })
       : Promise.resolve([] as { id: string; name: string }[]),
     db.eventType.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }),
     db.calendarEntry.findMany({ where: { matterId: id }, orderBy: { startsAt: "desc" } }),

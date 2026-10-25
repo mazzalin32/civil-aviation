@@ -21,6 +21,9 @@ export async function getCaseChatData(
   const user = await getCurrentUser();
   if (!user) return { error: "Authentication required." };
 
+  const matterOrg = await db.matter.findUnique({ where: { id: matterId }, select: { organizationId: true } });
+  if (!matterOrg || matterOrg.organizationId !== user.organizationId) return { error: "Case not found." };
+
   const allowed = await canAccessMatterChat(user.id, user.role, matterId);
   if (!allowed) {
     return { error: "You are not assigned to this case." };

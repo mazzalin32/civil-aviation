@@ -10,8 +10,8 @@ export default async function NewContractPage() {
   const { categories, lawyers } = await getContractIntakeOptions();
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <PageHeader title="New contract" description="Register a contract so Legal can track it through review, approval and signature." />
+    <div className="mx-auto max-w-4xl">
+      <PageHeader title="New contract" />
       <NewContractForm categories={categories} lawyers={lawyers} />
     </div>
   );

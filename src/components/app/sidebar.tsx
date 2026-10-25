@@ -101,36 +101,27 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
         collapsed ? "w-[76px]" : "w-[288px]",
       )}
     >
-      <div className={cn("flex items-center gap-2.5", collapsed ? "justify-center px-0" : "px-2")}>
-        <div aria-hidden className="grid size-[38px] shrink-0 place-items-center rounded-control bg-white p-1.5">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="" width={80} height={38} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
-        </div>
-        {!collapsed && (
-          <div className="min-w-0 flex-1 leading-tight">
-            <b className="block truncate text-sm font-semibold">{orgName}</b>
-            <small className="block truncate text-xs text-on-primary/70">{user.role === "SUPERADMIN" ? "Platform administration" : orgName}</small>
+      <div className={cn("flex items-start gap-2", collapsed ? "flex-col items-center" : "px-0.5")}>
+        <div className={cn("flex min-w-0 flex-1 flex-col gap-1.5", collapsed && "items-center")}>
+          <div aria-hidden className="grid size-[34px] shrink-0 place-items-center rounded-control bg-white p-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoUrl} alt="" width={80} height={38} style={{ display: "block", maxWidth: "100%", height: "auto" }} />
           </div>
-        )}
+          {!collapsed && <b className="block max-w-full truncate text-[13px] leading-tight font-semibold">{orgName}</b>}
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="group relative grid size-7 shrink-0 place-items-center rounded-control text-on-primary/60 transition-colors hover:bg-on-primary/10 hover:text-on-primary"
+        >
+          {collapsed ? <ChevronsRight className="size-4" strokeWidth={1.8} /> : <ChevronsLeft className="size-4" strokeWidth={1.8} />}
+          <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} collapsed={collapsed} />
+        </button>
       </div>
+      <div className="mt-3 mb-2 border-t border-on-primary/10" />
 
-      {/* Kept at the top, above the nav list, so it stays reachable as more links are added below. */}
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className={cn(
-          "group relative mt-3 mb-2 flex items-center gap-2.5 rounded-control px-2.5 py-1.5 text-xs font-medium text-on-primary/60 transition-colors hover:bg-on-primary/10 hover:text-on-primary",
-          collapsed && "justify-center px-0",
-        )}
-      >
-        {collapsed ? <ChevronsRight className="size-4 shrink-0" strokeWidth={1.8} /> : <ChevronsLeft className="size-4 shrink-0" strokeWidth={1.8} />}
-        {!collapsed && "Collapse Navigation"}
-        <Tooltip label="Expand sidebar" collapsed={collapsed} />
-      </button>
-      <div className="mb-2 border-t border-on-primary/10" />
-
-      <nav className="grid gap-0.5">
+      <nav className="scrollbar-hidden min-h-0 flex-1 grid gap-1.5 overflow-x-hidden overflow-y-auto">
         {NAV[user.role].map((item) => {
           const Icon = ICONS[item.icon];
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -141,7 +132,7 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group relative flex flex-1 items-center gap-2.5 rounded-control px-2.5 py-[7px] font-medium text-on-primary/75 transition-colors hover:bg-on-primary/10 hover:text-on-primary",
+                  "group relative flex flex-1 items-center gap-2.5 rounded-control px-2.5 py-1.5 font-medium text-on-primary/75 transition-colors hover:bg-on-primary/10 hover:text-on-primary",
                   active && "bg-on-primary/15 text-on-primary hover:bg-on-primary/15",
                   collapsed && "justify-center px-0",
                 )}
@@ -160,23 +151,16 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
                 <Link
                   href={item.quickAdd.href}
                   aria-label={item.quickAdd.label}
-                  className="group relative grid size-8 shrink-0 place-items-center rounded-control text-on-primary/60 hover:bg-on-primary/10 hover:text-on-primary"
+                  title={item.quickAdd.label}
+                  className="grid size-8 shrink-0 place-items-center rounded-control text-on-primary/60 hover:bg-on-primary/10 hover:text-on-primary"
                 >
                   <Plus className="size-4" strokeWidth={1.8} />
-                  <span
-                    role="tooltip"
-                    className="pointer-events-none absolute left-full ml-2 z-20 whitespace-nowrap rounded-md bg-text px-2 py-1 text-xs text-bg opacity-0 shadow-pop transition-opacity group-hover:opacity-100"
-                  >
-                    {item.quickAdd.label}
-                  </span>
                 </Link>
               )}
             </div>
           );
         })}
       </nav>
-
-      <div className="flex-1" />
 
       <UserCard user={user} collapsed={collapsed} />
       <SignOutButton collapsed={collapsed} />

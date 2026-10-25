@@ -5,7 +5,6 @@ import { PageHeader } from "./page-header";
 /** Phase 0 placeholder: a real page frame with an honest empty state. */
 export function ComingSoon({
   title,
-  description,
   icon,
   emptyTitle,
   emptyDescription,
@@ -13,7 +12,6 @@ export function ComingSoon({
   actions,
 }: {
   title: string;
-  description: string;
   icon: LucideIcon;
   emptyTitle: string;
   emptyDescription: string;
@@ -22,7 +20,7 @@ export function ComingSoon({
 }) {
   return (
     <>
-      <PageHeader title={title} description={description} actions={actions} />
+      <PageHeader title={title} actions={actions} />
       <EmptyState icon={icon} title={emptyTitle} description={`${emptyDescription} (Built in phase ${phase}.)`} />
     </>
   );

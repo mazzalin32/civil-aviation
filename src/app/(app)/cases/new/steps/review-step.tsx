@@ -48,8 +48,8 @@ export function ReviewStep({
 
   return (
     <>
-      <StepHeader step={9} eyebrow="Review & submit" title="Review and submit" description="Check the information below before creating the legal matter. You can return to any previous section to make changes." />
-      <dl className="m-0 grid gap-3 sm:grid-cols-2">
+      <StepHeader title="Review and submit" />
+      <dl className="m-0 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <Item label="Case reference" value={referencePrefix ? `UCAA/${referencePrefix}/${new Date().getFullYear()}/#### (generated)` : null} mono />
         <Item label="Matter title" value={id.title} />
         <Item label="Category" value={categoryName} />

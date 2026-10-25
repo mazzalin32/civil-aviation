@@ -15,7 +15,7 @@ export default async function LinksPage() {
 
   return (
     <>
-      <PageHeader title="Links" description="Quick-reference links to laws, court portals and other resources." />
+      <PageHeader title="Resources" />
       <LinksView isAdmin={user.role === "ADMIN"} links={links.map((l) => ({ id: l.id, title: l.title, url: l.url, category: l.category, addedByName: l.addedBy.name }))} />
     </>
   );

@@ -68,7 +68,7 @@ export async function createLawyer(formData: FormData) {
 export async function resendInvite(id: string) {
   const admin = await requireRole("ADMIN");
   const user = await db.user.findUnique({ where: { id } });
-  if (!user) return;
+  if (!user || user.organizationId !== admin.organizationId) return;
   await sendInvite(user);
   await writeAudit({ userId: admin.id, action: "user.invite.resent", entity: "User", entityId: id });
   await reload();
@@ -89,6 +89,7 @@ export async function updateLawyer(formData: FormData) {
 
   const { id, name, ...rest } = parsed.data;
   const before = await db.user.findUnique({ where: { id } });
+  if (!before || before.organizationId !== admin.organizationId) return { error: "That user no longer exists." };
   const updated = await db.user.update({ where: { id }, data: { name, ...fields(rest) } });
   await writeAudit({ userId: admin.id, action: "user.update", entity: "User", entityId: id, before, after: updated });
   await reload();
@@ -104,6 +105,7 @@ export async function toggleUserActive(id: string, isActive: boolean) {
   if (id === admin.id) return { error: "You can't deactivate your own account." };
 
   const before = await db.user.findUnique({ where: { id } });
+  if (!before || before.organizationId !== admin.organizationId) return { error: "That user no longer exists." };
   const updated = await db.user.update({ where: { id }, data: { isActive } });
   if (!isActive) await db.session.deleteMany({ where: { userId: id } });
   await writeAudit({
@@ -120,6 +122,8 @@ export async function toggleUserActive(id: string, isActive: boolean) {
 /** "Sign out all sessions" — e.g. a lost laptop (FLOWS §19). Doesn't deactivate the account. */
 export async function signOutAllSessions(id: string) {
   const admin = await requireRole("ADMIN");
+  const target = await db.user.findUnique({ where: { id } });
+  if (!target || target.organizationId !== admin.organizationId) return;
   await db.session.deleteMany({ where: { userId: id } });
   await writeAudit({ userId: admin.id, action: "user.sessions.revoked", entity: "User", entityId: id });
   await reload();
@@ -136,7 +140,7 @@ export async function deleteUser(id: string) {
   if (id === admin.id) return { error: "You can't delete your own account." };
 
   const user = await db.user.findUnique({ where: { id } });
-  if (!user || user.deletedAt) return { error: "That user no longer exists." };
+  if (!user || user.deletedAt || user.organizationId !== admin.organizationId) return { error: "That user no longer exists." };
 
   const leading = await db.matterAssignment.count({
     where: { userId: id, role: "LEAD", removedAt: null, matter: { deletedAt: null, status: { in: ["OPEN", "ON_HOLD", "CLOSURE_REQUESTED"] } } },

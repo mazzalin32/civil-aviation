@@ -9,7 +9,6 @@ export default async function Page() {
   return (
     <ComingSoon
       title="Import"
-      description="Bring existing cases and users in from Excel."
       icon={Upload}
       emptyTitle="Nothing imported"
       emptyDescription="Download the template, upload your register, check the preview and import. Each batch can be rolled back within 24 hours."

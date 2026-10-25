@@ -9,7 +9,6 @@ export default async function Page() {
   return (
     <ComingSoon
       title="Closure requests"
-      description="Review lawyers' requests to close cases."
       icon={FileCheck2}
       emptyTitle="No closure requests"
       emptyDescription="When a lawyer asks to close a case, the request appears here for you to approve or return."

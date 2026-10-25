@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Clock } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/app/page-header";
@@ -23,19 +24,20 @@ export default async function Page() {
     db.matter.findMany({
       where: {
         deletedAt: null,
+        organizationId: orgId(me.organizationId),
         status: { in: ["OPEN", "ON_HOLD", "CLOSURE_REQUESTED"] },
         ...(me.role === "ADMIN" ? {} : { assignments: { some: { userId: me.id, role: "LEAD", removedAt: null } } }),
       },
       select: { id: true, reference: true, title: true },
       orderBy: { reference: "asc" },
     }),
-    db.user.findMany({ where: { isActive: true, deletedAt: null, role: { not: "SUPERADMIN" } }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { isActive: true, deletedAt: null, role: { not: "SUPERADMIN" }, organizationId: orgId(me.organizationId) }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const tasks = await db.task.findMany({
     where: {
       status: "OPEN",
-      matter: { deletedAt: null }, // department-wide for everyone; changing a task is gated per action
+      matter: { deletedAt: null, organizationId: orgId(me.organizationId) }, // department-wide for everyone (within this org); changing a task is gated per action
     },
     orderBy: { dueAt: "asc" },
     select: {
@@ -51,7 +53,6 @@ export default async function Page() {
     <>
       <PageHeader
         title="Tasks"
-        description="Open tasks across the department."
         actions={matters.length > 0 ? <NewTask matters={matters} people={people} currentUserId={me.id} /> : undefined}
       />
       {tasks.length === 0 ? (

@@ -33,7 +33,6 @@ export default async function ForumsPage() {
     <>
       <PageHeader
         title="Courts & forums"
-        description="The Court/Forum dropdown in the case wizard and forum tab."
         actions={<AddReferenceButton label="Add court / forum" panelTitle="Add court / forum" fields={fields} createAction={createForum} />}
       />
       <ReferenceTable

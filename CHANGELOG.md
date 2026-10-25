@@ -1,5 +1,25 @@
 # Changelog
 
+## Organisation-scoping sweep, design pass, calendar features, and Reports (2026-10-25)
+
+Finished the "page per page" organisation-scoping sweep promised in the multi-tenancy entry below, then moved on to a full visual cleanup pass and the first real build of a Phase-11 module (Reports).
+
+### Fixed (security)
+- Closed real cross-organisation gaps found while sweeping every query path: `deleteCase`/`deleteContract` and several document/note/party mutations skipped the organisation check entirely by calling `requireRole("ADMIN")` instead of the matter/contract-scoped guard; `updateNote`/`deleteNote`/`updateParty`/`removeParty` didn't verify the note/party actually belonged to the matter being edited; `users/actions.ts`'s five mutations (resend invite, update, (de)activate, sign-out, delete) didn't check the target user's organisation; the case-chat SSE stream and attachment-download routes used the unguarded `canAccessMatterChat` directly, letting any Admin read another organisation's case chat and download its files; `/documents`, `/tasks`, and `/calendar` listed data organisation-wide with no scoping at all; reassigning a matter/contract didn't verify the chosen lead/support lawyers belonged to the caller's organisation.
+- Added `src/lib/org.ts` (`orgId()`) as the one fail-closed helper every list/filter query now goes through.
+
+### Changed (design)
+- Sidebar: grouped into short labelled sections, then (per follow-up) flattened again with wider spacing and no section labels; logo + org name now stack instead of sitting side-by-side (was truncating long names); collapse control is icon-only; fixed a real flexbox bug where a short viewport silently truncated the nav instead of scrolling it, then made that scrollbar invisible-but-functional per request.
+- Dashboard, Contracts, and every other page's header: dropped every subtitle under a page title or card title app-wide — `PageHeader` no longer accepts a `description` prop at all, so this can't regress. KPI tiles pared down to label + number only.
+- Dashboard and Contracts charts rebuilt as real bar charts (baseline, direct value label) instead of thin 1.5px progress lines, per the dataviz skill's guidance — risk-level breakdown kept as a stacked bar (the correct form for a 3-category part-to-whole split) rather than switched to a donut.
+- New Matter wizard and New Contract form: removed the redundant eyebrow/title/description blocks repeated on every step, widened the field grid from 2 to 3 columns, trimmed verbose hint text.
+- Contracts list: compacted the 9 stat tiles into one row and moved the breakdown charts below the table so the actual contract list is visible without scrolling.
+- Calendar re-skinned onto the app's own design tokens (FullCalendar ships Bootstrap-flavoured defaults) — Google Calendar-style today badge, dot-style month events, filled week/day blocks; fixed a real bug where a long event title was hard-clipped mid-character instead of truncating with an ellipsis.
+
+### Added
+- Calendar: a personal entry can now link to a real matter and be assigned to another staff member by an Admin (shows on *their* calendar, not the creator's) — previously free-text only. Found and fixed a visibility leak this introduced (a matter-tagged personal entry would otherwise have broadcast to the whole department). Events are now coloured per kind using existing tokens instead of one blue for four different kinds.
+- `/reports` (Admin): the first real build of Phase 11 — Case register, Outcomes, and Lawyer workload, sharing the same filters as the Matters list (date range + field, lawyer, category, status, search). Export to Excel or a branded PDF (CAA logo, confidential footer, generated-by/timestamp). Building this surfaced and fixed a PDFKit bug that crashed the whole dev server (an infinite page-creation loop from drawing the footer outside the page's margin box) and a column-overflow bug now guarded against for every future report.
+
 ## Multi-tenancy foundation: Superadmin, Organisation, white-label (2026-10-25)
 
 Back on the phased build after the prototype detour. First step of making the database/backend real rather than demo-shaped: a platform layer above Admin, so organisations (CAA today, others later) can be provisioned and branded without touching code. The capability is real multi-tenancy; in practice CAA remains the only organisation.

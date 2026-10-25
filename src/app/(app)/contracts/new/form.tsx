@@ -30,14 +30,14 @@ export function NewContractForm({
   }
 
   return (
-    <form action={submit} className="grid gap-4 rounded-card border border-border bg-surface p-6 shadow-card">
-      {error && <p className="m-0 text-xs text-danger">{error}</p>}
+    <form action={submit} className="grid gap-x-6 gap-y-5 rounded-card border border-border bg-surface p-7 shadow-card sm:grid-cols-2">
+      {error && <p className="m-0 text-xs text-danger sm:col-span-2">{error}</p>}
 
-      <Field label="Contract / agreement title" htmlFor="nc-title">
+      <Field label="Contract / agreement title" htmlFor="nc-title" className="sm:col-span-2">
         <Input id="nc-title" name="title" placeholder="e.g. Ground handling services agreement — [counterparty]" autoFocus />
       </Field>
 
-      <Field label="Nature of contract" htmlFor="nc-category" hint="What the contract is about — drives reports.">
+      <Field label="Nature of contract" htmlFor="nc-category" hint="What the contract is about.">
         <Select id="nc-category" name="categoryId" defaultValue="">
           <option value="">Select a category</option>
           {categories.map((c) => (
@@ -58,7 +58,7 @@ export function NewContractForm({
         <Input id="nc-received" name="dateOfReceipt" type="date" />
       </Field>
 
-      <Field label="Responsible legal officer" htmlFor="nc-lead">
+      <Field label="Responsible legal officer" htmlFor="nc-lead" className="sm:col-span-2">
         <Select id="nc-lead" name="leadUserId" defaultValue="">
           <option value="">Select a lawyer</option>
           {lawyers.map((l) => (
@@ -69,16 +69,14 @@ export function NewContractForm({
         </Select>
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Commencement date" htmlFor="nc-commence" hint="If already known.">
-          <Input id="nc-commence" name="commencementDate" type="date" />
-        </Field>
-        <Field label="Expiry date" htmlFor="nc-expiry" hint="If already known.">
-          <Input id="nc-expiry" name="expiryDate" type="date" />
-        </Field>
-      </div>
+      <Field label="Commencement date" htmlFor="nc-commence">
+        <Input id="nc-commence" name="commencementDate" type="date" />
+      </Field>
+      <Field label="Expiry date" htmlFor="nc-expiry">
+        <Input id="nc-expiry" name="expiryDate" type="date" />
+      </Field>
 
-      <div className="flex gap-2 border-t border-border pt-4">
+      <div className="flex gap-2 border-t border-border pt-4 sm:col-span-2">
         <Button type="submit" variant="primary" disabled={pending}>
           {pending ? "Creating…" : "Create contract"}
         </Button>

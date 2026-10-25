@@ -31,7 +31,7 @@ export function ServiceStep({
 
   return (
     <>
-      <StepHeader step={3} eyebrow="Service / legal process" title="Service & legal process" description="Record how the legal process relates to CAA and capture the relevant deadlines." />
+      <StepHeader title="Service & legal process" />
       <p className="m-0 mb-2 text-[13px] font-medium">Service direction</p>
       <div role="radiogroup" aria-label="Service direction" className="mb-5 grid gap-3 sm:grid-cols-3">
         {DIRECTIONS.map((d) => (
@@ -65,7 +65,7 @@ export function ServiceStep({
         <Field label={serving ? "Date served by CAA" : "Date received by CAA"} htmlFor="s-received">
           <Input id="s-received" type="date" value={value.receivedAt ?? ""} onChange={(e) => onChange({ receivedAt: e.target.value })} />
         </Field>
-        <Field label="Response deadline" htmlFor="s-deadline" hint="Becomes a critical deadline on the case calendar.">
+        <Field label="Response deadline" htmlFor="s-deadline" hint="Added to the case calendar.">
           <Input id="s-deadline" type="date" value={value.responseDeadline ?? ""} onChange={(e) => onChange({ responseDeadline: e.target.value })} />
         </Field>
         <Field label={serving ? "Served by" : "Received by"} htmlFor="s-by">

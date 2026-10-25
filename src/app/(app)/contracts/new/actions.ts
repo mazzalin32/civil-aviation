@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { writeAudit } from "@/lib/audit";
 import { generateReference } from "@/lib/reference";
 import { notify } from "@/lib/notify";
@@ -14,11 +15,11 @@ const dateOnly = (v?: string) => (v ? new Date(`${v}T00:00:00.000Z`) : null);
 const CONTRACT_REFERENCE_PREFIX = "CTR";
 
 export async function getContractIntakeOptions() {
-  await requireRole("ADMIN");
+  const admin = await requireRole("ADMIN");
   const [categories, lawyers] = await Promise.all([
     db.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.user.findMany({
-      where: { role: "LAWYER", isActive: true },
+      where: { role: "LAWYER", isActive: true, organizationId: orgId(admin.organizationId) },
       select: { id: true, name: true, _count: { select: { contractAssignments: { where: { removedAt: null, contract: { deletedAt: null } } } } } },
       orderBy: { name: "asc" },
     }),
@@ -35,9 +36,9 @@ export async function createContract(raw: unknown): Promise<CreateResult> {
   const initialStage = await db.contractStage.findFirst({ where: { isActive: true }, orderBy: { order: "asc" } });
   if (!initialStage) return { error: "No contract lifecycle stages are configured (Settings → Contract stages)." };
 
-  const lead = await db.user.findUnique({ where: { id: data.leadUserId }, select: { isActive: true, role: true } });
-  if (!lead?.isActive || lead.role !== "LAWYER") return { error: "Choose an active lawyer as the responsible legal officer." };
   if (!admin.organizationId) return { error: "Your account isn't linked to an organisation." };
+  const lead = await db.user.findUnique({ where: { id: data.leadUserId }, select: { isActive: true, role: true, organizationId: true } });
+  if (!lead?.isActive || lead.role !== "LAWYER" || lead.organizationId !== admin.organizationId) return { error: "Choose an active lawyer as the responsible legal officer." };
 
   const contract = await db.$transaction(async (tx) => {
     const reference = await generateReference(CONTRACT_REFERENCE_PREFIX, tx);

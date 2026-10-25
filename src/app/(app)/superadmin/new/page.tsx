@@ -9,7 +9,7 @@ export default async function NewOrganizationPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <PageHeader title="New organisation" description="Create an organisation, then invite its first Admin." />
+      <PageHeader title="New organisation" />
       <NewOrganizationForm />
     </div>
   );

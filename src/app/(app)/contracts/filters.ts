@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { orgId } from "@/lib/org";
 
 export type ContractFilters = {
   q?: string;
@@ -24,8 +25,8 @@ export function parseContractFilters(sp: Record<string, string | string[] | unde
   };
 }
 
-export function buildContractWhere(f: ContractFilters): Prisma.ContractWhereInput {
-  const where: Prisma.ContractWhereInput = { deletedAt: null };
+export function buildContractWhere(f: ContractFilters, organizationId: string | null): Prisma.ContractWhereInput {
+  const where: Prisma.ContractWhereInput = { deletedAt: null, organizationId: orgId(organizationId) };
 
   if (f.categoryId) where.categoryId = f.categoryId;
   if (f.stage) where.currentStage = { name: f.stage };

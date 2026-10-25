@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireContractAccess, requireContractEdit } from "@/lib/authz";
-import { requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { encryptFile, sha256Hex } from "@/lib/documents/encryption";
@@ -108,13 +107,18 @@ export async function uploadContractDocument(formData: FormData): Promise<Action
 
 export async function deleteContractDocument(contractId: string, documentId: string): Promise<ActionResult> {
   const user = await requireContractEdit(contractId);
+  const document = await db.contractDocument.findUnique({ where: { id: documentId }, select: { contractId: true } });
+  if (!document || document.contractId !== contractId) return { error: "That document no longer exists." };
   await db.contractDocument.update({ where: { id: documentId }, data: { deletedAt: new Date(), deletedById: user.id } });
   await writeAudit({ userId: user.id, action: "contractDocument.delete", entity: "ContractDocument", entityId: documentId });
   revalidatePath(`/contracts/${contractId}`);
 }
 
 export async function restoreContractDocument(contractId: string, documentId: string): Promise<ActionResult> {
-  const user = await requireRole("ADMIN");
+  const user = await requireContractAccess(contractId);
+  if (user.role !== "ADMIN") return { error: "Only an Admin can restore a deleted document." };
+  const document = await db.contractDocument.findUnique({ where: { id: documentId }, select: { contractId: true } });
+  if (!document || document.contractId !== contractId) return { error: "That document no longer exists." };
   await db.contractDocument.update({ where: { id: documentId }, data: { deletedAt: null, deletedById: null } });
   await writeAudit({ userId: user.id, action: "contractDocument.restore", entity: "ContractDocument", entityId: documentId });
   revalidatePath(`/contracts/${contractId}`);

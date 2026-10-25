@@ -23,15 +23,15 @@ export function IdentificationStep({
 
   return (
     <>
-      <StepHeader step={1} eyebrow="Matter identification" title="Matter identification" description="Enter the basic information relating to this legal matter." />
+      <StepHeader title="Matter identification" />
       <FieldGrid>
-        <Field label="Case reference" htmlFor="i-ref" hint="Generated automatically when the case is submitted.">
+        <Field label="Case reference" htmlFor="i-ref" hint="Generated on submit.">
           <Input id="i-ref" value={reference} readOnly disabled className="font-mono tabular-nums" />
         </Field>
         <Field label="Matter title" htmlFor="i-title" error={errors.title}>
           <Input id="i-title" value={value.title ?? ""} onChange={(e) => onChange({ title: e.target.value })} placeholder="e.g. Nile Horizon Aviation Ltd v Uganda Civil Aviation Authority" autoFocus />
         </Field>
-        <Field label="Category" htmlFor="i-category" error={errors.categoryId} hint="What the matter is about — drives reports.">
+        <Field label="Category" htmlFor="i-category" error={errors.categoryId} hint="What the matter is about.">
           <Select id="i-category" value={value.categoryId ?? ""} onChange={(e) => onChange({ categoryId: e.target.value })}>
             <option value="">Select a category</option>
             {categories.map((c) => (
@@ -41,7 +41,7 @@ export function IdentificationStep({
             ))}
           </Select>
         </Field>
-        <Field label="Matter type" htmlFor="i-type" error={errors.matterTypeId} hint="The process — picks the lifecycle this case follows.">
+        <Field label="Matter type" htmlFor="i-type" error={errors.matterTypeId} hint="Picks the case's lifecycle.">
           <Select id="i-type" value={value.matterTypeId ?? ""} onChange={(e) => onChange({ matterTypeId: e.target.value })}>
             <option value="">Select a matter type</option>
             {matterTypes.map((t) => (
@@ -67,8 +67,8 @@ export function IdentificationStep({
             <Options values={REPORT_METHODS} />
           </Select>
         </Field>
-        <Field label="Brief description" htmlFor="i-desc" error={errors.description} className="sm:col-span-2">
-          <Textarea id="i-desc" value={value.description ?? ""} onChange={(e) => onChange({ description: e.target.value })} placeholder="Provide a concise factual description of how the matter originated." />
+        <Field label="Brief description" htmlFor="i-desc" error={errors.description} className="sm:col-span-2 xl:col-span-3">
+          <Textarea id="i-desc" value={value.description ?? ""} onChange={(e) => onChange({ description: e.target.value })} placeholder="How the matter originated…" />
         </Field>
       </FieldGrid>
     </>

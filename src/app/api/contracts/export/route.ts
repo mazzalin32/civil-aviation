@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const filters = parseContractFilters(Object.fromEntries(url.searchParams));
 
   const contracts = await db.contract.findMany({
-    where: buildContractWhere(filters),
+    where: buildContractWhere(filters, me.organizationId),
     orderBy: { lastActivityAt: "desc" },
     include: {
       category: true,

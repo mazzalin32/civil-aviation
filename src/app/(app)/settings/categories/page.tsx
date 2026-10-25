@@ -20,7 +20,6 @@ export default async function CategoriesPage() {
     <>
       <PageHeader
         title="Categories"
-        description="What a matter is about (Debt Recovery, Employment, …). Drives reports; every matter also has a matter type that picks its lifecycle."
         actions={<AddReferenceButton label="Add category" panelTitle="Add category" fields={fields} createAction={createCategory} />}
       />
       <ReferenceTable

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileSpreadsheet, FileX2, Plus } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { orgId } from "@/lib/org";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
@@ -15,9 +16,9 @@ export const metadata = { title: "Contracts" };
 
 function Tile({ label, value, tone }: { label: string; value: number; tone?: "warning" | "danger" }) {
   return (
-    <div className="min-w-0 rounded-card border border-border bg-surface p-4 shadow-card">
-      <p className="m-0 text-[12.5px] text-text-muted">{label}</p>
-      <p className={cn("mt-2 mb-0 text-[26px] leading-none font-semibold tabular-nums", tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "")}>{value}</p>
+    <div className="min-w-0 rounded-card border border-border bg-surface px-3.5 py-3 shadow-card">
+      <p className="m-0 text-[11.5px] leading-snug text-text-muted">{label}</p>
+      <p className={cn("mt-1 mb-0 text-[20px] leading-none font-semibold tabular-nums", tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "")}>{value}</p>
     </div>
   );
 }
@@ -37,7 +38,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
   const isAdmin = user.role === "ADMIN";
   const sp = await searchParams;
   const filters = parseContractFilters(sp);
-  const where = buildContractWhere(filters);
+  const where = buildContractWhere(filters, user.organizationId);
 
   const [contracts, categories, allDepartments, allStages, agVettingOptions, internalApprovalOptions] = await Promise.all([
     db.contract.findMany({
@@ -54,7 +55,11 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
       },
     }),
     db.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    db.contract.findMany({ where: { originatingDepartment: { not: null }, deletedAt: null }, distinct: ["originatingDepartment"], select: { originatingDepartment: true } }),
+    db.contract.findMany({
+      where: { originatingDepartment: { not: null }, deletedAt: null, organizationId: orgId(user.organizationId) },
+      distinct: ["originatingDepartment"],
+      select: { originatingDepartment: true },
+    }),
     db.contractStage.findMany({ where: { isActive: true }, orderBy: { order: "asc" }, select: { name: true } }),
     db.contractStatusOption.findMany({ where: { isActive: true, category: "AG_VETTING" }, orderBy: { order: "asc" }, select: { id: true, label: true } }),
     db.contractStatusOption.findMany({ where: { isActive: true, category: "INTERNAL_APPROVAL" }, orderBy: { order: "asc" }, select: { id: true, label: true } }),
@@ -104,8 +109,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
   return (
     <div>
       <PageHeader
-        title="Contracts register"
-        description="Every contract the organisation has, tracked from receipt through legal review, approval, AG vetting and signature."
+        title="Contracts"
         actions={
           <>
             <a href={`/api/contracts/export${exportQuery ? `?${exportQuery}` : ""}`} className={buttonVariants({ variant: "secondary" })} title="Export Excel">
@@ -121,7 +125,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-3 gap-2.5 sm:grid-cols-5 xl:grid-cols-9">
         {kpis.map((k) => (
           <Tile key={k.label} {...k} />
         ))}
@@ -139,12 +143,6 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
         </div>
       ) : (
         <>
-          <div className="mb-6 grid gap-4 lg:grid-cols-3">
-            <BarList title="Contracts by Type" rows={byType} />
-            <BarList title="Contracts by Lifecycle Stage" rows={byStage} />
-            <BarList title="AG Vetting Status" rows={byAgVetting} />
-          </div>
-
           <ContractFiltersBar
             filters={filters}
             options={{ categories, departments, stages: allStages.map((s) => s.name), agVettingStatuses: agVettingOptions, internalApprovalStatuses: internalApprovalOptions }}
@@ -205,6 +203,12 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
               </table>
             </div>
           )}
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <BarList title="Contracts by Type" rows={byType} />
+            <BarList title="Contracts by Lifecycle Stage" rows={byStage} />
+            <BarList title="AG Vetting Status" rows={byAgVetting} />
+          </div>
         </>
       )}
     </div>
