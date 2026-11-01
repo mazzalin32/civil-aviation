@@ -13,6 +13,7 @@ import {
   Search,
   Send,
   Trash2,
+  Video,
   X,
 } from "lucide-react";
 import { Avatar } from "@/components/app/avatar";
@@ -28,6 +29,7 @@ import {
 import { MentionPopover, type MentionUser } from "./mention-popover";
 import { AttachDocumentDialog, type LinkableDocument } from "./attach-document-dialog";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
+import { VideoCallPanel } from "@/components/app/video-call-panel";
 import { toast, withToast } from "@/components/ui/toast";
 
 // ------------------------------------------------------------------
@@ -256,6 +258,7 @@ export function DiscussionTab({
 
   // Preview file modal
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
+  const [callOpen, setCallOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -514,6 +517,10 @@ export function DiscussionTab({
           <Search className="size-4" />
           {showSearch ? "Close search" : "Search messages"}
         </Button>
+        <Button variant="ghost" size="sm" onClick={() => setCallOpen(true)}>
+          <Video className="size-4" />
+          Start video call
+        </Button>
         <Link
           href={`/chat?caseId=${matterId}`}
           className="ml-auto inline-flex items-center gap-1.5 rounded-control border border-border px-3 py-1.5 text-xs font-medium text-text hover:bg-surface-muted"
@@ -763,6 +770,8 @@ export function DiscussionTab({
         file={previewFile}
         onClose={() => setPreviewFile(null)}
       />
+
+      <VideoCallPanel matterId={matterId} open={callOpen} onClose={() => setCallOpen(false)} />
     </div>
   );
 }

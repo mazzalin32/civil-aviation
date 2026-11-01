@@ -1,5 +1,15 @@
 # Changelog
 
+## Real video calling in case Discussion (2026-11-01)
+
+A "Start video call" button in both the case Discussion tab and the Chat Hub, backed by LiveKit Cloud — one room per matter, same permission boundary as case chat (assigned lawyers + Admin only, via `requireMatterChatAccess`). Every join is audit-logged.
+
+Two real bugs found and fixed while building this, both would have blocked it outright:
+- A sync helper function in a `"use server"` file broke the entire app build (every export in such a file must be async) — removed the unused function rather than work around it.
+- The app's own `Permissions-Policy` header explicitly set `camera=(), microphone=()` everywhere, which would have silently blocked camera/mic access for every real browser regardless of what the user clicked "allow" on. Scoped it to `camera=(self), microphone=(self)` — still blocked for any embedding/third-party context, allowed for the app itself.
+
+Verified with two real browser sessions joining the same matter's call simultaneously and exchanging live video — not just a connection test.
+
 ## New matters open with an admin welcome message (2026-11-01)
 
 A case's Discussion tab started empty until someone posted. `createMatter` now posts "{Admin} opened this case." in the same transaction as case creation, so the thread always has a first line from the person who opened it.

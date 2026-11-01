@@ -35,6 +35,11 @@ const schema = z.object({
   // TEMPORARY, testing only — spec requires every upload virus-scanned before use. Must be
   // true before go-live; false only lets local dev work without a running clamd.
   REQUIRE_VIRUS_SCAN: z.stringbool().default(true),
+  // Video calls in the case Discussion tab (LiveKit Cloud). All three optional together —
+  // the "Start call" UI just stays hidden when they're not set, rather than erroring.
+  LIVEKIT_URL: z.string().optional(),
+  LIVEKIT_API_KEY: z.string().optional(),
+  LIVEKIT_API_SECRET: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);

@@ -14,6 +14,7 @@ import {
   Send,
   Trash2,
   Users,
+  Video,
   X,
   ChevronDown,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import {
 import { MentionPopover, type MentionUser } from "@/app/(app)/cases/[id]/tabs/mention-popover";
 import { AttachDocumentDialog, type LinkableDocument } from "@/app/(app)/cases/[id]/tabs/attach-document-dialog";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
+import { VideoCallPanel } from "@/components/app/video-call-panel";
 import { toast, withToast } from "@/components/ui/toast";
 
 // ------------------------------------------------------------------
@@ -285,6 +287,7 @@ export function CaseChatHub({
 
   // File preview modal state
   const [previewFile, setPreviewFile] = useState<PreviewFile | null>(null);
+  const [callOpen, setCallOpen] = useState(false);
 
   const selectedCase = conversations.find((c) => c.id === selectedCaseId) ?? null;
 
@@ -869,6 +872,16 @@ export function CaseChatHub({
                   <Search className="size-3.5" />
                 </button>
 
+                {/* Video call */}
+                <button
+                  type="button"
+                  onClick={() => setCallOpen(true)}
+                  className="grid size-7.5 place-items-center rounded-md text-text-muted hover:bg-surface-muted hover:text-text transition-colors"
+                  title="Start video call"
+                >
+                  <Video className="size-3.5" />
+                </button>
+
                 {/* Open Case File */}
                 <Link
                   href={`/cases/${selectedCase.id}`}
@@ -1304,6 +1317,8 @@ export function CaseChatHub({
               file={previewFile}
               onClose={() => setPreviewFile(null)}
             />
+
+            <VideoCallPanel matterId={selectedCase.id} open={callOpen} onClose={() => setCallOpen(false)} />
           </>
         ) : (
           <div className="flex h-full flex-col items-center justify-center p-8 text-center text-text-muted">
