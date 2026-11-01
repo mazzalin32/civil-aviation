@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Field } from "@/components/ui/field";
 import { SlideOver } from "@/components/ui/slide-over";
+import { withToast } from "@/components/ui/toast";
 import { addParty, updateParty } from "../actions";
 import type { PartyRow } from "./parties-tab";
 
@@ -29,7 +30,7 @@ export function PartyFormDialog({
     formData.set("matterId", matterId);
     if (party) formData.set("id", party.id);
     startTransition(async () => {
-      const result = await (party ? updateParty : addParty)(Object.fromEntries(formData));
+      const result = await withToast((party ? updateParty : addParty)(Object.fromEntries(formData)), party ? "Party updated" : "Party added");
       if (result?.error) return setError(result.error);
       onClose();
     });

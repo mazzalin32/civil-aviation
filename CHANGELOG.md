@@ -1,5 +1,11 @@
 # Changelog
 
+## Toast + loading-state audit (2026-11-01)
+
+Went through every component that calls a Server Action, checking each used the existing `withToast`/`useTransition` or `useActionState`/`SubmitButton` pattern (both already standard across the app from earlier work). Found one real gap: `party-form-dialog.tsx` showed its own inline error but never toasted success or failure — fixed to use `withToast` like every other form.
+
+Also found, while tracing it: the "Add/edit party" dialog this fix lives in is **unreachable** — `PartiesTab`/`PartyFormDialog` aren't imported or rendered anywhere on the case page (parties are shown read-only in the Overview panel per the 2026-10-01 decision to fold them in there, but the add/edit UI was apparently never wired back up after that change). `addParty`/`updateParty` work correctly as Server Actions but nothing in the UI calls them. Left as-is pending a decision on where that UI should live — flagged, not fixed, since it's a feature gap rather than a toast/loader gap.
+
 ## Reports module completed — all 9 spec'd report types, plus CSV export (2026-11-01)
 
 Spec §5.10 listed 9 ready-made reports; only 3 existed (Case register, Outcomes, Lawyer workload). Added the remaining 6 as new tabs on `/reports`, all sharing the existing filter bar and time-range filtering:
