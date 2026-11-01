@@ -281,6 +281,17 @@ export default async function CasePage({
           team={team}
           canMutate={canEdit}
           canManageTeam={isAdmin}
+          parties={matter.parties.map((p) => ({
+            id: p.id,
+            name: p.name,
+            kind: p.kind,
+            counselName: p.counselName,
+            counselFirm: p.counselFirm,
+            email: p.email,
+            phone: p.phone,
+            address: p.address,
+            department: p.department,
+          }))}
           lawyers={lawyers.map((l) => ({ id: l.id, name: l.name, workload: l._count.matterAssignments }))}
           deadlines={calendarEntries
             .filter((e) => e.kind === "DEADLINE" && e.status === "OPEN")

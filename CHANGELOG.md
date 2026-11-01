@@ -1,5 +1,9 @@
 # Changelog
 
+## Parties editing wired back into the case page (2026-11-01)
+
+Following up on the dead-code finding from the toast audit: added a "Manage parties" button next to the Parties section of the Overview panel (visible to Admin/Lead/Support, matching the existing edit-permission boundary for matter fields), opening a slide-over with the existing `PartiesTab` list — add, edit and remove, unchanged from how it was originally built. The underlying `addParty`/`updateParty`/`removeParty` Server Actions already had correct permission checks and audit logging; they just had no UI calling them. Verified live: added, then removed, a test party and confirmed the toast, the list, and a fresh page load all agreed.
+
 ## Toast + loading-state audit (2026-11-01)
 
 Went through every component that calls a Server Action, checking each used the existing `withToast`/`useTransition` or `useActionState`/`SubmitButton` pattern (both already standard across the app from earlier work). Found one real gap: `party-form-dialog.tsx` showed its own inline error but never toasted success or failure — fixed to use `withToast` like every other form.

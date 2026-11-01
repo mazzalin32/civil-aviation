@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { CalendarClock, ExternalLink, FileText, ListChecks, MessageSquare, Pencil, Pin, UserPlus } from "lucide-react";
+import { CalendarClock, ExternalLink, FileText, ListChecks, MessageSquare, Pencil, Pin, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { updateSummary, updateSourceUrl } from "./actions";
 import { ReassignDialog } from "./reassign-dialog";
 import { IntakeDetails, StatusBanner, type Intake, type StatusInfo } from "./overview-details";
 import { withToast } from "@/components/ui/toast";
+import { PartiesTab, type PartyRow } from "./tabs/parties-tab";
 
 export type KeyFacts = {
   amountClaimed: string | null;
@@ -68,6 +69,7 @@ export function CatchUpPanel({
   canManageTeam,
   lawyers,
   deadlines,
+  parties,
 }: {
   matterId: string;
   snapshot: Snapshot;
@@ -81,10 +83,12 @@ export function CatchUpPanel({
   canManageTeam: boolean;
   lawyers: { id: string; name: string; workload: number }[];
   deadlines: { id: string; title: string; dueAt: string; isCritical: boolean }[];
+  parties: PartyRow[];
 }) {
   const [editing, setEditing] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
   const [sourceUrlOpen, setSourceUrlOpen] = useState(false);
+  const [partiesOpen, setPartiesOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string>();
   const [now] = useState(() => Date.now());
@@ -133,6 +137,11 @@ export function CatchUpPanel({
         </div>
         <div className="mb-5">
           <IntakeDetails intake={intake} now={now} />
+          {canMutate && (
+            <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setPartiesOpen(true)}>
+              <Users className="size-4" /> Manage parties
+            </Button>
+          )}
         </div>
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h3 className="m-0 text-[12px] font-semibold tracking-[0.06em] text-text-muted uppercase">Summary</h3>
@@ -290,6 +299,10 @@ export function CatchUpPanel({
             </Button>
           </div>
         </form>
+      </SlideOver>
+
+      <SlideOver open={partiesOpen} onClose={() => setPartiesOpen(false)} title="Manage parties">
+        <PartiesTab matterId={matterId} parties={parties} />
       </SlideOver>
     </div>
   );
