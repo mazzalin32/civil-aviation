@@ -22,7 +22,11 @@ const schema = z.object({
   // first login (§5.1). Must be true before go-live.
   REQUIRE_PASSWORD_CHANGE: z.stringbool().default(true),
   // Private storage root for encrypted document bytes — never served directly (spec §9).
+  // Local filesystem in dev. In production (Vercel's filesystem is read-only outside a
+  // per-invocation /tmp that isn't shared across instances) set BLOB_READ_WRITE_TOKEN
+  // (Vercel Blob, connected from the project's Storage tab) to switch storage.ts over to it.
   DOCUMENT_STORAGE_DIR: z.string().default("./storage/documents"),
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
   // 32-byte base64 master key wrapping each file's per-document data key (envelope encryption).
   // Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
   DOCUMENT_MASTER_KEY: z.string().min(1, "Set DOCUMENT_MASTER_KEY — see .env.example"),

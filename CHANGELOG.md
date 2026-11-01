@@ -1,5 +1,13 @@
 # Changelog
 
+## Document storage fixed for production, real in-app notifications (2026-11-01)
+
+### Fixed
+- Document uploads didn't survive on production: storage wrote to the local filesystem, which Vercel's serverless functions can't persist to (read-only outside a per-invocation `/tmp` that isn't shared across instances). `src/lib/documents/storage.ts` now uses Vercel Blob (private access — never a bare public URL) when `BLOB_READ_WRITE_TOKEN` is set, local filesystem otherwise; none of its 6 callers needed to change. Verified with a real upload/download round-trip against both backends.
+
+### Added
+- A real notification bell — the icon existed but did nothing. `notify()` was already firing for task/case assignment, document uploads, stage changes and mentions, but only stored raw `payload` JSON, not the human-readable line it was already building for email. Added `message`/`url` columns to `Notification` (small backfilled migration) so the bell can show exactly what the email says. Unread badge, dropdown with per-type icons, click-to-read, mark-all-read. Verified live: assigned a task through the real UI, confirmed it landed on the recipient's own bell with the right message and link, confirmed clicking it marked it read.
+
 ## Organisation-scoping sweep, design pass, calendar features, and Reports (2026-10-25)
 
 Finished the "page per page" organisation-scoping sweep promised in the multi-tenancy entry below, then moved on to a full visual cleanup pass and the first real build of a Phase-11 module (Reports).

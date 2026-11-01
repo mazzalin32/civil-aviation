@@ -10,13 +10,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect("/login"); // signed out, expired session, or deactivated/deleted account
   assertOnboarded(user); // forced password change, then mandatory 2FA
 
-  const openTaskCount = await db.task.count({ where: { assigneeId: user.id, status: "OPEN", matter: { deletedAt: null } } });
+  const [openTaskCount, unreadNotifications] = await Promise.all([
+    db.task.count({ where: { assigneeId: user.id, status: "OPEN", matter: { deletedAt: null } } }),
+    db.notification.count({ where: { userId: user.id, readAt: null } }),
+  ]);
 
   return (
     <div className="flex min-h-dvh">
       <Sidebar user={user} openTaskCount={openTaskCount} />
       <div className="relative min-w-0 flex-1">
-        <TopBar user={user} />
+        <TopBar user={user} unreadNotifications={unreadNotifications} />
         <main className="mx-auto max-w-[1440px] px-4 pt-6 pb-12 sm:px-8 sm:pt-7">{children}</main>
       </div>
     </div>

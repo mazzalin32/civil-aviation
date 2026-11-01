@@ -352,6 +352,8 @@ model Notification {
   contractId String?
   contract   Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
   payload   Json
+  message   String // the same human-readable line notify() sends by email — the in-app bell shows this directly
+  url       String? // where "open" takes you; null for notifications with nowhere to go
   readAt    DateTime?
   emailedAt DateTime?
   createdAt DateTime  @default(now())

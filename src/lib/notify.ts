@@ -37,6 +37,8 @@ export async function notify(input: NotifyInput, client: Client = db) {
       matterId: input.matterId ?? null,
       contractId: input.contractId ?? null,
       payload: input.payload as Prisma.InputJsonValue,
+      message: input.message,
+      url: input.url ?? null,
       emailedAt: wantsEmail ? new Date() : null,
     },
   });

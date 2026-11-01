@@ -1,14 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Bell } from "lucide-react";
 import type { CurrentUser } from "@/lib/session";
-import { Button } from "@/components/ui/button";
 import { MobileNav } from "./mobile-nav";
 import { titleFor } from "./nav-config";
 import { SearchTrigger } from "./search-trigger";
+import { NotificationBell } from "./notification-bell";
 
-export function TopBar({ user }: { user: CurrentUser }) {
+export function TopBar({ user, unreadNotifications }: { user: CurrentUser; unreadNotifications: number }) {
   const pathname = usePathname();
   const title = titleFor(pathname, user.role);
 
@@ -20,9 +19,7 @@ export function TopBar({ user }: { user: CurrentUser }) {
         <SearchTrigger />
         {/* "New case" lives on the Cases page itself and the sidebar's quick-add — having it
             here too, on every page, was one add entry point too many. */}
-        <Button size="icon" aria-label="Notifications" title="Notifications and mentions (Phase 8)">
-          <Bell className="size-[18px]" strokeWidth={1.8} />
-        </Button>
+        <NotificationBell initialUnreadCount={unreadNotifications} />
       </div>
     </header>
   );
