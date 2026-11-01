@@ -1,5 +1,19 @@
 # Changelog
 
+## Reports module completed — all 9 spec'd report types, plus CSV export (2026-11-01)
+
+Spec §5.10 listed 9 ready-made reports; only 3 existed (Case register, Outcomes, Lawyer workload). Added the remaining 6 as new tabs on `/reports`, all sharing the existing filter bar and time-range filtering:
+- **By status / category / court** — three drill-down bar charts; clicking a bar jumps to the Case register pre-filtered to that status/category/court (spec's "click a chart bar to drill into the matching cases"). Cases-by-lawyer was folded into the existing Lawyer workload tab rather than duplicated as a fourth chart.
+- **Average duration** — average days to close per category (from closed matters) and average days spent per stage (from `MatterStage.enteredAt`/`exitedAt`, counting only stages a matter has already exited).
+- **Financial exposure** — claimed-for-UCAA vs claimed-against-UCAA (split by `ucaaRole`, using `amountClaimed`) plus counter-claims (`amountAgainst`, previously tracked in the schema and seed data but never surfaced anywhere in the UI).
+- **Upcoming hearings** — open `CalendarEntry` rows of kind HEARING with a future date, across all matters matching the current filters.
+- **Overdue deadlines** — open calendar deadlines and open, undone tasks past their due date, merged into one list since both represent the same kind of miss.
+- **Inactive cases** — open/on-hold matters with no activity in the last 30/60/90 days (selectable).
+
+Also added CSV export alongside the existing Excel/PDF, for every tab. The export route was restructured so each tab builds one `{columns, rows}` shape that all three formats (CSV/XLSX/PDF) render from, instead of three separate per-tab branches — the 3 original tabs now go through the same path.
+
+Verified live: logged in as Admin, loaded all 9 tabs and downloaded all 3 export formats for all 9 (27 downloads, all 200 OK with real data) — not just a code read.
+
 ## Real video calling in case Discussion (2026-11-01)
 
 A "Start video call" button in both the case Discussion tab and the Chat Hub, backed by LiveKit Cloud — one room per matter, same permission boundary as case chat (assigned lawyers + Admin only, via `requireMatterChatAccess`). Every join is audit-logged.
