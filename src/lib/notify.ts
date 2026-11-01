@@ -39,13 +39,22 @@ export async function notify(input: NotifyInput, client: Client = db) {
       payload: input.payload as Prisma.InputJsonValue,
       message: input.message,
       url: input.url ?? null,
-      emailedAt: wantsEmail ? new Date() : null,
+      // Set only once the send actually succeeds below — not here on intent alone, so a
+      // real SMTP failure doesn't silently mark itself as delivered.
+      emailedAt: null,
     },
   });
 
   if (wantsEmail) {
     const user = await client.user.findUnique({ where: { id: input.userId }, select: { email: true, name: true } });
-    if (user) await sendNotificationEmail(user.email, user.name, input.subject, input.message, input.url).catch(() => {});
+    if (user) {
+      try {
+        await sendNotificationEmail(user.email, user.name, input.subject, input.message, input.url);
+        await client.notification.update({ where: { id: created.id }, data: { emailedAt: new Date() } });
+      } catch (err) {
+        console.error(`notify: email send failed for notification ${created.id} (${input.type} -> ${user.email})`, err);
+      }
+    }
   }
 
   return created;
