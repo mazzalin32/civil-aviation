@@ -1,5 +1,9 @@
 # Changelog
 
+## New matters open with an admin welcome message (2026-11-01)
+
+A case's Discussion tab started empty until someone posted. `createMatter` now posts "{Admin} opened this case." in the same transaction as case creation, so the thread always has a first line from the person who opened it.
+
 ## Email delivery verified; notify() no longer lies about it (2026-11-01)
 
 Confirmed task-assignment emails were already sending correctly (my own first check hit a different project's local Mailpit instance by mistake — the real one showed both test emails had landed fine). Found a real gap while verifying: `notify()` set `emailedAt` based on intent to send, not on the send actually succeeding, and swallowed any SMTP error silently — a genuine failure would have left no trace anywhere. `emailedAt` now only gets set after `sendNotificationEmail` actually resolves; a failure is logged with the notification id, type and recipient instead of disappearing.

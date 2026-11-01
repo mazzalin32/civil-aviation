@@ -203,6 +203,9 @@ export async function createMatter(raw: unknown): Promise<CreateResult> {
       await tx.note.create({ data: { matterId: created.id, authorId: admin.id, body: stageInput.internalNotes, isPrivate: false } });
     }
 
+    // So the Discussion tab never starts empty — the Admin's opening line, not a system post.
+    await tx.matterMessage.create({ data: { matterId: created.id, authorId: admin.id, body: `${admin.name} opened this case.` } });
+
     await writeAudit(
       { userId: admin.id, action: "matter.create", entity: "Matter", entityId: created.id, after: { reference: created.reference, title: created.title } },
       tx,
