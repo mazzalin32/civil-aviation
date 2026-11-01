@@ -12,6 +12,7 @@ import {
   X,
   Loader2,
   FileCode,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,12 +37,13 @@ function getFileExtension(name: string): string {
   return parts.length > 1 ? parts.pop()!.toLowerCase() : "";
 }
 
-function getFileCategory(name: string, mimeType?: string | null): "pdf" | "image" | "text" | "office" | "other" {
+function getFileCategory(name: string, mimeType?: string | null): "pdf" | "image" | "audio" | "text" | "office" | "other" {
   const ext = getFileExtension(name);
   const mime = mimeType?.toLowerCase() || "";
 
   if (mime === "application/pdf" || ext === "pdf") return "pdf";
   if (mime.startsWith("image/") || ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return "image";
+  if (mime.startsWith("audio/") || ["webm", "ogg", "mp3", "wav", "m4a"].includes(ext)) return "audio";
   if (mime.startsWith("text/") || ["txt", "csv", "json", "md", "log", "xml", "html"].includes(ext)) return "text";
   if (["doc", "docx", "xls", "xlsx", "ppt", "pptx"].includes(ext)) return "office";
   return "other";
@@ -53,6 +55,7 @@ function getFileIcon(name: string, mimeType?: string | null) {
 
   if (category === "pdf") return <FileText className="size-4 text-danger" />;
   if (category === "image") return <FileImage className="size-4 text-primary" />;
+  if (category === "audio") return <Mic className="size-4 text-primary" />;
   if (["xls", "xlsx", "csv"].includes(ext)) return <FileSpreadsheet className="size-4 text-success" />;
   if (category === "text") return <FileCode className="size-4 text-text-muted" />;
   if (["zip", "tar", "gz", "7z", "rar"].includes(ext)) return <FileArchive className="size-4 text-warning" />;
@@ -219,6 +222,15 @@ export function FilePreviewModal({
                 alt={file.name}
                 className="max-h-full max-w-full object-contain rounded-md shadow-md"
               />
+            </div>
+          )}
+
+          {category === "audio" && (
+            <div className="flex flex-col items-center gap-4 p-8">
+              <div className="grid size-16 place-items-center rounded-full bg-primary-soft text-primary">
+                <Mic className="size-7" />
+              </div>
+              <audio src={file.viewUrl} controls autoPlay className="w-full max-w-sm" />
             </div>
           )}
 

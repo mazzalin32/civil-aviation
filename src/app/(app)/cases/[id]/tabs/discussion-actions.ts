@@ -115,7 +115,7 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
     const buffer = Buffer.from(await file.arrayBuffer());
     const detected = detectFileType(buffer);
     if (!detected) {
-      return { error: `File "${file.name}" has an unsupported format. Upload PDF, Office documents, text, or images.` };
+      return { error: `File "${file.name}" has an unsupported format. Upload PDF, Office documents, text, images, or a voice note.` };
     }
 
     const scan = await scanBuffer(buffer);

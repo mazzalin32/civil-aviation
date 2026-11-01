@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FileText,
   Link2,
+  Mic,
   Paperclip,
   Pin,
   PinOff,
@@ -33,6 +34,7 @@ import { MentionPopover, type MentionUser } from "@/app/(app)/cases/[id]/tabs/me
 import { AttachDocumentDialog, type LinkableDocument } from "@/app/(app)/cases/[id]/tabs/attach-document-dialog";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
 import { VideoCallPanel } from "@/components/app/video-call-panel";
+import { VoiceRecorder } from "@/components/app/voice-recorder";
 import { toast, withToast } from "@/components/ui/toast";
 
 // ------------------------------------------------------------------
@@ -1085,6 +1087,8 @@ export function CaseChatHub({
                                     >
                                       {att.isLinkedDocument ? (
                                         <Link2 className="size-3.5 text-primary shrink-0" />
+                                      ) : att.mimeType.startsWith("audio/") ? (
+                                        <Mic className="size-3.5 text-text-muted shrink-0" />
                                       ) : (
                                         <FileText className="size-3.5 text-text-muted shrink-0" />
                                       )}
@@ -1184,7 +1188,7 @@ export function CaseChatHub({
                           key={`file-${i}`}
                           className="inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-surface-muted/50 px-2 py-0.5 text-xs"
                         >
-                          <Paperclip className="size-3 text-text-muted" />
+                          {f.type.startsWith("audio/") ? <Mic className="size-3 text-text-muted" /> : <Paperclip className="size-3 text-text-muted" />}
                           <span className="max-w-[140px] truncate">{f.name}</span>
                           <span className="text-text-muted text-[10px]">
                             {formatFileSize(f.size)}
@@ -1260,6 +1264,13 @@ export function CaseChatHub({
                       >
                         <Link2 className="size-3.5" />
                       </button>
+
+                      {/* Voice note */}
+                      <VoiceRecorder
+                        onRecorded={(file) => setDirectFiles((prev) => [...prev, file])}
+                        buttonClassName="grid size-7 place-items-center rounded-md"
+                        iconClassName="size-3.5"
+                      />
 
                       {/* Mention button */}
                       <button

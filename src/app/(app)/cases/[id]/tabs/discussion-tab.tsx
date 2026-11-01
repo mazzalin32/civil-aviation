@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FileText,
   Link2,
+  Mic,
   Paperclip,
   Pin,
   PinOff,
@@ -30,6 +31,7 @@ import { MentionPopover, type MentionUser } from "./mention-popover";
 import { AttachDocumentDialog, type LinkableDocument } from "./attach-document-dialog";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
 import { VideoCallPanel } from "@/components/app/video-call-panel";
+import { VoiceRecorder } from "@/components/app/voice-recorder";
 import { toast, withToast } from "@/components/ui/toast";
 
 // ------------------------------------------------------------------
@@ -140,7 +142,13 @@ function AttachmentBadge({
   matterId: string;
   onPreview: (att: SerializedChatAttachment) => void;
 }) {
-  const icon = att.isLinkedDocument ? <Link2 className="size-3.5 text-primary" /> : <FileText className="size-3.5 text-text-muted" />;
+  const icon = att.isLinkedDocument ? (
+    <Link2 className="size-3.5 text-primary" />
+  ) : att.mimeType.startsWith("audio/") ? (
+    <Mic className="size-3.5 text-text-muted" />
+  ) : (
+    <FileText className="size-3.5 text-text-muted" />
+  );
   return (
     <div
       onClick={() => onPreview(att)}
@@ -671,7 +679,7 @@ export function DiscussionTab({
                 key={`file-${i}`}
                 className="inline-flex items-center gap-1.5 rounded-control border border-border bg-surface px-2 py-1 text-[12px]"
               >
-                <Paperclip className="size-3 text-text-muted" />
+                {f.type.startsWith("audio/") ? <Mic className="size-3 text-text-muted" /> : <Paperclip className="size-3 text-text-muted" />}
                 <span className="max-w-[140px] truncate">{f.name}</span>
                 <span className="text-text-muted">{formatFileSize(f.size)}</span>
                 <button type="button" onClick={() => removeDirectFile(i)} className="text-text-muted hover:text-danger">
@@ -736,6 +744,9 @@ export function DiscussionTab({
           >
             <Link2 className="size-4" />
           </button>
+
+          {/* Voice note */}
+          <VoiceRecorder onRecorded={(file) => setDirectFiles((prev) => [...prev, file])} />
 
           {/* Textarea */}
           <textarea

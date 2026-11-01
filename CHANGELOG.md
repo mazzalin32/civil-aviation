@@ -1,5 +1,13 @@
 # Changelog
 
+## Voice messages in chat (2026-11-01)
+
+A "record a voice note" mic button in both the case Discussion tab and the Chat Hub composer, next to the existing attach/link-document buttons. Click to start, click again to stop — it records through the browser's `MediaRecorder` API and drops straight into the same attachment pipeline a picked file already goes through (envelope encryption, ClamAV scan, permission-checked download route), so no new storage or permission code was needed. Added WebM/Ogg signature detection to the content-based file-type allow-list (`detectFileType`), since only PDF/Office/text/image signatures were recognised before. Clicking a voice note opens the existing file-preview modal with a real `<audio>` player, which also benefits any other audio attachment, not just recorded ones.
+
+While tracing the chat models for this: the schema's `GroupMessage` model (the department-wide channel decided on 2026-09-30, with its own `voiceNoteUrl`/`attachmentUrl` columns already defined) is entirely unused — no action, route or component anywhere references it. `/chat` ("Chat Hub") is in fact just an aggregated view over the per-case Discussion threads (`MatterMessage`), not the separate org-wide channel the decision log describes. Flagged, not built — a materially bigger feature than voice notes and out of scope for this pass.
+
+Verified live: recorded, sent, and played back a voice note in the case Discussion tab (real browser, fake audio device), confirmed the attachment chip, the preview modal's audio player, and the delete flow all work, then removed the test message.
+
 ## Parties editing wired back into the case page (2026-11-01)
 
 Following up on the dead-code finding from the toast audit: added a "Manage parties" button next to the Parties section of the Overview panel (visible to Admin/Lead/Support, matching the existing edit-permission boundary for matter fields), opening a slide-over with the existing `PartiesTab` list — add, edit and remove, unchanged from how it was originally built. The underlying `addParty`/`updateParty`/`removeParty` Server Actions already had correct permission checks and audit logging; they just had no UI calling them. Verified live: added, then removed, a test party and confirmed the toast, the list, and a fresh page load all agreed.

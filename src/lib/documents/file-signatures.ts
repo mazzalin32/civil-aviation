@@ -25,6 +25,19 @@ const SIGNATURES: { mimeType: string; label: string; check: (b: Buffer) => boole
       return sample.length > 0 && printable / sample.length > 0.95;
     },
   },
+  {
+    // Voice notes (chat composer's recorder) — the EBML/Matroska container magic bytes are
+    // shared by audio- and video-only WebM alike; only the recorder produces these uploads,
+    // so that ambiguity is accepted the same way the Office zip signature already is above.
+    mimeType: "audio/webm",
+    label: "Voice note",
+    check: (b) => b.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])),
+  },
+  {
+    mimeType: "audio/ogg",
+    label: "Voice note",
+    check: (b) => b.subarray(0, 4).toString("ascii") === "OggS",
+  },
 ];
 
 export function detectFileType(buf: Buffer): { mimeType: string; label: string } | null {
