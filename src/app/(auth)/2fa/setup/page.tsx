@@ -12,10 +12,8 @@ export default async function TwoFactorSetupPage() {
   return (
     <>
       <h1 className="m-0 mb-1 text-lg font-semibold">Set up two-factor authentication</h1>
-      <p className="m-0 mb-5 text-[13px] text-text-muted">
-        Required for every account. You&apos;ll need an authenticator app such as Google Authenticator or Authy.
-      </p>
-      <SetupWizard />
+      <p className="m-0 mb-5 text-[13px] text-text-muted">Required for every account. A code is emailed to you each time you sign in.</p>
+      <SetupWizard email={user.email} />
     </>
   );
 }

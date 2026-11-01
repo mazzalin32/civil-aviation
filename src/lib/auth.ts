@@ -7,15 +7,17 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
 import { env } from "./env";
 import { demoLoginPassword } from "./demo-login";
-import { sendPasswordChangedEmail, sendResetPasswordEmail } from "./mailer";
+import { sendPasswordChangedEmail, sendResetPasswordEmail, sendTwoFactorCodeEmail } from "./mailer";
 
 /**
- * Better Auth server instance (CLAUDE.md: Auth · TOTP 2FA · Admin-created accounts only).
+ * Better Auth server instance (CLAUDE.md: Auth · email-OTP 2FA · Admin-created accounts only).
  *
  * - No public sign-up. Admin creates the `User` row directly (Phase 3); the person
  *   only ever reaches Better Auth through the same reset-password link, whether it's
  *   their first-time invite or a later "forgot password" (spec §15 decision).
- * - `twoFactor` adds its own table + the `twoFactorEnabled` flag on User.
+ * - `twoFactor` adds its own table + the `twoFactorEnabled` flag on User. Email-OTP only
+ *   (not the authenticator-app TOTP method) — staff found scanning a QR code and running a
+ *   separate app too much friction; a code emailed at login is the whole flow (2026-11-02).
  * - `haveIBeenPwned` rejects a password found in a public breach corpus (spec §9).
  * - Session `expiresIn`/`updateAge` together give the 15-minute idle timeout (spec §9);
  *   this becomes an Admin-configurable Setting in Phase 2.
@@ -42,7 +44,15 @@ export const auth = betterAuth({
     updateAge: 60, // extend the expiry at most once a minute (was every request = a DB write per click); idle timeout stays accurate to ±1 min
   },
   plugins: [
-    twoFactor({ issuer: "CAA Legal" }),
+    twoFactor({
+      issuer: "CAA Legal",
+      otpOptions: {
+        period: 10, // minutes — generous given email delivery isn't always instant
+        async sendOTP({ user, otp }) {
+          await sendTwoFactorCodeEmail(user.email, user.name, otp);
+        },
+      },
+    }),
     // The shared prototype password is in public breach lists; skip HIBP while it's in use.
     ...(demoLoginPassword()
       ? []

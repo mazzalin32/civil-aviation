@@ -1,38 +1,54 @@
 "use client";
 
-import Image from "next/image";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { Copy } from "lucide-react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { FormAlert } from "@/components/auth/form-alert";
-import { beginTwoFactorSetup, confirmTwoFactorSetup } from "./actions";
-import { toast, withToast } from "@/components/ui/toast";
+import { sendTwoFactorSetupOtp, confirmTwoFactorSetup } from "./actions";
+import { withToast } from "@/components/ui/toast";
 
-type Step = { name: "password" } | { name: "scan"; qrDataUrl: string; secretUri: string; backupCodes: string[] };
+const RESEND_COOLDOWN_SECONDS = 30;
 
-export function SetupWizard() {
+export function SetupWizard({ email }: { email: string }) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>({ name: "password" });
   const [error, setError] = useState<string>();
-  const [pending, startTransition] = useTransition();
-  const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [confirming, startConfirming] = useTransition();
+  const [sentOnce, setSentOnce] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
-  function onPassword(formData: FormData) {
+  function applySendResult(result: Awaited<ReturnType<typeof sendTwoFactorSetupOtp>>) {
+    setSending(false);
+    if (!result.ok) return setError(result.error);
     setError(undefined);
-    startTransition(async () => {
-      const result = await beginTwoFactorSetup(formData);
-      if (!result.ok) return setError(result.error);
-      setStep({ name: "scan", qrDataUrl: result.qrDataUrl, secretUri: result.secretUri, backupCodes: result.backupCodes });
-    });
+    setSentOnce(true);
+    setCooldown(RESEND_COOLDOWN_SECONDS);
   }
+
+  function send() {
+    setError(undefined);
+    setSending(true);
+    sendTwoFactorSetupOtp().then(applySendResult);
+  }
+
+  // Send the first code as soon as the page opens — one less click. Every setState call
+  // this triggers happens inside the promise continuation, never synchronously in the
+  // effect body itself, which is what the no-setState-in-effect rule actually checks for.
+  useEffect(() => {
+    sendTwoFactorSetupOtp().then(applySendResult);
+  }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
 
   function onConfirm(formData: FormData) {
     setError(undefined);
-    startTransition(async () => {
+    startConfirming(async () => {
       const result = await withToast(confirmTwoFactorSetup(formData), "Two-factor authentication enabled");
       if (!result.ok) return setError(result.error);
       router.push("/");
@@ -40,69 +56,32 @@ export function SetupWizard() {
     });
   }
 
-  async function copyBackupCodes(codes: string[]) {
-    try {
-      await navigator.clipboard.writeText(codes.join("\n"));
-      setCopied(true);
-      toast.success("Backup codes copied");
-    } catch {
-      // Clipboard can be unavailable; the codes are already visible to copy by hand.
-    }
-  }
-
-  if (step.name === "password") {
-    return (
-      <form action={onPassword} className="grid gap-4" noValidate>
-        <p className="m-0 text-[13px] text-text-muted">Confirm your password to set up two-factor authentication.</p>
-        {error && <FormAlert>{error}</FormAlert>}
-        <Field label="Password" htmlFor="password">
-          <PasswordInput id="password" name="password" autoComplete="current-password" required autoFocus />
-        </Field>
-        <Button type="submit" variant="primary" disabled={pending} className="justify-center">
-          {pending ? "Please wait…" : "Continue"}
-        </Button>
-      </form>
-    );
-  }
-
   return (
     <div className="grid gap-4">
-      <div>
-        <p className="m-0 mb-2 text-[13px] font-medium">1. Scan this with your authenticator app</p>
-        <div className="grid place-items-center rounded-control border border-border bg-surface-muted p-4">
-          <Image src={step.qrDataUrl} alt="Scan with an authenticator app" width={180} height={180} unoptimized />
-        </div>
-        <p className="m-0 mt-2 text-xs break-all text-text-muted">Can&apos;t scan? Enter this key manually: {new URL(step.secretUri).searchParams.get("secret")}</p>
-      </div>
-
-      <div>
-        <div className="mb-2 flex items-center gap-2">
-          <p className="m-0 text-[13px] font-medium">2. Save your backup codes</p>
-          <button
-            type="button"
-            onClick={() => copyBackupCodes(step.backupCodes)}
-            className="ml-auto flex items-center gap-1 text-xs text-primary hover:underline"
-          >
-            <Copy className="size-3.5" /> {copied ? "Copied" : "Copy all"}
-          </button>
-        </div>
-        <p className="m-0 mb-2 text-xs text-text-muted">Use one of these to sign in if you lose access to your authenticator app. Each works once.</p>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-control border border-border bg-surface-muted p-3 font-mono text-[13px] tabular-nums">
-          {step.backupCodes.map((code) => (
-            <span key={code}>{code}</span>
-          ))}
-        </div>
-      </div>
-
+      <p className="m-0 text-[13px] text-text-muted">
+        {sentOnce ? (
+          <>We&apos;ve emailed a 6-digit code to <strong className="text-text">{email}</strong>.</>
+        ) : (
+          "Sending a code…"
+        )}
+      </p>
+      {error && <FormAlert>{error}</FormAlert>}
       <form action={onConfirm} className="grid gap-3" noValidate>
-        {error && <FormAlert>{error}</FormAlert>}
-        <Field label="3. Enter the 6-digit code from your app" htmlFor="code">
-          <Input id="code" name="code" inputMode="numeric" maxLength={6} pattern="\d{6}" required className="text-center text-lg tracking-[0.3em]" />
+        <Field label="6-digit code" htmlFor="code">
+          <Input id="code" name="code" inputMode="numeric" maxLength={6} pattern="\d{6}" required autoFocus className="text-center text-lg tracking-[0.3em]" />
         </Field>
-        <Button type="submit" variant="primary" disabled={pending} className="justify-center">
-          {pending ? "Verifying…" : "Confirm and finish"}
+        <Button type="submit" variant="primary" disabled={confirming} className="justify-center">
+          {confirming ? "Verifying…" : "Confirm and finish"}
         </Button>
       </form>
+      <button
+        type="button"
+        onClick={send}
+        disabled={sending || cooldown > 0}
+        className="justify-self-start text-[13px] text-primary underline underline-offset-2 hover:no-underline disabled:text-text-muted disabled:no-underline"
+      >
+        {cooldown > 0 ? `Resend code (${cooldown}s)` : sending ? "Sending…" : "Resend code"}
+      </button>
     </div>
   );
 }

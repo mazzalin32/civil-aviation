@@ -147,6 +147,23 @@ export async function sendNotificationEmail(to: string, name: string, subject: s
   );
 }
 
+/** Two-factor sign-in code — email-OTP, not an authenticator app (spec revision: simpler for staff). */
+export async function sendTwoFactorCodeEmail(to: string, name: string, code: string) {
+  await send(
+    to,
+    `${code} is your CAA Legal sign-in code`,
+    layout(
+      `Hello ${esc(name)}`,
+      `<p style="margin:0 0 16px;">Enter this code to finish signing in to CAA Legal:</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;background:#E8EDFC;border:1px solid #CBD6F7;border-radius:12px;">
+        <tr><td style="padding:16px 24px;font-size:28px;font-weight:700;letter-spacing:.3em;color:#1F2328;font-family:Consolas,Menlo,monospace;">${esc(code)}</td></tr>
+      </table>
+      <p style="margin:0;font-size:13px;color:#6B6760;">This code expires in 10 minutes. If you didn't try to sign in, you can ignore this email.</p>`,
+      `${code} is your sign-in code.`,
+    ),
+  );
+}
+
 export async function sendAccountLockedEmail(to: string, lockedUserName: string, lockedUserEmail: string) {
   await send(
     to,

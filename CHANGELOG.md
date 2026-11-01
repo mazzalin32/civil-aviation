@@ -1,5 +1,16 @@
 # Changelog
 
+## 2FA switched from authenticator app to emailed codes (2026-11-02)
+
+The QR-code/authenticator-app (TOTP) setup was reportedly too fiddly for staff, so replaced it with Better Auth's built-in email-OTP method — a 6-digit code emailed at login, nothing to install. Scrapped, not kept alongside TOTP: backup codes, the QR step, and the "scan with Google Authenticator" copy are all gone.
+
+- Setup (`/2fa/setup`): opens already having emailed the first code; enter it to finish. A "Resend code" link (30s cooldown) covers a missed or slow email. No password re-confirmation step — reaching this page already proves who you are, and entering a real code that only your inbox received is the proof the account is set up correctly.
+- Login (`/2fa`): same shape — a code is emailed the moment the page loads, enter it to continue, resend available.
+- `src/lib/auth.ts`'s `twoFactor()` plugin now configures `otpOptions.sendOTP` (new `sendTwoFactorCodeEmail` in `src/lib/mailer.ts`) instead of just `issuer`; the `qrcode` package is no longer a dependency.
+- `REQUIRE_2FA` (still `false` in production) and the `twoFactorEnabled` gate in `authz.ts` are unchanged — this only changes *how* the code reaches the user, not when 2FA is enforced.
+
+Verified live end-to-end against the real Mailpit inbox: set up 2FA on the seeded Admin account (code emailed, entered, confirmed), signed out, signed back in, got challenged at `/2fa`, and got in with the freshly emailed code.
+
 ## Voice messages in chat (2026-11-01)
 
 A "record a voice note" mic button in both the case Discussion tab and the Chat Hub composer, next to the existing attach/link-document buttons. Click to start, click again to stop — it records through the browser's `MediaRecorder` API and drops straight into the same attachment pipeline a picked file already goes through (envelope encryption, ClamAV scan, permission-checked download route), so no new storage or permission code was needed. Added WebM/Ogg signature detection to the content-based file-type allow-list (`detectFileType`), since only PDF/Office/text/image signatures were recognised before. Clicking a voice note opens the existing file-preview modal with a real `<audio>` player, which also benefits any other audio attachment, not just recorded ones.
