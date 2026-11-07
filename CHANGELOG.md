@@ -1,5 +1,29 @@
 # Changelog
 
+## Suspicious-activity alerts: unusual downloads and failed sign-ins (2026-11-07)
+
+The last missing piece of Phase 8 (spec §5.9, FLOWS §15).
+- **Unusual downloads:** every time a file is served, `checkMassDownload` (`src/lib/security/activity.ts`) counts how many *different* files that person opened, downloaded or printed in the recent window. The count covers case documents, contract documents and chat attachments; re-opening the same file doesn't count again.
+  - At the limit, the Admins of the person's own organisation get a bell entry and an email linking to the user's page, once per window.
+  - **Auto-lock** (off by default) deactivates the account and signs it out everywhere, exactly like the Admin's Deactivate button, and refuses the request that crossed the limit. It applies to lawyers only; an Admin is never locked automatically, so nobody is left unable to unlock accounts.
+  - If the check itself fails, the download still works and the error is logged.
+- **Failed sign-ins:** the existing lockout (5 wrong passwords → 15 minutes) now alerts through the normal notification path, as a bell entry and an email. **Bug fixed:** the old lockout email went to every Admin on the platform, across organisations. It now goes only to the locked person's own organisation's Admins. The one-off `sendAccountLockedEmail` template is removed.
+- **Settings → Security (new tab, Admin only):** the file limit and window (default 50 in 10 minutes, stored as Admin data in the `security.massDownload` setting, validated with zod), the auto-lock switch, and a note on the sign-in lockout. Saving is audited (`setting.security.massDownload.update`), and each alert writes `security.massDownload.alert` / `.locked`.
+- **Data migration** `security_alerts` (no schema change): `SUSPICIOUS_ACTIVITY` now also shows in the bell, and the default policy row is inserted. The seed matches.
+
+**Tests:** unit tests for the policy (`security/policy.test.ts`); 77 tests total.
+
+**Logic checks against the dev database (12):**
+- 49 files → no alert; the 50th → the Admin is told, and the person themself isn't.
+- Repeat or extra files in the same window → no second alert.
+- Auto-lock on → a lawyer is deactivated and signed out, and the alert says so. An Admin over the limit is not locked.
+- The failed-sign-in alert reaches the bell, and both kinds of alert are audited.
+
+**End to end on a production build:**
+- With the limit at 5, real downloads were served until the 5th different file, which was refused. The lawyer was signed out at once and deactivated, and the Admin's bell showed the security alert.
+- Settings → Security showed the saved values, refused 3 files, and saved and audited a change.
+- 5 wrong passwords locked the account, and the alert reached only that organisation's Admin, in the bell and by email.
+
 ## Profile & preferences page: digest and notification mutes (2026-11-07)
 
 `/profile` was a placeholder. It is now a real page:

@@ -6,8 +6,8 @@ import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
-import { sendAccountLockedEmail } from "@/lib/mailer";
-import { afterFailedAttempt, afterSuccessfulAttempt, isLocked, minutesRemaining } from "@/lib/lockout";
+import { LOCKOUT_MINUTES, MAX_FAILED_ATTEMPTS, afterFailedAttempt, afterSuccessfulAttempt, isLocked, minutesRemaining } from "@/lib/lockout";
+import { alertAccountLocked } from "@/lib/security/activity";
 import { loginSchema } from "@/lib/validation/auth";
 
 export type LoginState = { error?: string; fieldErrors?: Record<string, string> };
@@ -75,8 +75,7 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
 
     if (updated.lockedUntil) {
       await writeAudit({ userId: user.id, action: "user.login.locked", entity: "User", entityId: user.id, ip });
-      const admins = await db.user.findMany({ where: { role: "ADMIN", isActive: true }, select: { email: true } });
-      await Promise.all(admins.map((a) => sendAccountLockedEmail(a.email, user.name, user.email)));
+      await alertAccountLocked(user, MAX_FAILED_ATTEMPTS, LOCKOUT_MINUTES);
       return { error: `Too many failed attempts. This account is locked for ${minutesRemaining(updated.lockedUntil)} minutes.` };
     }
     return { error: GENERIC_ERROR };

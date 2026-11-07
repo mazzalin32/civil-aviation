@@ -7,6 +7,7 @@ import { getObject } from "@/lib/documents/storage";
 import { decryptFile } from "@/lib/documents/encryption";
 import { watermarkPdf } from "@/lib/documents/watermark";
 import { formatDate } from "@/lib/time";
+import { checkMassDownload } from "@/lib/security/activity";
 
 export async function GET(
   request: NextRequest,
@@ -70,6 +71,11 @@ export async function GET(
       after: { documentId: document.id, name: document.name, matterId },
     });
 
+    // Too many different files in a short time: tell the Admins, and if auto-lock is on, stop here.
+    if ((await checkMassDownload(user)).locked) {
+      return new NextResponse("Your account has been locked after unusually many downloads. Contact the Head of Legal.", { status: 403 });
+    }
+
     return new NextResponse(new Uint8Array(plaintext), {
       headers: {
         "Content-Type": version.mimeType,
@@ -99,6 +105,11 @@ export async function GET(
     entityId: attachment.id,
     after: { name: attachment.name, matterId },
   });
+
+  // Too many different files in a short time: tell the Admins, and if auto-lock is on, stop here.
+  if ((await checkMassDownload(user)).locked) {
+    return new NextResponse("Your account has been locked after unusually many downloads. Contact the Head of Legal.", { status: 403 });
+  }
 
   return new NextResponse(new Uint8Array(plaintext), {
     headers: {

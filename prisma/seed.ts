@@ -274,7 +274,7 @@ const NOTIFICATION_RULES: { trigger: string; label: string; offsets: number[]; o
   { trigger: "CASE_INACTIVE", label: "Case inactive 30+ days", offsets: [30], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "CERT_EXPIRING", label: "Practising certificate expiring", offsets: [30], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "CHAT_UNREAD_EMAIL", label: "Chat email: sent only if still unread after", offsets: [10], offsetUnit: "MINUTES", channels: ["EMAIL"], mutable: false },
-  { trigger: "SUSPICIOUS_ACTIVITY", label: "Suspicious activity (mass download, failed logins)", offsets: [0], channels: ["EMAIL"], mutable: false },
+  { trigger: "SUSPICIOUS_ACTIVITY", label: "Suspicious activity (mass download, failed logins)", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: false },
 ];
 
 // Illustrative starting points (spec §5.13/§5.7 example: "judgment logged → suggests Notice
@@ -374,6 +374,8 @@ async function seedReferenceData() {
   for (const r of NOTIFICATION_RULES) {
     await db.notificationRule.upsert({ where: { trigger: r.trigger }, update: {}, create: r });
   }
+  // Settings → Security: alert the Admin at 50 different files in 10 minutes (FLOWS §15); auto-lock off.
+  await db.setting.upsert({ where: { key: "security.massDownload" }, update: {}, create: { key: "security.massDownload", value: { files: 50, minutes: 10, autoLock: false } } });
   for (const r of DEADLINE_RULES) {
     const eventType = await db.eventType.findUniqueOrThrow({ where: { name: r.trigger } });
     const existing = await db.deadlineRule.findFirst({ where: { title: r.title, triggerEventTypeId: eventType.id } });

@@ -210,14 +210,3 @@ export async function sendTwoFactorCodeEmail(to: string, name: string, code: str
     ),
   );
 }
-
-export async function sendAccountLockedEmail(to: string, lockedUserName: string, lockedUserEmail: string) {
-  await send(
-    to,
-    `Account locked: ${lockedUserName}`,
-    layout(
-      "Account locked after repeated failed logins",
-      `<p style="margin:0;">${esc(lockedUserName)} (${esc(lockedUserEmail)}) was locked out for 15 minutes after 5 failed sign-in attempts.</p>`,
-    ),
-  );
-}

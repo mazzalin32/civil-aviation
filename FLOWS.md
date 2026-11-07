@@ -240,7 +240,7 @@ flowchart TD
 1. 🟩 Click document → ⚙️ permission check → opens in the **secure viewer** with watermark (name + date/time).
 2. Download/print (if allowed for that confidentiality level) → watermarked copy, link valid ~60 s.
 3. 📝 Every view, download, print is logged → visible to Admin in Activity.
-4. ⚙️ Unusual activity (e.g. 50 downloads in 10 min) → 🔔 Admin + optional auto-lock of the account.
+4. ⚙️ Unusual activity (e.g. 50 downloads in 10 min) → 🔔 Admin + optional auto-lock of the account. **Built (2026-11-07):** counts different files opened, downloaded or printed (case documents, contract documents, chat attachments) over a rolling window; the limit and auto-lock (off by default; lawyers only, never an Admin) are set in Settings → Security. An account locked by failed sign-ins also alerts the Admins.
 
 ```mermaid
 flowchart LR
@@ -284,7 +284,7 @@ flowchart LR
 
 ## 12. Notifications
 
-> **Built (2026-11-07 — see PROJECT_SPEC.md §12 Phase 8).** The "event happens" triggers fire as they happen; the "date approaching" triggers (hearing 7/1-day/morning-of, deadline 7/3/1-day + overdue, hearing-no-outcome escalation, cert-expiry, case inactive, the morning digest) are sent by the job runner, which checks once a minute from 7:00 Kampala time. Each reminder goes to each person once; dates from before reminders were switched on are treated as history and skipped. Not built: the suspicious-activity alert.
+> **Built (2026-11-07 — see PROJECT_SPEC.md §12 Phase 8).** The "event happens" triggers fire as they happen; the "date approaching" triggers (hearing 7/1-day/morning-of, deadline 7/3/1-day + overdue, hearing-no-outcome escalation, cert-expiry, case inactive, the morning digest) are sent by the job runner, which checks once a minute from 7:00 Kampala time. Each reminder goes to each person once; dates from before reminders were switched on are treated as history and skipped. The suspicious-activity alert is built as well (§15).
 
 ```mermaid
 flowchart LR
