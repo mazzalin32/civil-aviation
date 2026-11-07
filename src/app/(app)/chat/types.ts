@@ -15,4 +15,6 @@ export type CaseConversationSummary = {
     hasAttachments: boolean;
   } | null;
   messageCount: number;
+  /** Messages from other people you haven't read yet. */
+  unreadCount: number;
 };

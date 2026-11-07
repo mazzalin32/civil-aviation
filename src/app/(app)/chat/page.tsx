@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { orgId } from "@/lib/org";
+import { getUnreadCounts } from "@/lib/chat/unread";
 import { CaseChatHub, type CaseConversationSummary } from "./chat-hub";
 import { getCaseChatData, type CaseChatData } from "./actions";
 
@@ -72,6 +73,8 @@ export default async function ChatPage({
     return bTime - aTime;
   });
 
+  const unread = await getUnreadCounts(user, sortedMatters.map((m) => m.id));
+
   const conversationSummaries: CaseConversationSummary[] = sortedMatters.map((m) => {
     const last = m.messages[0] ?? null;
     return {
@@ -97,6 +100,7 @@ export default async function ChatPage({
           }
         : null,
       messageCount: m._count.messages,
+      unreadCount: unread.get(m.id) ?? 0,
     };
   });
 

@@ -22,6 +22,28 @@ export function withinEditWindow(createdAt: Date | string, now: Date = new Date(
 }
 
 export type DeleteCheck = { ok: true } | { ok: false; error: string };
+export type EditCheck = DeleteCheck;
+
+/** Characters of the original shown in a reply's quote. */
+export const REPLY_SNIPPET_CHARS = 140;
+
+/**
+ * Who may edit a message: only its author, only within the edit window, never once the matter is
+ * closed. Admins can delete for moderation but cannot put words in someone else's mouth.
+ */
+export function checkCanEditMessage(input: {
+  isAuthor: boolean;
+  createdAt: Date | string;
+  matterStatus: string;
+  now?: Date;
+}): EditCheck {
+  if (isMatterChatReadOnly(input.matterStatus)) return { ok: false, error: CLOSED_CHAT_MESSAGE };
+  if (!input.isAuthor) return { ok: false, error: "You can only edit your own messages." };
+  if (!withinEditWindow(input.createdAt, input.now)) {
+    return { ok: false, error: `Messages can only be edited within ${MESSAGE_EDIT_WINDOW_MINUTES} minutes of sending.` };
+  }
+  return { ok: true };
+}
 
 /**
  * Who may delete a message: its author for the first 15 minutes, or an Admin at any time

@@ -53,6 +53,22 @@ export function groupMessagesByDay(messages: SerializedChatMessage[]) {
   return groups;
 }
 
+/** The first message from someone else posted after you last read the thread — where "New messages" goes. */
+export function findFirstUnreadId(messages: SerializedChatMessage[], currentUserId: string, lastReadAt: string): string | null {
+  const since = new Date(lastReadAt).getTime();
+  return messages.find((m) => !m.deletedAt && m.authorId !== currentUserId && new Date(m.createdAt).getTime() > since)?.id ?? null;
+}
+
+/** Scrolls a message into view and briefly outlines it (used when jumping to a quoted original). */
+export function flashMessage(messageId: string): boolean {
+  const el = document.getElementById(`msg-${messageId}`);
+  if (!el) return false;
+  el.scrollIntoView({ block: "center", behavior: "smooth" });
+  el.classList.add("ring-2", "ring-primary/50");
+  setTimeout(() => el.classList.remove("ring-2", "ring-primary/50"), 1800);
+  return true;
+}
+
 export function getStatusDotColor(status: string): string {
   switch (status.toUpperCase()) {
     case "OPEN":

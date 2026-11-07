@@ -267,6 +267,8 @@ flowchart LR
 4. Edit/delete own message within 15 min (shows "edited"); deleted messages remain in the audit log.
 5. Only assigned lawyers + Admin can see or post. Closed case → chat read-only.
 
+> **Status (2026-11-07):** steps 1–5 are built, including reply-in-thread, edit (15 min, "edited" label), pinned bar, unread counts with a "New messages" divider, and live in-app notifications for every new message (collapsed per case). **Not built:** the email for messages still unread after 10 minutes — it needs the background job runner (see PROJECT_SPEC §12 Phase 8).
+
 ---
 
 ## 11. Calendar

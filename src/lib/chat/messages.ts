@@ -1,7 +1,8 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "../db";
-import { MESSAGE_PAGE_SIZE } from "./rules";
+import { previewText } from "../mentions";
+import { MESSAGE_PAGE_SIZE, REPLY_SNIPPET_CHARS } from "./rules";
 import type { SerializedChatMessage } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
 
 /** The single place a MatterMessage row becomes the shape the chat UIs and the SSE stream use. */
@@ -10,6 +11,7 @@ export const MESSAGE_INCLUDE = {
   pinnedBy: { select: { id: true, name: true } },
   attachments: true,
   mentions: { include: { user: { select: { id: true, name: true } } } },
+  replyTo: { select: { id: true, body: true, deletedAt: true, author: { select: { name: true } } } },
 } as const;
 
 type Row = Awaited<ReturnType<typeof loadRows>>[number];
@@ -36,6 +38,16 @@ export function serializeMessage(m: Row): SerializedChatMessage {
     pinnedById: m.pinnedById,
     pinnedByName: m.pinnedBy?.name ?? null,
     deletedAt: m.deletedAt?.toISOString() ?? null,
+    editedAt: m.editedAt?.toISOString() ?? null,
+    replyTo: m.replyTo
+      ? {
+          id: m.replyTo.id,
+          authorName: m.replyTo.author.name,
+          // A deleted original must not leak its text through a reply's quote.
+          snippet: m.replyTo.deletedAt ? "" : previewText(m.replyTo.body, REPLY_SNIPPET_CHARS),
+          deleted: Boolean(m.replyTo.deletedAt),
+        }
+      : null,
     attachments: m.attachments.map((att) => ({
       id: att.id,
       name: att.name,

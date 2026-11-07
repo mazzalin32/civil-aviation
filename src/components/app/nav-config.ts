@@ -27,7 +27,7 @@ export type NavItem = {
   /** A "+" next to the link, for jumping straight to adding one without visiting the list first. */
   quickAdd?: { href: string; label: string };
   /** Small numeric badge (e.g. open tasks assigned to the current user) — filled in at render time. */
-  badgeKey?: "openTasks";
+  badgeKey?: "openTasks" | "unreadChat";
 };
 
 const SHARED: NavItem[] = [
@@ -39,7 +39,7 @@ const SHARED: NavItem[] = [
   { href: "/documents", label: "Documents", icon: "documents", section: "Library" },
   { href: "/law-firms", label: "Law Firms", icon: "firms", section: "Library" },
   { href: "/links", label: "Resources", icon: "links", section: "Library" },
-  { href: "/chat", label: "Chat", icon: "chat", section: "Collaborate" },
+  { href: "/chat", label: "Chat", icon: "chat", badgeKey: "unreadChat", section: "Collaborate" },
   { href: "/reports", label: "Reports", icon: "reports", section: "Insights" },
 ];
 

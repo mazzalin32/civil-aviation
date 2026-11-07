@@ -16,6 +16,12 @@ export function extractMentionIds(body: string): string[] {
   return ids;
 }
 
+/** Tokens to plain `@Name`, leaving every other character (including newlines) untouched — what the
+ *  edit box shows. Unlike stripMentionTokens it does not collapse whitespace. */
+export function mentionsToHandles(body: string): string {
+  return body.replace(FULL_TOKEN, "@$1");
+}
+
 export function stripMentionTokens(text: string): string {
   return text.replace(FULL_TOKEN, "@$1").replace(TRUNCATED_TOKEN, "@$1").replace(DANGLING_OPEN, "").replace(/\s+/g, " ").trim();
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Link2, Paperclip, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceRecorder } from "@/components/app/voice-recorder";
 import { MentionPopover } from "@/components/app/chat/mention-popover";
 import { PendingAttachments } from "@/components/app/chat/pending-attachments";
+import { ReplyBar } from "@/components/app/chat/reply";
 import type { MessageComposer } from "@/components/app/chat/use-message-composer";
 
 /** The Chat hub's composer: one card with the text box and an action bar (attach, link, record, @, send). */
@@ -14,6 +15,12 @@ export function HubComposer({ composer, placeholder }: { composer: MessageCompos
   // The composer owns its DOM refs; the shared hook only ever receives the elements.
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Clicking Reply on a message puts the cursor straight in the box.
+  const replyId = composer.replyingTo?.id;
+  useEffect(() => {
+    if (replyId) textareaRef.current?.focus();
+  }, [replyId]);
 
   return (
     <div className="border-t border-border/60 p-3.5 bg-surface shrink-0">
@@ -37,6 +44,7 @@ export function HubComposer({ composer, placeholder }: { composer: MessageCompos
         )}
 
         <div className="rounded-xl border border-border/70 bg-surface p-2.5 shadow-2xs focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+          {composer.replyingTo && <ReplyBar replyingTo={composer.replyingTo} onCancel={composer.cancelReply} className="mb-2" />}
           <PendingAttachments
             files={composer.directFiles}
             docs={composer.linkedDocs}

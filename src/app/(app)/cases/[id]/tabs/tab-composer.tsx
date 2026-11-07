@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Link2, Paperclip, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceRecorder } from "@/components/app/voice-recorder";
 import { MentionPopover } from "@/components/app/chat/mention-popover";
 import { PendingAttachments } from "@/components/app/chat/pending-attachments";
+import { ReplyBar } from "@/components/app/chat/reply";
 import type { MessageComposer } from "@/components/app/chat/use-message-composer";
 
 /** The Discussion tab's composer: attach, link a case document, record, write, send. */
@@ -15,6 +16,12 @@ export function TabComposer({ composer }: { composer: MessageComposer }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Clicking Reply on a message puts the cursor straight in the box.
+  const replyId = composer.replyingTo?.id;
+  useEffect(() => {
+    if (replyId) textareaRef.current?.focus();
+  }, [replyId]);
+
   return (
     <form
       onSubmit={(e) => {
@@ -23,6 +30,7 @@ export function TabComposer({ composer }: { composer: MessageComposer }) {
       }}
       className="relative"
     >
+      {composer.replyingTo && <ReplyBar replyingTo={composer.replyingTo} onCancel={composer.cancelReply} className="mb-2" />}
       <PendingAttachments
         files={composer.directFiles}
         docs={composer.linkedDocs}

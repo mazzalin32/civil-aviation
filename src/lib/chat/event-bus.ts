@@ -1,6 +1,6 @@
 import { EventEmitter } from "events";
 
-export type ChatEventType = "message.created" | "message.pinned" | "message.deleted";
+export type ChatEventType = "message.created" | "message.edited" | "message.pinned" | "message.deleted";
 
 export type ChatEvent = {
   type: ChatEventType;

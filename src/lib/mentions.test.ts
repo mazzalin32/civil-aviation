@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractMentionIds, previewText, stripMentionTokens } from "./mentions";
+import { extractMentionIds, mentionsToHandles, previewText, stripMentionTokens } from "./mentions";
 
 describe("stripMentionTokens", () => {
   it("turns a mention token into @Name", () => {
@@ -36,5 +36,11 @@ describe("extractMentionIds", () => {
   });
   it("ignores plain @text and malformed tokens", () => {
     expect(extractMentionIds("@Agnes please see @[Broken(user:x) and @[N](notuser:1)")).toEqual([]);
+  });
+});
+
+describe("mentionsToHandles", () => {
+  it("keeps newlines and spacing (the edit box must show the text exactly)", () => {
+    expect(mentionsToHandles("Hi @[Agnes Nakato](user:u1),\n\n  please review")).toBe("Hi @Agnes Nakato,\n\n  please review");
   });
 });

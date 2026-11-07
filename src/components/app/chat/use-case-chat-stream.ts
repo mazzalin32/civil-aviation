@@ -18,6 +18,7 @@ export type PinChange = {
 export function useCaseChatStream(
   matterId: string | null,
   onMessage: (msg: SerializedChatMessage) => void,
+  onEdit: (msg: SerializedChatMessage) => void,
   onPinChange: (data: PinChange) => void,
   onDelete: (data: { messageId: string }) => void,
 ) {
@@ -41,6 +42,7 @@ export function useCaseChatStream(
     function connect() {
       eventSource = new EventSource(`/api/cases/${matterId}/chat/stream`);
       listen("message.created", onMessage);
+      listen("message.edited", onEdit);
       listen("message.pinned", onPinChange);
       listen("message.deleted", onDelete);
       eventSource.addEventListener("connected", () => {
@@ -58,5 +60,5 @@ export function useCaseChatStream(
       eventSource?.close();
       clearTimeout(reconnectTimeout);
     };
-  }, [matterId, onMessage, onPinChange, onDelete]);
+  }, [matterId, onMessage, onEdit, onPinChange, onDelete]);
 }

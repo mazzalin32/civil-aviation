@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Users } from "lucide-react";
 import { toast } from "@/components/ui/toast";
+import { CHAT_NOTIFICATION_TYPES, NOTIFICATION_EVENT, chatCaseIdFromUrl } from "@/lib/notifications/links";
+import type { NotificationItem } from "@/lib/notifications/item";
 import type { SerializedChatMessage } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
 import { getCaseChatData, type CaseChatData } from "./actions";
 import { ConversationList } from "./conversation-list";
@@ -64,27 +66,57 @@ export function CaseChatHub({
     void loadCase(caseId);
   }
 
-  // A message arrived live in the open thread: refresh that conversation's preview line and count.
-  const handleIncomingMessage = useCallback((msg: SerializedChatMessage) => {
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === msg.matterId
-          ? {
-              ...c,
-              lastMessage: {
-                id: msg.id,
-                body: msg.body,
-                createdAt: msg.createdAt,
-                authorName: msg.authorName,
-                authorId: msg.authorId,
-                hasAttachments: msg.attachments.length > 0,
-              },
-              messageCount: c.messageCount + 1,
-            }
-          : c,
-      ),
-    );
-  }, []);
+  // Reflect the open conversation in the URL (the bell uses it to know which chat you are reading).
+  useEffect(() => {
+    if (selectedCaseId && !window.location.search.includes("caseId=")) {
+      window.history.replaceState(null, "", `/chat?caseId=${selectedCaseId}`);
+    }
+  }, [selectedCaseId]);
+
+  // The open thread was read: clear its badge.
+  const handleRead = useCallback(() => {
+    setConversations((prev) => prev.map((c) => (c.id === selectedCaseId && c.unreadCount > 0 ? { ...c, unreadCount: 0 } : c)));
+  }, [selectedCaseId]);
+
+  // The newest visible message in the open thread changed (arrived, edited or deleted): keep that
+  // conversation's preview line honest.
+  const handleLatestMessageChange = useCallback(
+    (msg: SerializedChatMessage | null) => {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedCaseId
+            ? {
+                ...c,
+                lastMessage: msg
+                  ? {
+                      id: msg.id,
+                      body: msg.body,
+                      createdAt: msg.createdAt,
+                      authorName: msg.authorName,
+                      authorId: msg.authorId,
+                      hasAttachments: msg.attachments.length > 0,
+                    }
+                  : null,
+              }
+            : c,
+        ),
+      );
+    },
+    [selectedCaseId],
+  );
+
+  // Messages for conversations that are NOT open arrive as bell notifications: count them as unread live.
+  useEffect(() => {
+    function onNotification(e: Event) {
+      const item = (e as CustomEvent<NotificationItem>).detail;
+      if (!CHAT_NOTIFICATION_TYPES.includes(item.type)) return;
+      const caseId = chatCaseIdFromUrl(item.url);
+      if (!caseId || caseId === selectedCaseId) return;
+      setConversations((prev) => prev.map((c) => (c.id === caseId ? { ...c, unreadCount: c.unreadCount + 1 } : c)));
+    }
+    window.addEventListener(NOTIFICATION_EVENT, onNotification);
+    return () => window.removeEventListener(NOTIFICATION_EVENT, onNotification);
+  }, [selectedCaseId]);
 
   return (
     <div className="flex h-[calc(100vh-5.5rem)] min-h-[600px] overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
@@ -106,7 +138,8 @@ export function CaseChatHub({
               currentUserId={currentUserId}
               // The notification deep link applies to the conversation the page opened with, not later ones.
               highlightMessageId={selectedCase.id === initialSelectedCaseId ? highlightMessageId : null}
-              onIncomingMessage={handleIncomingMessage}
+              onRead={handleRead}
+              onLatestMessageChange={handleLatestMessageChange}
             />
           ) : (
             <HubThreadPlaceholder selectedCase={selectedCase} error={loadFailed} onRetry={() => void loadCase(selectedCase.id)} />

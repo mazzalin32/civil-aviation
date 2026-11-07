@@ -1,5 +1,6 @@
 "use client";
 
+import { CHAT_NOTIFICATION_TYPES, NOTIFICATION_EVENT } from "@/lib/notifications/links";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -61,9 +62,23 @@ function Tooltip({ label, collapsed }: { label: string; collapsed: boolean }) {
   );
 }
 
-export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTaskCount?: number }) {
+export function Sidebar({ user, openTaskCount = 0, unreadChatCount = 0 }: { user: CurrentUser; openTaskCount?: number; unreadChatCount?: number }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  // The chat badge is the server's count plus chat notifications that have arrived live since it was
+  // rendered; whenever the server count changes (e.g. after reading a thread) the live part resets.
+  const [live, setLive] = useState({ base: unreadChatCount, extra: 0 });
+  if (live.base !== unreadChatCount) setLive({ base: unreadChatCount, extra: 0 });
+  const chatBadge = unreadChatCount + live.extra;
+  useEffect(() => {
+    function onNotification(e: Event) {
+      const item = (e as CustomEvent<{ type: string }>).detail;
+      if (CHAT_NOTIFICATION_TYPES.includes(item.type)) setLive((l) => ({ ...l, extra: l.extra + 1 }));
+    }
+    window.addEventListener(NOTIFICATION_EVENT, onNotification);
+    return () => window.removeEventListener(NOTIFICATION_EVENT, onNotification);
+  }, []);
 
   useEffect(() => {
     // One-time read of a client-only preference on mount (server has no localStorage,
@@ -125,7 +140,7 @@ export function Sidebar({ user, openTaskCount = 0 }: { user: CurrentUser; openTa
         {NAV[user.role].map((item) => {
           const Icon = ICONS[item.icon];
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
-          const badge = item.badgeKey === "openTasks" ? openTaskCount : 0;
+          const badge = item.badgeKey === "openTasks" ? openTaskCount : item.badgeKey === "unreadChat" ? chatBadge : 0;
           return (
             <div key={item.href} className="flex items-center gap-0.5">
               <Link

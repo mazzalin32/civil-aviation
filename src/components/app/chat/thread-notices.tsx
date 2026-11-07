@@ -26,3 +26,15 @@ export function LoadEarlierButton({ loading, onClick }: { loading: boolean; onCl
     </button>
   );
 }
+
+/** The line above the first message you haven't read yet. */
+export function NewMessagesDivider() {
+  return (
+    <div id="new-messages-divider" className="relative flex items-center justify-center py-1">
+      <div className="absolute inset-x-0 top-1/2 border-t border-primary/40" />
+      <span className="relative rounded-full bg-primary-soft px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-primary uppercase">
+        New messages
+      </span>
+    </div>
+  );
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, X } from "lucide-react";
+import { Paperclip, Search, X } from "lucide-react";
 import { formatRelativeTime, getStatusDotColor } from "@/components/app/chat/chat-utils";
 import { stripMentionTokens } from "@/lib/mentions";
 import type { CaseConversationSummary } from "./types";
@@ -116,18 +116,35 @@ export function ConversationList({
                   )}
                 </div>
 
-                <p className="m-0 mt-0.5 line-clamp-1 text-[12.5px] font-medium text-text">{item.title}</p>
+                <p className={`m-0 mt-0.5 line-clamp-1 text-[12.5px] text-text ${item.unreadCount > 0 ? "font-semibold" : "font-medium"}`}>{item.title}</p>
 
-                <p className="m-0 mt-0.5 truncate text-[11.5px] text-text-muted font-normal">
-                  {last ? (
-                    <>
-                      <span className="text-text/75 font-medium">{isMine ? "You: " : `${last.authorName.split(" ")[0]}: `}</span>
-                      {stripMentionTokens(last.body) || (last.hasAttachments ? "📎 Attachment" : "Sent a message")}
-                    </>
-                  ) : (
-                    <span className="italic text-text-muted/60">No messages yet</span>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <p className="m-0 min-w-0 flex-1 truncate text-[11.5px] text-text-muted font-normal">
+                    {last ? (
+                      <>
+                        <span className="text-text/75 font-medium">{isMine ? "You: " : `${last.authorName.split(" ")[0]}: `}</span>
+                        {stripMentionTokens(last.body) ||
+                          (last.hasAttachments ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Paperclip className="size-3" /> Attachment
+                            </span>
+                          ) : (
+                            "Sent a message"
+                          ))}
+                      </>
+                    ) : (
+                      <span className="italic text-text-muted/60">No messages yet</span>
+                    )}
+                  </p>
+                  {item.unreadCount > 0 && (
+                    <span
+                      className="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-on-primary tabular-nums"
+                      aria-label={`${item.unreadCount} unread`}
+                    >
+                      {item.unreadCount > 99 ? "99+" : item.unreadCount}
+                    </span>
                   )}
-                </p>
+                </div>
               </div>
             );
           })

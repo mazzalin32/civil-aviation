@@ -264,6 +264,8 @@ const NOTIFICATION_RULES: { trigger: string; label: string; offsets: number[]; c
   { trigger: "CASE_ASSIGNED", label: "Case assigned or reassigned to you", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "TASK_ASSIGNED", label: "A task is assigned to you", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "MESSAGE_MENTION", label: "New message or @mention", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
+  { trigger: "CASE_MESSAGE", label: "New message in a case discussion you are part of", offsets: [0], channels: ["IN_APP"], mutable: true },
+  { trigger: "MESSAGE_REPLY", label: "Someone replied to your message", offsets: [0], channels: ["IN_APP"], mutable: true },
   { trigger: "DOCUMENT_UPLOADED", label: "Document uploaded to your case", offsets: [0], channels: ["IN_APP"], mutable: true },
   { trigger: "STAGE_OR_CLOSURE_CHANGED", label: "Stage changed / closure requested or approved", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "CASE_INACTIVE", label: "Case inactive 30+ days", offsets: [30], channels: ["IN_APP", "EMAIL"], mutable: true },

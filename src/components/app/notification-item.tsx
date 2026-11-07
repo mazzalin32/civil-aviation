@@ -9,6 +9,7 @@ import {
   FileText,
   GitCommitHorizontal,
   MessageSquare,
+  Reply,
   ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +24,8 @@ type Tone = "primary" | "warning" | "danger" | "neutral";
  *  amber = something coming due, red = needs attention now. Unknown types fall back to a plain bell. */
 const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: Tone }> = {
   MESSAGE_MENTION: { label: "Mention", icon: MessageSquare, tone: "primary" },
+  MESSAGE_REPLY: { label: "Reply", icon: Reply, tone: "primary" },
+  CASE_MESSAGE: { label: "New message", icon: MessageSquare, tone: "neutral" },
   CASE_ASSIGNED: { label: "Case assigned", icon: Briefcase, tone: "primary" },
   TASK_ASSIGNED: { label: "Task assigned", icon: CheckSquare, tone: "primary" },
   DOCUMENT_UPLOADED: { label: "Document uploaded", icon: FileText, tone: "neutral" },

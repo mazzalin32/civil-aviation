@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLOSED_CHAT_MESSAGE, MESSAGE_EDIT_WINDOW_MINUTES, checkCanDeleteMessage, isMatterChatReadOnly, withinEditWindow } from "./rules";
+import { CLOSED_CHAT_MESSAGE, MESSAGE_EDIT_WINDOW_MINUTES, checkCanDeleteMessage, checkCanEditMessage, isMatterChatReadOnly, withinEditWindow } from "./rules";
 
 const now = new Date("2026-11-07T12:00:00Z");
 const ago = (min: number) => new Date(now.getTime() - min * 60_000);
@@ -35,5 +35,23 @@ describe("chat rules", () => {
 
   it("blocks everyone, Admin included, once the matter is closed", () => {
     expect(checkCanDeleteMessage({ isAuthor: true, isAdmin: true, createdAt: ago(1), matterStatus: "CLOSED", now })).toEqual({ ok: false, error: CLOSED_CHAT_MESSAGE });
+  });
+});
+
+describe("checkCanEditMessage", () => {
+  it("lets the author edit within the window", () => {
+    expect(checkCanEditMessage({ isAuthor: true, createdAt: ago(5), matterStatus: "OPEN", now })).toEqual({ ok: true });
+  });
+  it("stops the author editing after the window", () => {
+    expect(checkCanEditMessage({ isAuthor: true, createdAt: ago(60), matterStatus: "OPEN", now }).ok).toBe(false);
+  });
+  it("does not let anyone else edit — Admins included", () => {
+    expect(checkCanEditMessage({ isAuthor: false, createdAt: ago(1), matterStatus: "OPEN", now })).toEqual({
+      ok: false,
+      error: "You can only edit your own messages.",
+    });
+  });
+  it("blocks editing once the matter is closed", () => {
+    expect(checkCanEditMessage({ isAuthor: true, createdAt: ago(1), matterStatus: "CLOSED", now })).toEqual({ ok: false, error: CLOSED_CHAT_MESSAGE });
   });
 });

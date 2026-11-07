@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { canAccessMatterChat, canEditMatter } from "@/lib/authz";
 import { isMatterChatReadOnly } from "@/lib/chat/rules";
+import { getLastReadAt } from "@/lib/chat/unread";
 import { getMentionableUsers, loadMessagePage, loadMessagePageUntil, type Mentionable } from "@/lib/chat/messages";
 import type {
   SerializedChatMessage,
@@ -24,6 +25,8 @@ export type CaseChatData = {
   /** Closed matter: nobody can post, pin or delete. */
   readOnly: boolean;
   isAdmin: boolean;
+  /** How far you had read this thread before opening it (ISO) — messages after it are "new". */
+  lastReadAt: string;
 };
 
 /** Everything the chat UI needs for one case, after the same access checks the stream and download routes apply. */
@@ -43,7 +46,7 @@ export async function getCaseChatData(
     return { error: "You are not assigned to this case." };
   }
 
-  const [matter, page, rawDocuments, mentionable] = await Promise.all([
+  const [matter, page, rawDocuments, mentionable, lastReadAt] = await Promise.all([
     db.matter.findUnique({
       where: { id: matterId },
       include: {
@@ -63,6 +66,7 @@ export async function getCaseChatData(
       orderBy: { name: "asc" },
     }),
     getMentionableUsers(matterId, matterOrg.organizationId),
+    getLastReadAt(user, matterId),
   ]);
 
   if (!matter) return { error: "Case not found." };
@@ -92,6 +96,7 @@ export async function getCaseChatData(
       canPin,
       readOnly: isMatterChatReadOnly(matter.status),
       isAdmin: user.role === "ADMIN",
+      lastReadAt: lastReadAt.toISOString(),
     },
   };
 }

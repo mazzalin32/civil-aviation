@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, Search, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AttachDocumentDialog, type LinkableDocument } from "@/components/app/chat/attach-document-dialog";
 import { matchesThreadSearch, toMentionUsers } from "@/components/app/chat/chat-utils";
 import { ThreadSearchBar } from "@/components/app/chat/thread-search-bar";
-import { LoadEarlierButton, ReadOnlyNotice } from "@/components/app/chat/thread-notices";
+import { LoadEarlierButton, NewMessagesDivider, ReadOnlyNotice } from "@/components/app/chat/thread-notices";
 import { useCaseThread } from "@/components/app/chat/use-case-thread";
 import { useMessageComposer } from "@/components/app/chat/use-message-composer";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
@@ -32,6 +32,7 @@ export function DiscussionTab({
   isAdmin,
   hasMoreEarlier,
   cursor,
+  lastReadAt,
 }: {
   matterId: string;
   currentUserId: string;
@@ -46,9 +47,11 @@ export function DiscussionTab({
   isAdmin: boolean;
   hasMoreEarlier: boolean;
   cursor: string | null;
+  /** How far you had read this thread before opening it (ISO). */
+  lastReadAt: string;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
-  const thread = useCaseThread({ matterId, endRef, initial: { messages: initialMessages, hasMoreEarlier, cursor } });
+  const thread = useCaseThread({ matterId, currentUserId, lastReadAt, endRef, initial: { messages: initialMessages, hasMoreEarlier, cursor } });
   const composer = useMessageComposer({
     matterId,
     mentionUsers: toMentionUsers(mentionable, team),
@@ -110,17 +113,25 @@ export function DiscussionTab({
               </li>
             )}
             {visibleMessages.map((m) => (
-              <TabMessageBubble
-                key={m.id}
-                message={m}
-                mine={m.authorId === currentUserId}
-                canPin={canPin}
-                readOnly={readOnly}
-                isAdmin={isAdmin}
-                onPin={thread.togglePin}
-                onDelete={thread.deleteMessage}
-                onPreview={setPreviewFile}
-              />
+              <Fragment key={m.id}>
+                {m.id === thread.firstUnreadId && (
+                  <li>
+                    <NewMessagesDivider />
+                  </li>
+                )}
+                <TabMessageBubble
+                  message={m}
+                  mine={m.authorId === currentUserId}
+                  canPin={canPin}
+                  readOnly={readOnly}
+                  isAdmin={isAdmin}
+                  onPin={thread.togglePin}
+                  onDelete={thread.deleteMessage}
+                  onReply={composer.startReply}
+                  onEdit={thread.editMessage}
+                  onPreview={setPreviewFile}
+                />
+              </Fragment>
             ))}
           </ul>
         )}

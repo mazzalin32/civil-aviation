@@ -5,6 +5,8 @@ import { toast, withToast } from "@/components/ui/toast";
 import { postCaseMessage, type SerializedChatMessage } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
 import type { MentionUser } from "./mention-popover";
 import type { LinkableDocument } from "./attach-document-dialog";
+import { previewText } from "@/lib/mentions";
+import { REPLY_SNIPPET_CHARS } from "@/lib/chat/rules";
 import { serializeMentions } from "./chat-utils";
 
 type Options = {
@@ -27,6 +29,7 @@ export function useMessageComposer({ matterId, mentionUsers, caseDocuments, onPo
   const [directFiles, setDirectFiles] = useState<File[]>([]);
   const [linkedDocIds, setLinkedDocIds] = useState<string[]>([]);
   const [showAttachDialog, setShowAttachDialog] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string; snippet: string } | null>(null);
 
   // @mention autocomplete
   const [mentionQuery, setMentionQuery] = useState("");
@@ -138,6 +141,9 @@ export function useMessageComposer({ matterId, mentionUsers, caseDocuments, onPo
     e.target.value = ""; // so picking the same file again still fires onChange
   }
 
+  const startReply = (m: SerializedChatMessage) =>
+    setReplyingTo({ id: m.id, authorName: m.authorName, snippet: previewText(m.body, REPLY_SNIPPET_CHARS) });
+  const cancelReply = () => setReplyingTo(null);
   const addFile = (file: File) => setDirectFiles((prev) => [...prev, file]);
   const removeDirectFile = (index: number) => setDirectFiles((prev) => prev.filter((_, i) => i !== index));
   const removeLinkedDoc = (id: string) => setLinkedDocIds((prev) => prev.filter((d) => d !== id));
@@ -159,6 +165,7 @@ export function useMessageComposer({ matterId, mentionUsers, caseDocuments, onPo
       fd.append("matterId", matterId);
       fd.append("body", body);
       if (linkedDocIds.length > 0) fd.append("attachedDocumentIds", JSON.stringify(linkedDocIds));
+      if (replyingTo) fd.append("replyToId", replyingTo.id);
       for (const file of directFiles) fd.append("files", file);
 
       const result = await withToast(postCaseMessage(fd), null);
@@ -172,6 +179,7 @@ export function useMessageComposer({ matterId, mentionUsers, caseDocuments, onPo
       setDirectFiles([]);
       setLinkedDocIds([]);
       setTrackedMentions([]);
+      setReplyingTo(null);
     });
   }
 
@@ -190,6 +198,9 @@ export function useMessageComposer({ matterId, mentionUsers, caseDocuments, onPo
     linkDocuments,
     showAttachDialog,
     setShowAttachDialog,
+    replyingTo,
+    startReply,
+    cancelReply,
     mention: {
       show: showMentionPopover,
       users: mentionUsers,

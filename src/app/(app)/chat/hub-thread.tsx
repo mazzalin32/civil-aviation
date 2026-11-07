@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Fragment } from "react";
 import { Users } from "lucide-react";
 import { AttachDocumentDialog } from "@/components/app/chat/attach-document-dialog";
 import { groupMessagesByDay, matchesThreadSearch, toMentionUsers } from "@/components/app/chat/chat-utils";
 import { ThreadSearchBar } from "@/components/app/chat/thread-search-bar";
-import { LoadEarlierButton, ReadOnlyNotice } from "@/components/app/chat/thread-notices";
+import { LoadEarlierButton, NewMessagesDivider, ReadOnlyNotice } from "@/components/app/chat/thread-notices";
 import { useCaseThread } from "@/components/app/chat/use-case-thread";
 import { useMessageComposer } from "@/components/app/chat/use-message-composer";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
@@ -27,17 +28,29 @@ export function HubThread({
   chatData,
   currentUserId,
   highlightMessageId,
-  onIncomingMessage,
+  onRead,
+  onLatestMessageChange,
 }: {
   selectedCase: CaseConversationSummary;
   chatData: CaseChatData;
   currentUserId: string;
   highlightMessageId: string | null;
-  onIncomingMessage: (msg: SerializedChatMessage) => void;
+  /** This thread has just been marked read. */
+  onRead: () => void;
+  /** The newest message that is still visible changed (new, edited or deleted) — keeps the list preview honest. */
+  onLatestMessageChange: (msg: SerializedChatMessage | null) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const thread = useCaseThread({ matterId: selectedCase.id, initial: chatData, endRef, highlightMessageId, onIncomingMessage });
+  const thread = useCaseThread({
+    matterId: selectedCase.id,
+    currentUserId,
+    lastReadAt: chatData.lastReadAt,
+    onRead,
+    initial: chatData,
+    endRef,
+    highlightMessageId,
+  });
   const composer = useMessageComposer({
     matterId: selectedCase.id,
     mentionUsers: toMentionUsers(chatData.mentionable, chatData.team),
@@ -55,6 +68,12 @@ export function HubThread({
   const pinned = active.filter((m) => m.isPinned);
   const displayed = active.filter((m) => matchesThreadSearch(m, searchQuery));
   const groups = groupMessagesByDay(displayed);
+
+  // Keep the conversation list's preview line in step with what the thread actually shows.
+  const latest = active.length > 0 ? active[active.length - 1] : null;
+  useEffect(() => {
+    onLatestMessageChange(latest);
+  }, [latest, onLatestMessageChange]);
 
   return (
     <>
@@ -125,8 +144,9 @@ export function HubThread({
 
                 <div className="space-y-3">
                   {group.messages.map((m) => (
+                    <Fragment key={m.id}>
+                      {m.id === thread.firstUnreadId && <NewMessagesDivider />}
                     <HubMessageRow
-                      key={m.id}
                       message={m}
                       isMine={m.authorId === currentUserId}
                       assignmentRole={chatData.team.find((t) => t.id === m.authorId)?.role ?? null}
@@ -136,8 +156,11 @@ export function HubThread({
                       isAdmin={chatData.isAdmin}
                       onPin={thread.togglePin}
                       onDelete={thread.deleteMessage}
+                      onReply={composer.startReply}
+                      onEdit={thread.editMessage}
                       onPreview={setPreviewFile}
                     />
+                    </Fragment>
                   ))}
                 </div>
               </div>

@@ -7,11 +7,23 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/time";
 import { stripMentionTokens } from "@/lib/mentions";
+import { CHAT_NOTIFICATION_TYPES, NOTIFICATION_EVENT, NOTIFICATIONS_CHANGED_EVENT, chatCaseIdFromUrl } from "@/lib/notifications/links";
 import type { NotificationItem } from "@/lib/notifications/item";
 import { getNotifications, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead } from "@/app/(app)/notifications/actions";
 import { NotificationRow, notificationMeta } from "./notification-item";
 
 // The live stream does the real work; this slow poll only covers a stream that's been down a while.
+/** True for a chat notification about the case whose chat this person is looking at (and the tab is in front). */
+function isViewingChatFor(item: NotificationItem): boolean {
+  if (document.visibilityState !== "visible" || !CHAT_NOTIFICATION_TYPES.includes(item.type)) return false;
+  const caseId = chatCaseIdFromUrl(item.url);
+  if (!caseId) return false;
+  const { pathname, search } = window.location;
+  const params = new URLSearchParams(search);
+  if (pathname === "/chat") return params.get("caseId") === caseId;
+  return pathname === `/cases/${caseId}` && params.get("tab") === "discussion";
+}
+
 const FALLBACK_POLL_MS = 120_000;
 const MAX_ITEMS = 20;
 
@@ -77,14 +89,30 @@ export function NotificationBell({ initialUnreadCount }: { initialUnreadCount: n
       } catch {
         return;
       }
-      setUnread((n) => n + 1);
-      setRingKey((k) => k + 1);
+      // Reading that very chat right now? Then this is not news: no toast, wiggle or unread bump (the open
+      // thread marks it read on its own), just keep the bell's count honest.
+      const viewing = isViewingChatFor(item);
+      if (!viewing) window.dispatchEvent(new CustomEvent(NOTIFICATION_EVENT, { detail: item })); // lets the sidebar / chat list react
+      // Ask the server rather than adding one: a live event can be an update to a notification you
+      // already have (several chat messages collapse into one entry), which must not count twice.
+      refreshCount();
+      if (!viewing) setRingKey((k) => k + 1);
       setItems((prev) => (prev ? [item, ...prev.filter((i) => i.id !== item.id)].slice(0, MAX_ITEMS) : prev));
       // With the panel closed, a toast is the only sign something just happened.
-      if (!openRef.current) toast.info(`${notificationMeta(item.type).label}: ${stripMentionTokens(item.message)}`);
+      if (!openRef.current && !viewing) toast.info(`${notificationMeta(item.type).label}: ${stripMentionTokens(item.message)}`);
     });
 
-    return () => source.close();
+    // Something elsewhere (e.g. opening a chat thread) marked notifications read — re-sync.
+    function onChanged() {
+      refreshCount();
+      if (itemsLoadedRef.current) void loadItems();
+    }
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
+
+    return () => {
+      source.close();
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
+    };
   }, [refreshCount, loadItems]);
 
   useEffect(() => {

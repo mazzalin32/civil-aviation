@@ -16,6 +16,7 @@ import { TasksTab } from "./tabs/tasks-tab";
 import { DiscussionTab } from "./tabs/discussion-tab";
 import { loadMessagePage, getMentionableUsers } from "@/lib/chat/messages";
 import { isMatterChatReadOnly } from "@/lib/chat/rules";
+import { getLastReadAt } from "@/lib/chat/unread";
 import { UCAA_POSITIONS } from "@/lib/validation/matter";
 
 export const metadata = { title: "Case" };
@@ -113,6 +114,7 @@ export default async function CasePage({
   const canChat = isAdmin || myAssignment !== null;
   // Who can be @mentioned: exactly the people who can open this chat.
   const mentionable = tab === "discussion" && canChat ? await getMentionableUsers(id, me.organizationId) : [];
+  const lastReadAt = tab === "discussion" && canChat ? (await getLastReadAt(me, id)).toISOString() : new Date(0).toISOString();
 
   let activity: { id: string; action: string; createdAt: Date; before: unknown; after: unknown; user: { name: string } | null }[] = [];
   if (tab === "activity") {
@@ -410,6 +412,7 @@ export default async function CasePage({
           team={team}
           mentionable={mentionable}
           readOnly={isMatterChatReadOnly(matter.status)}
+          lastReadAt={lastReadAt}
           isAdmin={isAdmin}
           hasMoreEarlier={messagePage?.hasMore ?? false}
           cursor={messagePage?.cursor ?? null}
