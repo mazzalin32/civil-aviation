@@ -8,7 +8,7 @@ import { getMentionableUsers, loadMessagePage, loadMessagePageUntil, type Mentio
 import type {
   SerializedChatMessage,
 } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
-import type { LinkableDocument } from "@/app/(app)/cases/[id]/tabs/attach-document-dialog";
+import type { LinkableDocument } from "@/components/app/chat/attach-document-dialog";
 
 export type CaseChatData = {
   /** The latest page of the thread (plus every pinned message), oldest first. */

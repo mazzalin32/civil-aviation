@@ -1,5 +1,18 @@
 # Changelog
 
+## Chat code split into shared pieces — step 2 of the chat pass (2026-11-07)
+
+Pure refactor: `chat-hub.tsx` (1,423 lines) and `discussion-tab.tsx` (790) were near-copies of each other, so every fix had to be made twice. Their logic is now shared; the largest chat file is 207 lines. No schema changes and no visual changes.
+
+- **Shared (`src/components/app/chat/`):** `use-case-thread` (message list, live updates, paging that keeps your place, auto-scroll, the one-off notification highlight, pin/delete), `use-message-composer` (textarea, @mention autocomplete, files, linked documents, send), `use-case-chat-stream` (the SSE connection), plus `chat-utils`, `mention-text`, `attachment-chip`, `pending-attachments`, `thread-search-bar`, `thread-notices`. `mention-popover` and `attach-document-dialog` moved here from the case tabs folder.
+- **Per-screen views stay separate** because the two screens genuinely look different (flat rows in a split pane vs bubbles in cards): the hub is `chat-hub` (which conversation is open) + `conversation-list`, `hub-header`, `hub-thread`, `hub-message-row`, `hub-composer`, `hub-pinned-drawer`; the tab is `discussion-tab` + `tab-message-bubble`, `tab-composer`, `pinned-banner`.
+- **Hooks never return refs** (components own their DOM refs and pass elements in) — returning a ref from a hook makes React's lint rule reject every value the hook returns.
+- **Small behaviour differences:** the hub now adds your own message immediately instead of waiting for the live event (same de-duplication the tab already had); one delete-confirmation wording instead of two; a conversation that fails to load now shows "Couldn't load this discussion · Try again" instead of leaving the previous case's messages under the new case's header; the client no longer sends a `mentionedUserIds` list (the server ignored it since step 1).
+
+Verified: DOM snapshots of 8 UI states (hub default / search / pinned drawer / counsel popover / @-autocomplete, tab default / search / @-autocomplete) are identical before and after, element for element; the step-1 browser suite (11 checks) and a new two-user live suite (14 checks: switching conversations, live post / pin / delete between two real sessions, Discussion-tab send and delete, de-duplication) pass.
+
+Found while testing, not changed here: after a message is deleted, the Chat hub's conversation-list preview still shows its text until reload (it only updates on new messages). To be fixed with the unread-count work, which reworks that list. The list preview also uses a 📎 emoji, against the icons-only rule.
+
 ## Chat hardening — step 1 of the chat pass (2026-11-07)
 
 Correctness and security fixes to case chat, found in an audit against FLOWS §10. No schema changes.
