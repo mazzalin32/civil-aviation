@@ -139,6 +139,29 @@
   --shadow-card: var(--elev-card);
   --shadow-pop: var(--elev-pop);
 
+  --animate-bell-ring: bell-ring 0.9s ease-in-out 1;
+  @keyframes bell-ring {
+    0%,
+    100% {
+      transform: rotate(0);
+    }
+    15% {
+      transform: rotate(14deg);
+    }
+    30% {
+      transform: rotate(-12deg);
+    }
+    45% {
+      transform: rotate(9deg);
+    }
+    60% {
+      transform: rotate(-6deg);
+    }
+    75% {
+      transform: rotate(3deg);
+    }
+  }
+
   --animate-stage-pulse: stage-pulse 2.4s ease-in-out infinite;
   @keyframes stage-pulse {
     0%,

@@ -5,6 +5,12 @@ import { db } from "@/lib/db";
 import { requireMatterChatAccess, canEditMatter } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
+import { extractMentionIds, previewText } from "@/lib/mentions";
+import { CLOSED_CHAT_MESSAGE, checkCanDeleteMessage, checkCanEditMessage, isMatterChatReadOnly } from "@/lib/chat/rules";
+import { notifyThreadActivity } from "@/lib/chat/notify-message";
+import { markThreadRead } from "@/lib/chat/unread";
+import { MESSAGE_INCLUDE, getMentionableUsers, loadMessagePage, serializeMessage, type MessagePage } from "@/lib/chat/messages";
+import { chatMessageUrl } from "@/lib/notifications/links";
 import { encryptFile, sha256Hex } from "@/lib/documents/encryption";
 import { putObject } from "@/lib/documents/storage";
 import { scanBuffer } from "@/lib/documents/virus-scan";
@@ -15,6 +21,8 @@ import {
   postCaseMessageSchema,
   togglePinMessageSchema,
   deleteCaseMessageSchema,
+  loadEarlierSchema,
+  editCaseMessageSchema,
 } from "@/lib/validation/case-chat";
 
 export type ActionResult<T = unknown> = {
@@ -44,6 +52,10 @@ export type SerializedChatMessage = {
   pinnedById: string | null;
   pinnedByName: string | null;
   deletedAt: string | null;
+  /** Set when the author changed the text after posting. */
+  editedAt: string | null;
+  /** The message this one replies to, with a short quote (empty if the original was deleted). */
+  replyTo: { id: string; authorName: string; snippet: string; deleted: boolean } | null;
   attachments: SerializedChatAttachment[];
   mentions: { userId: string; userName: string }[];
 };
@@ -52,7 +64,7 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
   const matterId = String(formData.get("matterId") ?? "");
   const body = String(formData.get("body") ?? "");
   const attachedDocIdsRaw = formData.get("attachedDocumentIds");
-  const mentionedUserIdsRaw = formData.get("mentionedUserIds");
+  const replyToIdRaw = String(formData.get("replyToId") ?? "");
 
   let attachedDocumentIds: string[] = [];
   try {
@@ -61,18 +73,12 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
     attachedDocumentIds = [];
   }
 
-  let mentionedUserIds: string[] = [];
-  try {
-    if (mentionedUserIdsRaw) mentionedUserIds = JSON.parse(String(mentionedUserIdsRaw));
-  } catch {
-    mentionedUserIds = [];
-  }
-
+  // Note: any "mentionedUserIds" a client sends is ignored — mentions are derived from the
+  // message text below and checked against who can actually open this chat.
   const parsed = postCaseMessageSchema.safeParse({
     matterId,
     body,
     attachedDocumentIds,
-    mentionedUserIds,
   });
 
   if (!parsed.success) {
@@ -88,10 +94,22 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
   const user = await requireMatterChatAccess(matterId);
   const matter = await db.matter.findUnique({
     where: { id: matterId },
-    select: { id: true, title: true, reference: true },
+    select: { id: true, title: true, reference: true, status: true, organizationId: true },
   });
 
   if (!matter) return { error: "Case not found." };
+  if (isMatterChatReadOnly(matter.status)) return { error: CLOSED_CHAT_MESSAGE };
+
+  // Only people who can open this chat can be mentioned (assigned lawyers + the org's Admins).
+  const mentionable = await getMentionableUsers(matterId, matter.organizationId);
+  const mentionableIds = new Set(mentionable.map((u) => u.id));
+  const mentionedUserIds = extractMentionIds(body).filter((id) => mentionableIds.has(id));
+
+  // A reply must point at a message in this same thread.
+  const replyTarget = replyToIdRaw
+    ? await db.matterMessage.findFirst({ where: { id: replyToIdRaw, matterId }, select: { id: true, authorId: true } })
+    : null;
+  if (replyToIdRaw && !replyTarget) return { error: "The message you are replying to no longer exists." };
 
   // Process uploaded files (envelope encryption + ClamAV scan)
   const preparedDirectUploads: {
@@ -168,6 +186,7 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
         matterId,
         authorId: user.id,
         body: body.trim(),
+        replyToId: replyTarget?.id ?? null,
       },
     });
 
@@ -205,18 +224,9 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
 
     // Create mentions
     if (mentionedUserIds.length > 0) {
-      const validUsers = await tx.user.findMany({
-        where: { id: { in: mentionedUserIds }, isActive: true },
-        select: { id: true },
+      await tx.matterMessageMention.createMany({
+        data: mentionedUserIds.map((userId) => ({ messageId: message.id, userId })),
       });
-      for (const u of validUsers) {
-        await tx.matterMessageMention.create({
-          data: {
-            messageId: message.id,
-            userId: u.id,
-          },
-        });
-      }
     }
 
     await tx.matter.update({
@@ -237,62 +247,24 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
       matterId,
       attachmentsCount: preparedDirectUploads.length + linkedDocuments.length,
       mentionsCount: mentionedUserIds.length,
+      replyToId: replyTarget?.id ?? null,
     },
   });
 
-  // Send notifications to mentioned users
-  if (mentionedUserIds.length > 0) {
-    const notifyTargets = mentionedUserIds.filter((id) => id !== user.id);
-    for (const targetId of notifyTargets) {
-      await notify({
-        userId: targetId,
-        type: "MESSAGE_MENTION",
-        matterId,
-        subject: `Mentioned in ${matter.reference}`,
-        message: `${user.name} mentioned you in ${matter.title}: "${body.slice(0, 120)}"`,
-        url: `/cases/${matterId}?tab=discussion#msg-${result.id}`,
-        payload: { matterId, messageId: result.id },
-      });
-    }
-  }
+  // Tell people: mentioned → "mentioned you", replied-to → "replied to you", everyone else → a quiet "new message".
+  await notifyThreadActivity({
+    matter,
+    author: { id: user.id, name: user.name },
+    message: { id: result.id, body },
+    mentionedIds: mentionedUserIds,
+    replyToAuthorId: replyTarget?.authorId ?? null,
+    participantIds: mentionable.map((u) => u.id),
+  });
 
   // Fetch full serialized message to return & broadcast
-  const fullMessage = await db.matterMessage.findUniqueOrThrow({
-    where: { id: result.id },
-    include: {
-      author: { select: { id: true, name: true } },
-      pinnedBy: { select: { id: true, name: true } },
-      attachments: true,
-      mentions: { include: { user: { select: { id: true, name: true } } } },
-    },
-  });
-
-  const serialized: SerializedChatMessage = {
-    id: fullMessage.id,
-    matterId: fullMessage.matterId,
-    body: fullMessage.body,
-    createdAt: fullMessage.createdAt.toISOString(),
-    authorId: fullMessage.author.id,
-    authorName: fullMessage.author.name,
-    isPinned: fullMessage.isPinned,
-    pinnedAt: fullMessage.pinnedAt?.toISOString() ?? null,
-    pinnedById: fullMessage.pinnedById,
-    pinnedByName: fullMessage.pinnedBy?.name ?? null,
-    deletedAt: fullMessage.deletedAt?.toISOString() ?? null,
-    attachments: fullMessage.attachments.map((att) => ({
-      id: att.id,
-      name: att.name,
-      size: att.size,
-      mimeType: att.mimeType,
-      isLinkedDocument: Boolean(att.documentId),
-      documentId: att.documentId,
-      downloadUrl: `/api/cases/${matterId}/chat/attachments/${att.id}/download`,
-    })),
-    mentions: fullMessage.mentions.map((m) => ({
-      userId: m.user.id,
-      userName: m.user.name,
-    })),
-  };
+  const serialized = serializeMessage(
+    await db.matterMessage.findUniqueOrThrow({ where: { id: result.id }, include: MESSAGE_INCLUDE }),
+  );
 
   // Broadcast to active SSE clients
   chatEventBus.publish({
@@ -312,6 +284,10 @@ export async function togglePinCaseMessage(raw: unknown): Promise<ActionResult> 
 
   const { matterId, messageId, isPinned } = parsed.data;
   const user = await requireMatterChatAccess(matterId);
+
+  const pinMatter = await db.matter.findUnique({ where: { id: matterId }, select: { status: true } });
+  if (!pinMatter) return { error: "Case not found." };
+  if (isMatterChatReadOnly(pinMatter.status)) return { error: CLOSED_CHAT_MESSAGE };
 
   const canPin = await canEditMatter(user.id, user.role, matterId);
   if (!canPin) {
@@ -368,12 +344,17 @@ export async function deleteCaseMessage(raw: unknown): Promise<ActionResult> {
     return { error: "Message not found." };
   }
 
-  const canEdit = await canEditMatter(user.id, user.role, matterId);
-  const isAuthor = message.authorId === user.id;
+  const deleteMatter = await db.matter.findUnique({ where: { id: matterId }, select: { status: true } });
+  if (!deleteMatter) return { error: "Case not found." };
 
-  if (!isAuthor && !canEdit && user.role !== "ADMIN") {
-    return { error: "You do not have permission to delete this message." };
-  }
+  // Author within the edit window, or an Admin (moderation) — never once the matter is closed.
+  const allowed = checkCanDeleteMessage({
+    isAuthor: message.authorId === user.id,
+    isAdmin: user.role === "ADMIN",
+    createdAt: message.createdAt,
+    matterStatus: deleteMatter.status,
+  });
+  if (!allowed.ok) return { error: allowed.error };
 
   await db.matterMessage.update({
     where: { id: messageId },
@@ -402,14 +383,86 @@ export async function deleteCaseMessage(raw: unknown): Promise<ActionResult> {
   return {};
 }
 
-// Backwards compatibility for any legacy callers
-export async function postMessage(raw: unknown): Promise<{ error?: string } | void> {
-  const fd = new FormData();
-  if (typeof raw === "object" && raw !== null) {
-    const obj = raw as Record<string, unknown>;
-    if (obj.matterId) fd.append("matterId", String(obj.matterId));
-    if (obj.body) fd.append("body", String(obj.body));
+/**
+ * Edit your own message within the edit window (FLOWS §10 step 4). Mentions are re-derived from the new
+ * text; only people newly mentioned are notified. The change is audited with the before/after text.
+ */
+export async function editCaseMessage(raw: unknown): Promise<ActionResult<SerializedChatMessage>> {
+  const parsed = editCaseMessageSchema.safeParse(raw);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid edit." };
+  const { matterId, messageId } = parsed.data;
+  const body = parsed.data.body.trim();
+
+  const user = await requireMatterChatAccess(matterId);
+  const [matter, message] = await Promise.all([
+    db.matter.findUnique({ where: { id: matterId }, select: { id: true, title: true, reference: true, status: true, organizationId: true } }),
+    db.matterMessage.findFirst({ where: { id: messageId, matterId }, include: { attachments: { select: { id: true } }, mentions: { select: { userId: true } } } }),
+  ]);
+  if (!matter || !message || message.deletedAt) return { error: "Message not found." };
+
+  const allowed = checkCanEditMessage({ isAuthor: message.authorId === user.id, createdAt: message.createdAt, matterStatus: matter.status });
+  if (!allowed.ok) return { error: allowed.error };
+  if (!body && message.attachments.length === 0) return { error: "A message needs some text or an attachment." };
+  if (body === message.body) return { error: "Nothing changed." };
+
+  const mentionable = await getMentionableUsers(matterId, matter.organizationId);
+  const mentionableIds = new Set(mentionable.map((u) => u.id));
+  const mentionedUserIds = extractMentionIds(body).filter((id) => mentionableIds.has(id));
+  const previouslyMentioned = new Set(message.mentions.map((m) => m.userId));
+
+  await db.$transaction([
+    db.matterMessage.update({ where: { id: messageId }, data: { body, editedAt: new Date() } }),
+    db.matterMessageMention.deleteMany({ where: { messageId, userId: { notIn: mentionedUserIds } } }),
+    db.matterMessageMention.createMany({
+      data: mentionedUserIds.filter((id) => !previouslyMentioned.has(id)).map((userId) => ({ messageId, userId })),
+      skipDuplicates: true,
+    }),
+  ]);
+
+  await writeAudit({
+    userId: user.id,
+    action: "message.edit",
+    entity: "MatterMessage",
+    entityId: messageId,
+    before: { body: message.body },
+    after: { body, matterId },
+  });
+
+  // Only people who were not already mentioned hear about it.
+  for (const targetId of mentionedUserIds.filter((id) => !previouslyMentioned.has(id) && id !== user.id)) {
+    await notify({
+      userId: targetId,
+      type: "MESSAGE_MENTION",
+      matterId,
+      subject: `Mentioned in ${matter.reference}`,
+      message: `${user.name} mentioned you in ${matter.title}: "${previewText(body, 120)}"`,
+      url: chatMessageUrl(matterId, messageId),
+      payload: { matterId, messageId },
+    });
   }
-  const result = await postCaseMessage(fd);
-  if (result.error) return { error: result.error };
+
+  const serialized = serializeMessage(await db.matterMessage.findUniqueOrThrow({ where: { id: messageId }, include: MESSAGE_INCLUDE }));
+  chatEventBus.publish({ type: "message.edited", matterId, data: serialized });
+
+  revalidatePath(`/cases/${matterId}`);
+  revalidatePath("/chat");
+  return { data: serialized };
+}
+
+/** Marks a thread read for the signed-in user (clears its unread count and its bell entries). */
+export async function markCaseChatRead(matterId: string): Promise<ActionResult> {
+  if (!matterId) return { error: "Invalid request." };
+  const user = await requireMatterChatAccess(matterId);
+  await markThreadRead(user.id, matterId);
+  revalidatePath("/", "layout"); // refreshes the sidebar's unread chip and the bell count
+  return {};
+}
+
+/** Older history for the "Load earlier messages" button — same access rule as reading the chat. */
+export async function loadEarlierCaseMessages(raw: unknown): Promise<ActionResult<MessagePage>> {
+  const parsed = loadEarlierSchema.safeParse(raw);
+  if (!parsed.success) return { error: "Invalid request." };
+  const { matterId, before } = parsed.data;
+  await requireMatterChatAccess(matterId);
+  return { data: await loadMessagePage(matterId, new Date(before)) };
 }

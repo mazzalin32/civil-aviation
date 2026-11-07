@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
+import { sendTwoFactorOtpOnce } from "@/lib/two-factor-otp";
 import { afterSuccessfulAttempt } from "@/lib/lockout";
 import { otpCodeSchema } from "@/lib/validation/auth";
 
@@ -35,7 +36,7 @@ export type ResendResult = { ok: true } | { ok: false; error: string };
 
 export async function resendTwoFactorOtp(): Promise<ResendResult> {
   try {
-    await auth.api.sendTwoFactorOTP({ headers: await headers(), asResponse: false });
+    await sendTwoFactorOtpOnce({ force: true }); // explicit resend — the form enforces its own cooldown
     return { ok: true };
   } catch {
     return { ok: false, error: "Couldn't send a new code. Try again in a moment." };

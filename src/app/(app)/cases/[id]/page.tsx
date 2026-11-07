@@ -14,6 +14,9 @@ import { DocumentsTab } from "./tabs/documents-tab";
 import { HearingsTab, type HearingRow } from "./tabs/hearings-tab";
 import { TasksTab } from "./tabs/tasks-tab";
 import { DiscussionTab } from "./tabs/discussion-tab";
+import { loadMessagePage, getMentionableUsers } from "@/lib/chat/messages";
+import { isMatterChatReadOnly } from "@/lib/chat/rules";
+import { getLastReadAt } from "@/lib/chat/unread";
 import { UCAA_POSITIONS } from "@/lib/validation/matter";
 
 export const metadata = { title: "Case" };
@@ -52,7 +55,7 @@ export default async function CasePage({
     documentsRaw,
     documentCount,
     folders,
-    messages,
+    messagePage,
     messageCount,
     pinnedMessage,
   ] = await Promise.all([
@@ -97,18 +100,7 @@ export default async function CasePage({
       : Promise.resolve([]),
     db.document.count({ where: { matterId: id, deletedAt: null } }),
     tab === "documents" ? db.documentFolder.findMany({ where: { isActive: true }, orderBy: { order: "asc" } }) : Promise.resolve([] as { id: string; name: string }[]),
-    tab === "discussion"
-      ? db.matterMessage.findMany({
-          where: { matterId: id },
-          include: {
-            author: { select: { id: true, name: true } },
-            pinnedBy: { select: { id: true, name: true } },
-            attachments: true,
-            mentions: { include: { user: { select: { id: true, name: true } } } },
-          },
-          orderBy: { createdAt: "asc" },
-        })
-      : Promise.resolve([]),
+    tab === "discussion" ? loadMessagePage(id) : Promise.resolve(null),
     db.matterMessage.count({ where: { matterId: id, deletedAt: null } }),
     db.matterMessage.findFirst({ where: { matterId: id, isPinned: true, deletedAt: null }, orderBy: { pinnedAt: "desc" }, include: { author: { select: { id: true, name: true } } } }),
   ]);
@@ -120,6 +112,9 @@ export default async function CasePage({
   const canEdit = isAdmin || myAssignment === "LEAD" || myAssignment === "SUPPORT";
   const canAssign = isAdmin || myAssignment === "LEAD";
   const canChat = isAdmin || myAssignment !== null;
+  // Who can be @mentioned: exactly the people who can open this chat.
+  const mentionable = tab === "discussion" && canChat ? await getMentionableUsers(id, me.organizationId) : [];
+  const lastReadAt = tab === "discussion" && canChat ? (await getLastReadAt(me, id)).toISOString() : new Date(0).toISOString();
 
   let activity: { id: string; action: string; createdAt: Date; before: unknown; after: unknown; user: { name: string } | null }[] = [];
   if (tab === "activity") {
@@ -415,7 +410,12 @@ export default async function CasePage({
           currentUserId={me.id}
           canPin={canEdit}
           team={team}
-          allLawyers={lawyers.map((l) => ({ id: l.id, name: l.name }))}
+          mentionable={mentionable}
+          readOnly={isMatterChatReadOnly(matter.status)}
+          lastReadAt={lastReadAt}
+          isAdmin={isAdmin}
+          hasMoreEarlier={messagePage?.hasMore ?? false}
+          cursor={messagePage?.cursor ?? null}
           caseDocuments={documentsRaw
             .filter((d) => !d.deletedAt)
             .map((d) => ({
@@ -424,32 +424,7 @@ export default async function CasePage({
               folderName: d.folder.name,
               size: d.currentVersion?.size ?? null,
             }))}
-          messages={messages.map((m) => ({
-            id: m.id,
-            matterId: m.matterId,
-            body: m.body,
-            createdAt: m.createdAt.toISOString(),
-            authorId: m.author.id,
-            authorName: m.author.name,
-            isPinned: m.isPinned,
-            pinnedAt: m.pinnedAt?.toISOString() ?? null,
-            pinnedById: m.pinnedById,
-            pinnedByName: m.pinnedBy?.name ?? null,
-            deletedAt: m.deletedAt?.toISOString() ?? null,
-            attachments: m.attachments.map((att) => ({
-              id: att.id,
-              name: att.name,
-              size: att.size,
-              mimeType: att.mimeType,
-              isLinkedDocument: Boolean(att.documentId),
-              documentId: att.documentId,
-              downloadUrl: `/api/cases/${matter.id}/chat/attachments/${att.id}/download`,
-            })),
-            mentions: m.mentions.map((men) => ({
-              userId: men.user.id,
-              userName: men.user.name,
-            })),
-          }))}
+          messages={messagePage?.messages ?? []}
         />
       )}
     </>

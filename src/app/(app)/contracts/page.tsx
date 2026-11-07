@@ -6,6 +6,7 @@ import { orgId } from "@/lib/org";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
+import { ClickableRow } from "@/components/app/clickable-row";
 import { formatDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { parseContractFilters, buildContractWhere } from "./filters";
@@ -176,7 +177,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
                   {contracts.map((c) => {
                     const fullyExecuted = c.caaExecutionStatus === "SIGNED" && c.counterpartyExecutionStatus === "SIGNED";
                     return (
-                      <tr key={c.id} className="border-b border-border last:border-0 hover:bg-surface-muted">
+                      <ClickableRow key={c.id} href={`/contracts/${c.id}`} className="border-b border-border last:border-0 hover:bg-surface-muted">
                         <td className="px-4 py-3">
                           <Link href={`/contracts/${c.id}`} className="font-medium text-text hover:text-primary">
                             {c.title}
@@ -196,7 +197,7 @@ export default async function ContractsPage({ searchParams }: { searchParams: Pr
                         <td className="px-4 py-3">{c.currentStage?.name ?? "—"}</td>
                         <td className="px-4 py-3">{c.expiryDate ? formatDate(c.expiryDate) : "—"}</td>
                         <td className="px-4 py-3">{c.assignments[0]?.user.name ?? "—"}</td>
-                      </tr>
+                      </ClickableRow>
                     );
                   })}
                 </tbody>

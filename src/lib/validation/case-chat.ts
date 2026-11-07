@@ -6,7 +6,6 @@ export const postCaseMessageSchema = z.object({
   matterId: z.string().min(1, "Matter ID is required"),
   body: z.string().trim().max(4000, "Message cannot exceed 4000 characters").default(""),
   attachedDocumentIds: z.array(z.string()).optional().default([]),
-  mentionedUserIds: z.array(z.string()).optional().default([]),
 });
 
 export const togglePinMessageSchema = z.object({
@@ -18,6 +17,17 @@ export const togglePinMessageSchema = z.object({
 export const deleteCaseMessageSchema = z.object({
   matterId: z.string().min(1),
   messageId: z.string().min(1),
+});
+
+export const editCaseMessageSchema = z.object({
+  matterId: z.string().min(1),
+  messageId: z.string().min(1),
+  body: z.string().trim().max(4000, "Message cannot exceed 4000 characters"),
+});
+
+export const loadEarlierSchema = z.object({
+  matterId: z.string().min(1),
+  before: z.string().datetime(),
 });
 
 export type PostCaseMessageInput = z.infer<typeof postCaseMessageSchema>;

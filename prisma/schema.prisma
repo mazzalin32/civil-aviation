@@ -34,42 +34,44 @@ model Organization {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  users     User[]
-  matters   Matter[]
-  contracts Contract[]
+  users          User[]
+  matters        Matter[]
+  groupMessages  GroupMessage[]
+  groupChatReads GroupChatRead[]
+  contracts      Contract[]
 }
 
 model User {
-  id                 String    @id @default(cuid())
+  id                 String        @id @default(cuid())
   organizationId     String? // null only for SUPERADMIN — every Admin/Lawyer belongs to exactly one
   organization       Organization? @relation(fields: [organizationId], references: [id])
   name               String
-  email              String    @unique
-  emailVerified      Boolean   @default(false)
+  email              String        @unique
+  emailVerified      Boolean       @default(false)
   image              String?
   phone              String?
-  role               Role      @default(LAWYER)
+  role               Role          @default(LAWYER)
   title              String?
   department         String?
   practisingCertNo   String?
-  certExpiry         DateTime? @db.Date
-  isActive           Boolean   @default(true)
+  certExpiry         DateTime?     @db.Date
+  isActive           Boolean       @default(true)
   deletedAt          DateTime? // soft delete: hidden from lists, cannot sign in; never a hard delete
   // Security state we own (not Better Auth's concern): 2FA display, forced change,
   // lockout. The password hash and TOTP secret live in Account / TwoFactor below.
-  twoFactorEnabled   Boolean   @default(false) // field name/shape required by the twoFactor plugin
+  twoFactorEnabled   Boolean       @default(false) // field name/shape required by the twoFactor plugin
   mfaEnabledAt       DateTime? // when 2FA setup was completed — for admin visibility only
-  mustChangePassword Boolean   @default(false)
+  mustChangePassword Boolean       @default(false)
   passwordChangedAt  DateTime?
-  failedLoginCount   Int       @default(0)
+  failedLoginCount   Int           @default(0)
   lockedUntil        DateTime?
   // Preferences
-  digestEnabled      Boolean   @default(false)
-  theme              String    @default("system") // system | light | dark
-  icsToken           String?   @unique // long-lived token for the .ics calendar subscription URL
+  digestEnabled      Boolean       @default(false)
+  theme              String        @default("system") // system | light | dark
+  icsToken           String?       @unique // long-lived token for the .ics calendar subscription URL
   lastLoginAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   // Set when this account was created by a bulk import; lets a batch be rolled back.
   importBatchId String?
@@ -108,7 +110,10 @@ model User {
   pinnedMatterMessages    MatterMessage[]          @relation("MessagePinnedBy")
   deletedMatterMessages   MatterMessage[]          @relation("MessageDeletedBy")
   matterMessageMentions   MatterMessageMention[]
-  groupMessages           GroupMessage[]
+  matterChatReads         MatterChatRead[]
+  groupMessages           GroupMessage[]           @relation("GroupMessageAuthor")
+  groupMessagesDeleted    GroupMessage[]           @relation("GroupMessageDeletedBy")
+  groupChatReads          GroupChatRead[]
   lawFirmsAdded           LawFirm[]
   resourceLinksAdded      ResourceLink[]
 
@@ -343,20 +348,20 @@ model NotificationRule {
 
 /// One in-app (+ optionally emailed) notification (spec §5.9, FLOWS §12).
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String // matches NotificationRule.trigger
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String // matches NotificationRule.trigger
   matterId   String?
   matter     Matter?   @relation(fields: [matterId], references: [id], onDelete: Cascade)
   contractId String?
   contract   Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  payload   Json
-  message   String // the same human-readable line notify() sends by email — the in-app bell shows this directly
-  url       String? // where "open" takes you; null for notifications with nowhere to go
-  readAt    DateTime?
-  emailedAt DateTime?
-  createdAt DateTime  @default(now())
+  payload    Json
+  message    String // the same human-readable line notify() sends by email — the in-app bell shows this directly
+  url        String? // where "open" takes you; null for notifications with nowhere to go
+  readAt     DateTime?
+  emailedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -509,6 +514,7 @@ model Matter {
   tasks           Task[]
   notifications   Notification[]
   messages        MatterMessage[]
+  chatReads       MatterChatRead[]
 
   @@index([organizationId])
   @@index([status, priority])
@@ -541,47 +547,47 @@ model ContractStage {
 /// Deliberately NOT a Matter — its own reference series, team, documents and audit trail, so
 /// it can never be deleted or modified through the Legal Matters screens.
 model Contract {
-  id                     String                  @id @default(cuid())
-  organizationId         String
-  organization           Organization            @relation(fields: [organizationId], references: [id])
-  reference              String                  @unique // e.g. "UCAA/CTR/2026/0001"
-  title                  String
-  categoryId             String
-  category               Category                @relation(fields: [categoryId], references: [id])
-  counterpartyName       String
-  counterpartyContact    String?
-  originatingDepartment  String?
-  dateOfReceipt          DateTime?               @db.Date
-  dateSubmittedForReview DateTime?               @db.Date
-  receiptStatusId        String?
-  receiptStatus          ContractStatusOption?   @relation("ContractReceiptStatus", fields: [receiptStatusId], references: [id])
-  legalReviewStatusId    String?
-  legalReviewStatus      ContractStatusOption?   @relation("ContractLegalReviewStatus", fields: [legalReviewStatusId], references: [id])
-  internalApprovalStatusId String?
-  internalApprovalStatus ContractStatusOption?   @relation("ContractInternalApprovalStatus", fields: [internalApprovalStatusId], references: [id])
-  agVettingStatusId      String?
-  agVettingStatus        ContractStatusOption?   @relation("ContractAgVettingStatus", fields: [agVettingStatusId], references: [id])
-  amendmentsStatusId     String?
-  amendmentsStatus       ContractStatusOption?   @relation("ContractAmendmentsStatus", fields: [amendmentsStatusId], references: [id])
+  id                          String                  @id @default(cuid())
+  organizationId              String
+  organization                Organization            @relation(fields: [organizationId], references: [id])
+  reference                   String                  @unique // e.g. "UCAA/CTR/2026/0001"
+  title                       String
+  categoryId                  String
+  category                    Category                @relation(fields: [categoryId], references: [id])
+  counterpartyName            String
+  counterpartyContact         String?
+  originatingDepartment       String?
+  dateOfReceipt               DateTime?               @db.Date
+  dateSubmittedForReview      DateTime?               @db.Date
+  receiptStatusId             String?
+  receiptStatus               ContractStatusOption?   @relation("ContractReceiptStatus", fields: [receiptStatusId], references: [id])
+  legalReviewStatusId         String?
+  legalReviewStatus           ContractStatusOption?   @relation("ContractLegalReviewStatus", fields: [legalReviewStatusId], references: [id])
+  internalApprovalStatusId    String?
+  internalApprovalStatus      ContractStatusOption?   @relation("ContractInternalApprovalStatus", fields: [internalApprovalStatusId], references: [id])
+  agVettingStatusId           String?
+  agVettingStatus             ContractStatusOption?   @relation("ContractAgVettingStatus", fields: [agVettingStatusId], references: [id])
+  amendmentsStatusId          String?
+  amendmentsStatus            ContractStatusOption?   @relation("ContractAmendmentsStatus", fields: [amendmentsStatusId], references: [id])
   caaExecutionStatus          ContractExecutionStatus @default(PENDING)
   counterpartyExecutionStatus ContractExecutionStatus @default(PENDING)
-  dateOfSignature        DateTime?               @db.Date
-  dateOfFullExecution    DateTime?               @db.Date
-  commencementDate       DateTime?               @db.Date
-  expiryDate             DateTime?               @db.Date
-  outstandingAction      String?
-  currentStageId         String?
-  currentStage           ContractStage?          @relation(fields: [currentStageId], references: [id])
-  sourceUrl              String?
-  createdById            String
-  createdBy              User                    @relation("ContractCreatedBy", fields: [createdById], references: [id])
-  createdAt              DateTime                @default(now())
-  lastActivityAt         DateTime                @default(now())
-  deletedAt              DateTime? // soft delete by an Admin: hidden everywhere, rows kept for audit
-  deletedById            String?
+  dateOfSignature             DateTime?               @db.Date
+  dateOfFullExecution         DateTime?               @db.Date
+  commencementDate            DateTime?               @db.Date
+  expiryDate                  DateTime?               @db.Date
+  outstandingAction           String?
+  currentStageId              String?
+  currentStage                ContractStage?          @relation(fields: [currentStageId], references: [id])
+  sourceUrl                   String?
+  createdById                 String
+  createdBy                   User                    @relation("ContractCreatedBy", fields: [createdById], references: [id])
+  createdAt                   DateTime                @default(now())
+  lastActivityAt              DateTime                @default(now())
+  deletedAt                   DateTime? // soft delete by an Admin: hidden everywhere, rows kept for audit
+  deletedById                 String?
 
-  assignments ContractAssignment[]
-  documents   ContractDocument[]
+  assignments   ContractAssignment[]
+  documents     ContractDocument[]
   notifications Notification[]
 
   @@index([organizationId])
@@ -631,7 +637,7 @@ model ContractDocument {
   deletedAt        DateTime?
   deletedById      String?
 
-  versions   ContractDocumentVersion[] @relation("ContractDocumentVersions")
+  versions   ContractDocumentVersion[]   @relation("ContractDocumentVersions")
   accessLogs ContractDocumentAccessLog[]
 
   @@index([contractId, deletedAt])
@@ -639,7 +645,7 @@ model ContractDocument {
 }
 
 model ContractDocumentVersion {
-  id               String     @id @default(cuid())
+  id               String           @id @default(cuid())
   documentId       String
   document         ContractDocument @relation("ContractDocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
   version          Int
@@ -650,12 +656,12 @@ model ContractDocumentVersion {
   encryptedDataKey String
   iv               String
   authTag          String
-  scanStatus       ScanStatus @default(PENDING)
+  scanStatus       ScanStatus       @default(PENDING)
   scanDetail       String?
   extractedText    String?
   uploadedById     String
-  uploadedBy       User       @relation(fields: [uploadedById], references: [id])
-  uploadedAt       DateTime   @default(now())
+  uploadedBy       User             @relation(fields: [uploadedById], references: [id])
+  uploadedAt       DateTime         @default(now())
 
   currentFor ContractDocument? @relation("ContractCurrentVersion")
 
@@ -829,6 +835,14 @@ model MatterMessage {
   deletedById String?
   deletedBy   User?     @relation("MessageDeletedBy", fields: [deletedById], references: [id])
 
+  // Editing: the author may change the text for a short window (FLOWS §10 step 4); the UI shows "edited".
+  editedAt DateTime?
+
+  // Reply-in-thread: the message this one answers (SetNull so a reply never blocks anything).
+  replyToId String?
+  replyTo   MatterMessage?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   MatterMessage[] @relation("MessageReplies")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -837,6 +851,20 @@ model MatterMessage {
 
   @@index([matterId, createdAt])
   @@index([matterId, isPinned])
+  @@index([replyToId])
+}
+
+/// How far each person has read each case thread — drives unread counts and the "new messages"
+/// divider. No row yet means "read up to when you could first see this chat" (see lib/chat/unread.ts).
+model MatterChatRead {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matterId   String
+  matter     Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime
+
+  @@id([userId, matterId])
+  @@index([matterId])
 }
 
 /// Attachments associated with a case message.
@@ -1114,16 +1142,38 @@ model AuditLog {
 /// Everyone in the org can read/post; attachmentUrl/voiceNoteUrl point at an uploaded
 /// asset (Phase 6's document storage), no calling backend behind the UI yet.
 model GroupMessage {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
   authorId       String
-  author         User     @relation(fields: [authorId], references: [id])
+  author         User         @relation("GroupMessageAuthor", fields: [authorId], references: [id])
   body           String
-  attachmentName String?
-  attachmentUrl  String?
-  voiceNoteUrl   String?
-  createdAt      DateTime @default(now())
 
-  @@index([createdAt])
+  // Edit / reply / soft delete work exactly as in a case thread (FLOWS §10). Never hard-deleted.
+  editedAt    DateTime?
+  replyToId   String?
+  replyTo     GroupMessage?  @relation("GroupMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     GroupMessage[] @relation("GroupMessageReplies")
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?          @relation("GroupMessageDeletedBy", fields: [deletedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([replyToId])
+}
+
+/// How far each person has read the department channel (one channel per organisation).
+model GroupChatRead {
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime
+
+  @@id([userId, organizationId])
+  @@index([organizationId])
 }
 
 /// Directory of outside law firms / counsel the department deals with (spec-adjacent —

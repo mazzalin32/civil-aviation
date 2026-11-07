@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import {
   Download,
@@ -14,7 +15,6 @@ import {
   FileCode,
   Mic,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export type PreviewFile = {
   name: string;
@@ -100,36 +100,40 @@ export function FilePreviewModal({
     };
   }, [file]);
 
+  // Opening a different file resets the preview state. Done during render (React's "adjust state
+  // when a prop changes" pattern) instead of inside the fetch effect below.
+  const [prevFile, setPrevFile] = useState(file);
+  if (prevFile !== file) {
+    setPrevFile(file);
+    setTextContent(null);
+    setLoadError(null);
+    setIsLoadingText(!!file && getFileCategory(file.name, file.mimeType) === "text");
+  }
+
   // Fetch text file content if category is text
   useEffect(() => {
-    if (!file) {
-      setTextContent(null);
-      setLoadError(null);
-      return;
-    }
+    if (!file || getFileCategory(file.name, file.mimeType) !== "text") return;
+    let cancelled = false;
 
-    const category = getFileCategory(file.name, file.mimeType);
-    if (category === "text") {
-      setIsLoadingText(true);
-      setLoadError(null);
+    fetch(file.viewUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load text preview");
+        return res.text();
+      })
+      .then((text) => {
+        if (cancelled) return;
+        setTextContent(text);
+        setIsLoadingText(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError("Could not render text file.");
+        setIsLoadingText(false);
+      });
 
-      fetch(file.viewUrl)
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to load text preview");
-          return res.text();
-        })
-        .then((text) => {
-          setTextContent(text);
-          setIsLoadingText(false);
-        })
-        .catch(() => {
-          setLoadError("Could not render text file.");
-          setIsLoadingText(false);
-        });
-    } else {
-      setTextContent(null);
-      setLoadError(null);
-    }
+    return () => {
+      cancelled = true; // a slow response for a previous file must not overwrite the current one
+    };
   }, [file]);
 
   if (!file) return null;
@@ -217,10 +221,18 @@ export function FilePreviewModal({
 
           {category === "image" && (
             <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
-              <img
+              {/* `unoptimized`: this is a private case file served by the permission-checked download route.
+                  Next's image optimizer would fetch it server-side without the user's session and cache resized
+                  copies on disk, bypassing the permission check and access log — so it must not be used here.
+                  width/height 0 + auto sizing keeps the file's natural size, capped to the window (as before). */}
+              <Image
                 src={file.viewUrl}
                 alt={file.name}
-                className="max-h-full max-w-full object-contain rounded-md shadow-md"
+                width={0}
+                height={0}
+                sizes="100vw"
+                unoptimized
+                className="h-auto w-auto max-h-full max-w-full object-contain rounded-md shadow-md"
               />
             </div>
           )}

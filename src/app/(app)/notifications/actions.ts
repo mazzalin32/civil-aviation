@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
+import { NOTIFICATION_INCLUDE, toNotificationItem, type NotificationItem } from "@/lib/notifications/item";
 
 async function requireUser() {
   const user = await getCurrentUser();
@@ -15,24 +16,15 @@ export async function getUnreadNotificationCount(): Promise<number> {
   return db.notification.count({ where: { userId: user.id, readAt: null } });
 }
 
-export type NotificationItem = {
-  id: string;
-  type: string;
-  message: string;
-  url: string | null;
-  readAt: string | null;
-  createdAt: string;
-};
-
 export async function getNotifications(): Promise<NotificationItem[]> {
   const user = await requireUser();
   const rows = await db.notification.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     take: 20,
-    select: { id: true, type: true, message: true, url: true, readAt: true, createdAt: true },
+    include: NOTIFICATION_INCLUDE,
   });
-  return rows.map((r) => ({ ...r, readAt: r.readAt?.toISOString() ?? null, createdAt: r.createdAt.toISOString() }));
+  return rows.map(toNotificationItem);
 }
 
 export async function markNotificationRead(id: string) {

@@ -1,8 +1,11 @@
 import { db } from "@/lib/db";
-import { requireRole, canEditMatter } from "@/lib/authz";
+import { requireRole } from "@/lib/authz";
 import { orgId } from "@/lib/org";
-import { CaseChatHub, type CaseConversationSummary } from "./chat-hub";
-import type { CaseChatData } from "./actions";
+import { getUnreadCounts } from "@/lib/chat/unread";
+import { getDepartmentLastMessage, getDepartmentUnread } from "@/lib/chat/department";
+import { getDepartmentChatData, type DepartmentChatData } from "./department-actions";
+import { CaseChatHub, type CaseConversationSummary, type DepartmentSummary } from "./chat-hub";
+import { getCaseChatData, type CaseChatData } from "./actions";
 
 export const metadata = { title: "Case Chat" };
 
@@ -11,7 +14,7 @@ export default async function ChatPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireRole();
+  const user = await requireRole("ADMIN", "LAWYER"); // the Chat page is for an organisation's own staff
   const isAdmin = user.role === "ADMIN";
 
   // Per user requirement:
@@ -72,6 +75,8 @@ export default async function ChatPage({
     return bTime - aTime;
   });
 
+  const unread = await getUnreadCounts(user, sortedMatters.map((m) => m.id));
+
   const conversationSummaries: CaseConversationSummary[] = sortedMatters.map((m) => {
     const last = m.messages[0] ?? null;
     return {
@@ -97,8 +102,28 @@ export default async function ChatPage({
           }
         : null,
       messageCount: m._count.messages,
+      unreadCount: unread.get(m.id) ?? 0,
     };
   });
+
+  // The department channel's line in the list (newest message + your unread count).
+  const [departmentLast, departmentUnread] = await Promise.all([
+    user.organizationId ? getDepartmentLastMessage(user.organizationId) : null,
+    getDepartmentUnread(user),
+  ]);
+  const departmentSummary: DepartmentSummary = {
+    unreadCount: departmentUnread,
+    lastMessage: departmentLast
+      ? {
+          id: departmentLast.id,
+          body: departmentLast.body,
+          createdAt: departmentLast.createdAt.toISOString(),
+          authorName: departmentLast.author.name,
+          authorId: departmentLast.author.id,
+          hasAttachments: false,
+        }
+      : null,
+  };
 
   // Determine initial selected case
   const sp = await searchParams;
@@ -111,100 +136,35 @@ export default async function ChatPage({
     ? requestedCaseId!
     : conversationSummaries[0]?.id ?? null;
 
-  let initialChatData: CaseChatData | null = null;
+  // ?channel=department opens the department chat; so does having no case conversations at all.
+  const initialView: "case" | "department" = sp?.channel === "department" || !selectedCaseId ? "department" : "case";
 
-  if (selectedCaseId) {
-    const [rawMessages, rawDocuments, canPin, selectedMatter] = await Promise.all([
-      db.matterMessage.findMany({
-        where: { matterId: selectedCaseId },
-        include: {
-          author: { select: { id: true, name: true } },
-          pinnedBy: { select: { id: true, name: true } },
-          attachments: true,
-          mentions: { include: { user: { select: { id: true, name: true } } } },
-        },
-        orderBy: { createdAt: "asc" },
-      }),
-      db.document.findMany({
-        where: { matterId: selectedCaseId, deletedAt: null },
-        include: {
-          folder: true,
-          currentVersion: { select: { size: true } },
-        },
-        orderBy: { name: "asc" },
-      }),
-      canEditMatter(user.id, user.role, selectedCaseId),
-      db.matter.findUnique({
-        where: { id: selectedCaseId },
-        select: {
-          assignments: {
-            where: { removedAt: null },
-            include: { user: { select: { id: true, name: true } } },
-          },
-        },
-      }),
-    ]);
+  // A notification deep-links to one message (?msg=…). Only honoured if it belongs to the opened thread.
+  const requestedMessageId = typeof sp?.msg === "string" ? sp.msg : undefined;
 
-    const team = (selectedMatter?.assignments ?? []).map((a) => ({
-      id: a.user.id,
-      name: a.user.name,
-      role: a.role,
-    }));
+  // Same loaders (and same access checks) the hub uses when you switch conversations.
+  const initialChatData: CaseChatData | null =
+    initialView === "case" && selectedCaseId ? ((await getCaseChatData(selectedCaseId, requestedMessageId)).data ?? null) : null;
+  const initialDepartmentData: DepartmentChatData | null = initialView === "department" ? ((await getDepartmentChatData()).data ?? null) : null;
 
-    initialChatData = {
-      messages: rawMessages.map((m) => ({
-        id: m.id,
-        matterId: m.matterId,
-        body: m.body,
-        createdAt: m.createdAt.toISOString(),
-        authorId: m.author.id,
-        authorName: m.author.name,
-        isPinned: m.isPinned,
-        pinnedAt: m.pinnedAt?.toISOString() ?? null,
-        pinnedById: m.pinnedById,
-        pinnedByName: m.pinnedBy?.name ?? null,
-        deletedAt: m.deletedAt?.toISOString() ?? null,
-        attachments: m.attachments.map((att) => ({
-          id: att.id,
-          name: att.name,
-          size: att.size,
-          mimeType: att.mimeType,
-          isLinkedDocument: Boolean(att.documentId),
-          documentId: att.documentId,
-          downloadUrl: `/api/cases/${selectedCaseId}/chat/attachments/${att.id}/download`,
-        })),
-        mentions: m.mentions.map((men) => ({
-          userId: men.user.id,
-          userName: men.user.name,
-        })),
-      })),
-      caseDocuments: rawDocuments.map((d) => ({
-        id: d.id,
-        name: d.name,
-        folderName: d.folder.name,
-        size: d.currentVersion?.size ?? null,
-      })),
-      team,
-      canPin,
-    };
-  }
-
-  // Active lawyers for @mentions
-  const allLawyers = await db.user.findMany({
-    where: { role: "LAWYER", isActive: true, organizationId: orgId(user.organizationId) },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  const openedMessages = initialView === "department" ? initialDepartmentData?.messages : initialChatData?.messages;
+  const highlightMessageId = requestedMessageId && openedMessages?.some((m) => m.id === requestedMessageId) ? requestedMessageId : null;
 
   return (
     <div className="-mt-1 -mb-6">
+      {/* keyed: a notification click is a same-route navigation (/chat → /chat?caseId=…&msg=…); without
+          a key the hub keeps its old selected case, because that lives in client state. */}
       <CaseChatHub
+        key={`${initialView}:${selectedCaseId ?? "none"}:${highlightMessageId ?? ""}`}
+        highlightMessageId={highlightMessageId}
         currentUserId={user.id}
         currentUserRole={user.role}
         allCases={conversationSummaries}
+        department={departmentSummary}
+        initialView={initialView}
         initialSelectedCaseId={selectedCaseId}
         initialChatData={initialChatData}
-        allLawyers={allLawyers}
+        initialDepartmentData={initialDepartmentData}
       />
     </div>
   );

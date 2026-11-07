@@ -1,13 +1,9 @@
-import Link from "next/link";
-import { FolderOpen, Download, Eye, FileText, Lock } from "lucide-react";
+import { FolderOpen } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { orgId } from "@/lib/org";
 import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/app/empty-state";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/time";
 import { DocumentsToolbar } from "./documents-toolbar";
 import { DocumentsList } from "./documents-list";
 

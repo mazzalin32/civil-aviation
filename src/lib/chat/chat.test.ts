@@ -14,12 +14,10 @@ describe("Case Chat Validation Schemas", () => {
         matterId: "matter-123",
         body: "Hello team, here is the update.",
         attachedDocumentIds: ["doc-1"],
-        mentionedUserIds: ["user-1", "user-2"],
       });
       expect(parsed.matterId).toBe("matter-123");
       expect(parsed.body).toBe("Hello team, here is the update.");
       expect(parsed.attachedDocumentIds).toEqual(["doc-1"]);
-      expect(parsed.mentionedUserIds).toEqual(["user-1", "user-2"]);
     });
 
     it("applies default empty arrays and empty body", () => {
@@ -28,7 +26,6 @@ describe("Case Chat Validation Schemas", () => {
       });
       expect(parsed.body).toBe("");
       expect(parsed.attachedDocumentIds).toEqual([]);
-      expect(parsed.mentionedUserIds).toEqual([]);
     });
 
     it("fails when matterId is empty", () => {

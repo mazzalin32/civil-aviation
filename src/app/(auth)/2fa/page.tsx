@@ -1,5 +1,4 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { sendTwoFactorOtpOnce } from "@/lib/two-factor-otp";
 import { TwoFactorForm } from "./two-factor-form";
 
 export const metadata = { title: "Verify your identity" };
@@ -10,7 +9,7 @@ export default async function TwoFactorPage({ searchParams }: { searchParams: Pr
   // Fire the first code the moment this page loads — one less click than a "Send code" button.
   let sendError: string | null = null;
   try {
-    await auth.api.sendTwoFactorOTP({ headers: await headers(), asResponse: false });
+    await sendTwoFactorOtpOnce();
   } catch {
     sendError = "Couldn't send a code. Use the resend link below once you're ready.";
   }
