@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  BadgeAlert,
   Bell,
   Briefcase,
   CalendarClock,
@@ -33,6 +34,8 @@ const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: Tone }>
   HEARING_REMINDER: { label: "Hearing", icon: CalendarClock, tone: "warning" },
   DEADLINE_REMINDER: { label: "Deadline", icon: CalendarClock, tone: "warning" },
   HEARING_OUTCOME_MISSING: { label: "Outcome needed", icon: CalendarClock, tone: "danger" },
+  CASE_INACTIVE: { label: "No recent activity", icon: Briefcase, tone: "warning" },
+  CERT_EXPIRING: { label: "Certificate expiring", icon: BadgeAlert, tone: "warning" },
   SUSPICIOUS_ACTIVITY: { label: "Security alert", icon: ShieldAlert, tone: "danger" },
 };
 

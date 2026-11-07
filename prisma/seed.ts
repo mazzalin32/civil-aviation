@@ -257,19 +257,23 @@ const EVENT_TYPES = ["Filing", "Correspondence", "Ruling", "Hearing", "Mediation
 const DOCUMENT_FOLDERS = ["Pleadings", "Evidence", "Correspondence", "Court Orders", "Submissions", "Internal Memos"];
 const OUTCOMES = ["Won", "Lost", "Settled", "Withdrawn", "Dismissed", "Struck out", "Advice issued"];
 
-const NOTIFICATION_RULES: { trigger: string; label: string; offsets: number[]; channels: string[]; mutable: boolean }[] = [
+// Time-based triggers are sent by the job runner (src/lib/jobs). Offsets: positive = before the date,
+// negative = after it, 0 = the morning of; "outcome missing" and "inactive" only ever look back, so
+// their sign is ignored. CHAT_UNREAD_EMAIL's single offset is the chat email delay, in minutes.
+const NOTIFICATION_RULES: { trigger: string; label: string; offsets: number[]; offsetUnit?: string; channels: string[]; mutable: boolean }[] = [
   { trigger: "HEARING_REMINDER", label: "Hearing coming up", offsets: [7, 1, 0], channels: ["IN_APP", "EMAIL"], mutable: false },
-  { trigger: "DEADLINE_REMINDER", label: "Deadline coming up / overdue", offsets: [7, 3, 1, 0], channels: ["IN_APP", "EMAIL"], mutable: false },
+  { trigger: "DEADLINE_REMINDER", label: "Deadline coming up / overdue", offsets: [7, 3, 1, 0, -1], channels: ["IN_APP", "EMAIL"], mutable: false },
   { trigger: "HEARING_OUTCOME_MISSING", label: "Hearing passed with no outcome recorded", offsets: [1, 3], channels: ["IN_APP", "EMAIL"], mutable: false },
   { trigger: "CASE_ASSIGNED", label: "Case assigned or reassigned to you", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "TASK_ASSIGNED", label: "A task is assigned to you", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "MESSAGE_MENTION", label: "New message or @mention", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
-  { trigger: "CASE_MESSAGE", label: "New message in a case discussion you are part of", offsets: [0], channels: ["IN_APP"], mutable: true },
-  { trigger: "MESSAGE_REPLY", label: "Someone replied to your message", offsets: [0], channels: ["IN_APP"], mutable: true },
+  { trigger: "CASE_MESSAGE", label: "New message in a case discussion you are part of", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
+  { trigger: "MESSAGE_REPLY", label: "Someone replied to your message", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "DOCUMENT_UPLOADED", label: "Document uploaded to your case", offsets: [0], channels: ["IN_APP"], mutable: true },
   { trigger: "STAGE_OR_CLOSURE_CHANGED", label: "Stage changed / closure requested or approved", offsets: [0], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "CASE_INACTIVE", label: "Case inactive 30+ days", offsets: [30], channels: ["IN_APP", "EMAIL"], mutable: true },
   { trigger: "CERT_EXPIRING", label: "Practising certificate expiring", offsets: [30], channels: ["IN_APP", "EMAIL"], mutable: true },
+  { trigger: "CHAT_UNREAD_EMAIL", label: "Chat email: sent only if still unread after", offsets: [10], offsetUnit: "MINUTES", channels: ["EMAIL"], mutable: false },
   { trigger: "SUSPICIOUS_ACTIVITY", label: "Suspicious activity (mass download, failed logins)", offsets: [0], channels: ["EMAIL"], mutable: false },
 ];
 

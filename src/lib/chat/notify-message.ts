@@ -31,6 +31,7 @@ export async function notifyThreadActivity({ matter, author, message, mentionedI
     await notify({
       userId,
       type: "MESSAGE_MENTION",
+      deferEmailUntilUnread: true,
       matterId: matter.id,
       subject: `Mentioned in ${matter.reference}`,
       message: `${author.name} mentioned you in ${matter.title}: "${preview}"`,
@@ -44,6 +45,7 @@ export async function notifyThreadActivity({ matter, author, message, mentionedI
     await notify({
       userId: replyTarget,
       type: "MESSAGE_REPLY",
+      deferEmailUntilUnread: true,
       matterId: matter.id,
       subject: `Reply in ${matter.reference}`,
       message: `${author.name} replied to you in ${matter.title}: "${preview}"`,
@@ -76,6 +78,7 @@ async function notifyNewMessage(
     await notify({
       userId,
       type: "CASE_MESSAGE",
+      deferEmailUntilUnread: true,
       matterId: matter.id,
       subject: `New message in ${matter.title}`,
       message: `${authorName} in ${matter.title}: "${preview}"`,

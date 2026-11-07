@@ -155,7 +155,7 @@ sequenceDiagram
    - My matters (stage chip + next date), unread messages & mentions
    - (Later, v2) ✨ "Your week at a glance" AI briefing
 2. 🟩 Clicks any item → goes straight to the right case tab (e.g. hearing → Deadlines tab with that hearing open).
-3. ⚙️ Optional 7:00 AM email digest with the same "today" list — **not yet sending** (Phase 8 is partial, see PROJECT_SPEC.md §12: the schedule/preference exists, nothing dispatches it yet).
+3. ⚙️ Optional 7:00 AM email digest with the same "today" list — sent by the job runner (2026-11-07): today's sittings, deadlines and tasks due today or overdue, and the unread chat count; nothing is sent on an empty day. Each person turns it on in Profile & preferences.
 4. The same page is what Admin sees too — Admin's view is unscoped (whole portfolio); a lawyer's is scoped to matters they lead/support. There is no separate Admin dashboard design.
 
 ---
@@ -267,7 +267,7 @@ flowchart LR
 4. Edit/delete own message within 15 min (shows "edited"); deleted messages remain in the audit log.
 5. Only assigned lawyers + Admin can see or post. Closed case → chat read-only.
 
-> **Status (2026-11-07):** steps 1–5 are built, including reply-in-thread, edit (15 min, "edited" label), pinned bar, unread counts with a "New messages" divider, and live in-app notifications for every new message (collapsed per case). **Not built:** the email for messages still unread after 10 minutes — it needs the background job runner (see PROJECT_SPEC §12 Phase 8).
+> **Status (2026-11-07):** steps 1–5 are built, including reply-in-thread, edit (15 min, "edited" label), pinned bar, unread counts with a "New messages" divider, live in-app notifications for every new message (collapsed per case), and the email fallback: a chat notification emails only if the bell entry *and* the conversation are still unread after the `CHAT_UNREAD_EMAIL` delay (10 minutes by default, Admin Settings → Reminders).
 
 ---
 
@@ -284,7 +284,7 @@ flowchart LR
 
 ## 12. Notifications
 
-> **Partially built (2026-10-11 — see PROJECT_SPEC.md §12 Phase 8).** The left-hand "event happens" triggers below (assignment, upload, mention, task-assigned) are real and fire today. The "date approaching" triggers — hearing 7/1-day/morning-of, deadline 7/3/1-day + overdue, hearing-no-outcome escalation, cert-expiry, the morning digest — need something to notice time passing with no user action, which doesn't exist yet (no job runner). The rule/preference data model is fully built and ready for it.
+> **Built (2026-11-07 — see PROJECT_SPEC.md §12 Phase 8).** The "event happens" triggers fire as they happen; the "date approaching" triggers (hearing 7/1-day/morning-of, deadline 7/3/1-day + overdue, hearing-no-outcome escalation, cert-expiry, case inactive, the morning digest) are sent by the job runner, which checks once a minute from 7:00 Kampala time. Each reminder goes to each person once; dates from before reminders were switched on are treated as history and skipped. Not built: the suspicious-activity alert.
 
 ```mermaid
 flowchart LR

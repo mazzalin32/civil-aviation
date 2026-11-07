@@ -27,7 +27,7 @@ export default async function RemindersPage() {
             </thead>
             <tbody>
               {rules.map((r) => (
-                <ReminderRow key={r.id} rule={{ id: r.id, label: r.label, offsets: r.offsets, channels: r.channels, mutable: r.mutable }} />
+                <ReminderRow key={r.id} rule={{ id: r.id, label: r.label, offsets: r.offsets, offsetUnit: r.offsetUnit, channels: r.channels, mutable: r.mutable }} />
               ))}
             </tbody>
           </table>

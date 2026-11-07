@@ -40,6 +40,10 @@ const schema = z.object({
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),
+  // Background job runner (reminders, digest, unread-chat emails) — runs inside the app server
+  // via src/instrumentation.ts. Set false only to keep a process from running jobs (e.g. a
+  // one-off maintenance instance); with several instances leave it on, pg-boss runs each tick once.
+  JOBS_ENABLED: z.stringbool().default(true),
 });
 
 export const env = schema.parse(process.env);

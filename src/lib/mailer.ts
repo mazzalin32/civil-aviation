@@ -138,12 +138,59 @@ export async function sendPasswordChangedEmail(to: string, name: string) {
   );
 }
 
-/** Every notification email shares this shape — subject/message/url are built per trigger by src/lib/notify.ts callers. */
+/** In-app links are stored relative ("/chat?caseId=…"); an email needs the full address. */
+function absoluteUrl(url: string) {
+  return url.startsWith("/") ? `${env.APP_URL.replace(/\/$/, "")}${url}` : url;
+}
+
+/**
+ * Every notification email shares this shape — subject/message/url are built per trigger by src/lib/notify.ts
+ * callers. Subject and message are plain text (they can carry chat text people typed), so both are escaped.
+ */
 export async function sendNotificationEmail(to: string, name: string, subject: string, message: string, url?: string) {
   await send(
     to,
     subject,
-    layout(subject, `<p style="margin:0 0 8px;">Hello ${esc(name)},</p><p style="margin:0 0 8px;">${message}</p>${url ? button(url, "Open") : ""}`),
+    layout(
+      esc(subject),
+      `<p style="margin:0 0 8px;">Hello ${esc(name)},</p><p style="margin:0 0 8px;">${esc(message)}</p>${url ? button(esc(absoluteUrl(url)), "Open") : ""}`,
+      message,
+    ),
+  );
+}
+
+export type DigestSection = { title: string; items: { text: string; meta?: string; url?: string }[] };
+
+/** The optional 7:00 AM "Your day" email (spec §5.9, FLOWS §5). Sections with no items are left out. */
+export async function sendDigestEmail(to: string, name: string, dateLabel: string, sections: DigestSection[], footnote?: string) {
+  const blocks = sections
+    .filter((s) => s.items.length > 0)
+    .map(
+      (s) => `<p style="margin:20px 0 8px;font-size:13px;font-weight:700;letter-spacing:.02em;color:#6B6760;text-transform:uppercase;">${esc(s.title)} (${s.items.length})</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E6E3DD;border-radius:12px;">
+        ${s.items
+          .map(
+            (it, i) => `<tr><td style="padding:10px 14px;${i ? "border-top:1px solid #E6E3DD;" : ""}font-size:14px;">
+              ${it.url ? `<a href="${esc(absoluteUrl(it.url))}" style="color:#1F2328;text-decoration:none;font-weight:600;">${esc(it.text)}</a>` : `<strong>${esc(it.text)}</strong>`}
+              ${it.meta ? `<br><span style="font-size:12px;color:#6B6760;">${esc(it.meta)}</span>` : ""}
+            </td></tr>`,
+          )
+          .join("")}
+      </table>`,
+    )
+    .join("");
+  await send(
+    to,
+    `Your day — ${dateLabel}`,
+    layout(
+      "Your day",
+      `<p style="margin:0 0 4px;">Good morning ${esc(name)}, here is what needs you today, ${esc(dateLabel)}.</p>
+      ${blocks}
+      ${footnote ? `<p style="margin:20px 0 0;font-size:13px;color:#4A5675;">${esc(footnote)}</p>` : ""}
+      ${button(absoluteUrl("/my-day"), "Open My Day")}
+      <p style="margin:0;font-size:12px;color:#6B6760;">You get this email because the daily digest is on for your account.</p>`,
+      `Your day: ${sections.map((s) => `${s.items.length} ${s.title.toLowerCase()}`).join(", ")}`,
+    ),
   );
 }
 

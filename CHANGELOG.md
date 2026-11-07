@@ -1,5 +1,62 @@
 # Changelog
 
+## Profile & preferences page: digest and notification mutes (2026-11-07)
+
+`/profile` was a placeholder. It is now a real page:
+- **Account:** name, email, role, title, department, phone, practising certificate and its expiry. These are read-only; the Head of Legal edits them on the user's record.
+- **Security:** when the password was last changed, with a link to change it; whether two-step sign-in is on; and the last sign-in.
+- **Notifications:** the daily digest switch, and an in-app / email switch for every type a person may mute. Hearings, deadlines, outcome-missing and security alerts are listed under "Always on" with a lock, not a switch (spec §5.9). A type that is never sent on a channel shows "—". The chat-email delay shows as a note ("only sent if you still haven't read it after 10 minutes"), read from the `CHAT_UNREAD_EMAIL` rule. Lawyers don't see the Admin-only security-alert row.
+
+The page has two new server actions in `profile/actions.ts`, `setNotificationPreference` and `setDigestEnabled`:
+- They are validated with zod (`lib/validation/profile.ts`).
+- The user always comes from the session, so nobody can change another person's settings.
+- They refuse to mute an "always on" type, or a channel the type doesn't use.
+- Each change writes an audit row (`user.notificationPreference.update`, `user.digest.update`).
+
+There is a new `components/ui/switch.tsx` (an accessible `role="switch"`, with no animation under reduced motion), plus a loading skeleton. No schema change. The job runner and `notify()` already read these settings.
+
+**Verified in a browser (12 checks):** details and security shown; the digest switch saves; an in-app-only type has no email switch; muting a type in the app, or muting only mention emails, saves exactly that; the state survives a reload; each change is audited; and an Admin sees the security-alert row that a lawyer doesn't. Directly against `notify()`: muted mention emails keep the bell entry but schedule no email; both channels muted sends nothing; and an always-on type ignores even a mute row written straight to the database.
+
+**Not in this change:** choosing light or dark theme. The app is still pinned to light, and dark mode hasn't been checked screen by screen yet.
+
+## Notifications: the job runner — reminders, digest, unread-chat emails (2026-11-07)
+
+Phase 8's missing half. Until now the app only reacted to clicks, so nothing was sent when time passed. A job runner now checks once a minute and sends what is due. **New dependency:** `pg-boss@12.38.0` (pinned; npm also moved `pg` 8.23.0 → 8.23.1 and three `pg-*` helpers by a patch version). **Schema change** (migration `job_runner`):
+- `ReminderLog`: one row per reminder sent, so nothing is sent twice.
+- `Notification.emailDueAt`: when a deferred chat email falls due.
+- `NotificationRule.offsetUnit`: DAYS or MINUTES.
+
+The migration also adds the `CHAT_UNREAD_EMAIL` rule (10 minutes), adds an overdue offset (-1) to `DEADLINE_REMINDER`, and lets `CASE_MESSAGE` / `MESSAGE_REPLY` email (deferred). The seed matches.
+
+- **Where it runs:** inside the Next.js server, started by `src/instrumentation.ts` → `src/lib/jobs/scheduler.ts`. pg-boss keeps its schedule in Postgres (schema `pgboss`), so with one instance or several, each minute's run happens once, and runs never overlap. Nothing extra to deploy. `JOBS_ENABLED=false` switches a process off.
+- **What it sends.** Every schedule comes from Admin Settings → Reminders and works in Kampala calendar days, from 7:00 AM.
+  - **Hearings, mentions, mediation and judgment dates:** to the entry's assignee and the case team (7 days, 1 day, morning of). A date added late gets the stage it has reached ("in 2 days"), not the ones it skipped.
+  - **Deadlines and tasks:** 7/3/1 days, due today, and overdue. The Admin is also told when a deadline is overdue.
+  - **Hearing passed with no outcome:** the lead lawyer after 1 day, then the Admin as well after 3.
+  - **Practising certificate expiring:** the lawyer and the Admin.
+  - **Case inactive 30+ days:** the lead lawyer and the Admin, as one combined notice per person per run, not one per case.
+  - **The 7:00 AM "Your day" email** for users with the digest on: today's sittings, deadlines and tasks due or overdue, and unread chat. Nothing is sent on an empty day, and nothing after noon.
+  - **Chat emails:** sent only if the notification *and* the conversation are still unread after the `CHAT_UNREAD_EMAIL` delay (FLOWS §10, "avoid spam"). @mentions used to email at once; they now wait too.
+- **No flood at go-live:** dates that fell before reminders were first switched on (stored once as the `jobs.remindersStartedAt` setting) are treated as history. A moved hearing re-arms its reminders for the new date. Each run that sends something writes one `jobs.run` audit row.
+- **Email safety fix:** notification emails inserted the message as raw HTML. Chat text typed by users now reaches email, so subject and message are escaped. The "Open" button also used a relative link that did nothing in a mail client; it now uses the full `APP_URL` address.
+- Settings → Reminders shows minutes ("10 min") and after-offsets ("1d after"). The bell has labels for "No recent activity" and "Certificate expiring".
+- **Not in this change:** the suspicious-activity alert, and the Profile screen for muting types and turning the digest on (`/profile` is still a placeholder).
+
+**Tests:** unit tests for the date logic (`jobs/due.test.ts`); 72 tests total.
+
+**Verified live against the dev database and Mailpit (24 checks):**
+- Each reminder type reached exactly the right people with the right wording.
+- A hearing 20 days out and one from before go-live sent nothing, and a second run sent nothing new.
+- A chat mention past its delay was emailed. Ones read in the bell or in the thread were not.
+- A fresh chat notification wasn't emailed at once; its email was due in 10 minutes.
+- Chat text arrived escaped, with a full link.
+- The digest listed today's items and left out tomorrow's.
+- Each run wrote one audit row.
+
+**Production build check:** a production build (`next build`, standalone server) started the runner on boot, registered the schedule and completed its first scheduled run.
+
+**Operational note:** restart the dev server after pulling this. It needs the new Prisma client, and the instrumentation hook only runs at server start.
+
 ## Lint is fully clean: image preview uses next/image (2026-11-07)
 
 The last lint warning (`<img>` in the file preview) is gone. The preview now uses `next/image` with `unoptimized`, on purpose: these are private case files served by the permission-checked download route, and Next's image optimizer would fetch them server-side without the user's session and cache resized copies on disk, bypassing the permission check and access log. Sizing is unchanged (natural size, capped to the window — checked with a small and a large image). Full `eslint` now reports nothing.

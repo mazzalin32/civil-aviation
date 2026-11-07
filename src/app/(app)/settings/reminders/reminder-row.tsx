@@ -8,7 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { updateReminderRule } from "./actions";
 import { withToast } from "@/components/ui/toast";
 
-export type ReminderRuleRow = { id: string; label: string; offsets: number[]; channels: string[]; mutable: boolean };
+export type ReminderRuleRow = { id: string; label: string; offsets: number[]; offsetUnit: string; channels: string[]; mutable: boolean };
+
+/** "7d", "same day", "1d after" — or "10 min" for the chat email delay. */
+function offsetLabel(o: number, unit: string) {
+  if (unit === "MINUTES") return `${o} min`;
+  if (o === 0) return "same day";
+  return o > 0 ? `${o}d` : `${-o}d after`;
+}
 
 const CHANNELS = [
   { value: "IN_APP", label: "In-app" },
@@ -37,7 +44,9 @@ export function ReminderRow({ rule }: { rule: ReminderRuleRow }) {
         <td className="border-b border-border px-4 py-3" colSpan={3}>
           <form action={save} className="flex flex-wrap items-start gap-3">
             <div className="min-w-[160px]">
-              <label className="mb-1 block text-xs text-text-muted">Days before/after (comma-separated; 0 = same day)</label>
+              <label className="mb-1 block text-xs text-text-muted">
+                {rule.offsetUnit === "MINUTES" ? "Minutes to wait" : "Days before (negative = after; comma-separated; 0 = same day)"}
+              </label>
               <Input name="offsets" defaultValue={rule.offsets.join(", ")} className="h-9" required />
             </div>
             <div>
@@ -69,7 +78,7 @@ export function ReminderRow({ rule }: { rule: ReminderRuleRow }) {
   return (
     <tr>
       <td className="border-b border-border px-4 py-3 font-medium">{rule.label}</td>
-      <td className="border-b border-border px-4 py-3 text-text-muted">{rule.offsets.map((o) => (o === 0 ? "same day" : `${o}d`)).join(", ")}</td>
+      <td className="border-b border-border px-4 py-3 text-text-muted">{rule.offsets.map((o) => offsetLabel(o, rule.offsetUnit)).join(", ")}</td>
       <td className="border-b border-border px-4 py-3 text-text-muted">{rule.channels.map((c) => CHANNELS.find((x) => x.value === c)?.label ?? c).join(", ")}</td>
       <td className="border-b border-border px-4 py-3">
         {rule.mutable ? (

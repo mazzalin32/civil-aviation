@@ -15,9 +15,25 @@ export type NotifyInput = {
   subject: string;
   message: string;
   url?: string;
+  /**
+   * Chat notifications: don't email now — the job runner emails it after the CHAT_UNREAD_EMAIL
+   * delay, and only if it is still unread by then (FLOWS §10, "avoid spam").
+   */
+  deferEmailUntilUnread?: boolean;
 };
 
+/** The rule holding the chat email delay (minutes). Turning its Email channel off stops chat emails entirely. */
+export const CHAT_UNREAD_EMAIL_RULE = "CHAT_UNREAD_EMAIL";
+
 type Client = Pick<typeof db, "notificationRule" | "notificationPreference" | "notification" | "user">;
+
+/** When a deferred chat email falls due, or null when chat emails are switched off. */
+async function chatEmailDueAt(client: Client): Promise<Date | null> {
+  const rule = await client.notificationRule.findUnique({ where: { trigger: CHAT_UNREAD_EMAIL_RULE } });
+  if (!rule || !rule.channels.includes("EMAIL")) return null;
+  const minutes = Math.max(0, rule.offsets[0] ?? 0);
+  return new Date(Date.now() + minutes * 60_000);
+}
 
 /**
  * The single entry point for creating a notification (spec §5.9, FLOWS §12) — always an
@@ -36,6 +52,9 @@ export async function notify(input: NotifyInput, client: Client = db) {
   // Callers often interpolate chat text; resolve any `@[Name](user:id)` mention tokens once
   // here so neither the bell nor the email ever shows a raw user id.
   const message = stripMentionTokens(input.message);
+  const emailDueAt = wantsEmail && input.deferEmailUntilUnread ? await chatEmailDueAt(client) : null;
+  const emailNow = wantsEmail && !input.deferEmailUntilUnread;
+  if (!wantsInApp && !emailNow && !emailDueAt) return null;
 
   const created = await client.notification.create({
     data: {
@@ -49,6 +68,7 @@ export async function notify(input: NotifyInput, client: Client = db) {
       // Set only once the send actually succeeds below — not here on intent alone, so a
       // real SMTP failure doesn't silently mark itself as delivered.
       emailedAt: null,
+      emailDueAt,
     },
     include: NOTIFICATION_INCLUDE,
   });
@@ -57,7 +77,7 @@ export async function notify(input: NotifyInput, client: Client = db) {
   // Quiet in-app preference = no live push either, same as no bell entry.
   if (wantsInApp) publishNotification(input.userId, toNotificationItem(created));
 
-  if (wantsEmail) {
+  if (emailNow) {
     const user = await client.user.findUnique({ where: { id: input.userId }, select: { email: true, name: true } });
     if (user) {
       try {

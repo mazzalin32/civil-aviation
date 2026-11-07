@@ -247,7 +247,7 @@ Stages can be skipped (e.g. settled at mediation jumps to Closed), and a matter 
 - `MatterMessageAttachment`, `MatterMessageMention` — per-case Discussion attachments and @mentions (Phase 9).
 - `LawFirm`, `ResourceLink`, `GroupMessage` — the org-wide pages in §5.14.
 - `User.icsToken` — calendar subscription feed auth (§5.8).
-- `NotificationPreference` ships (Phase 2/8) but time-based reminder *sending* (hearing/deadline/overdue escalation, digest email) is not yet implemented — only event-triggered notifications (assignment, upload, mention, task) fire today. Phase 8 remains partial; see §12.
+- Time-based reminder sending is built (2026-11-07): a pg-boss job runner inside the app server (`src/instrumentation.ts` → `src/lib/jobs`) sends hearing, deadline/overdue, outcome-missing, certificate-expiring and case-inactive reminders, the 7:00 AM digest, and chat emails only when still unread. The Profile page (2026-11-07) lets each person mute types per channel and switch the digest on. Still open in Phase 8: the suspicious-activity alert.
 - `ClosureRequest` is specced below but **not yet built** — `/closure-requests` is still a placeholder. See §12.
 
 ```
@@ -420,7 +420,7 @@ Direction from the client: white and clean like the reference images, warm (not 
 | File storage | S3-compatible API (AWS S3, MinIO on-prem, etc.) + app-level envelope encryption | Same code on any host |
 | Virus scan | ClamAV container | |
 | Realtime | Server-Sent Events (Postgres LISTEN/NOTIFY behind it) | Chat & live notifications; no extra server |
-| Jobs | pg-boss worker | Reminders, digests, imports, scheduled reports, AI jobs |
+| Jobs | pg-boss, started inside the Next.js server (instrumentation hook) | Reminders, digests, unread-chat emails; later imports, scheduled reports, AI jobs. Can move to a separate worker process later without changing the jobs themselves |
 | Import/Export | SheetJS / exceljs; PDF via a headless renderer | |
 | Email | SMTP | Works with any mail server |
 | AI (Later, v2) | Claude API behind a feature flag | Summaries, briefings, Q&A |
@@ -438,7 +438,7 @@ Status as of 2026-10-11 marked inline — **DONE**, **PARTIAL**, or **NOT BUILT*
 5. **Case page** — header, lifecycle diagram, catch-up panel, timeline, parties, notes, stage moves. **DONE** (catch-up panel became the Overview panel, §5.7)
 6. **Secure documents** — encrypted upload, scan, versions, viewer with watermark, access log. **DONE**
 7. **Calendar, hearings, deadlines, tasks** — outcome recording, deadline rules, clash detection, .ics. **DONE**
-8. **Notifications** — in-app, email, reminder jobs, digest. **PARTIAL** — `Notification`/`NotificationRule`/`NotificationPreference` exist and event-triggered notifications fire (assignment, upload, mention, task-assigned); no job runner exists yet, so **time-based sends don't happen**: hearing 7/3/1-day reminders, deadline 7/3/1-day + overdue reminders, "hearing passed with no outcome" escalation, practising-certificate-expiring alerts, and the 7am digest email are all still unbuilt.
+8. **Notifications** — in-app, email, reminder jobs, digest. **MOSTLY DONE (2026-11-07)** — event-triggered notifications plus the job runner: pg-boss scheduled once a minute inside the Next.js server (`src/instrumentation.ts`, `src/lib/jobs`), so one deploy runs everything and several instances still run each tick once. It sends hearing reminders (7/1 days, morning of), deadline and task reminders (7/3/1 days + overdue, Admin told when overdue), hearing-passed-no-outcome (lead lawyer, then Admin), practising-certificate-expiring (lawyer + Admin), case-inactive (one combined notice per person), the optional 7:00 AM digest, and chat emails only if still unread after the `CHAT_UNREAD_EMAIL` delay. Every schedule is read from Admin Settings → Reminders. Profile & preferences (`/profile`) lets each person switch the digest on and mute any mutable type per channel. **Not built yet:** the suspicious-activity alert (needs download/login analysis) and the theme choice in Profile (the app is still pinned to light).
 9. **Case discussion (chat)** — realtime, mentions, pins, attachments. **DONE**
 10. **Closure workflow** — request, approve/return, reopen. **NOT BUILT** — no `ClosureRequest` model yet; `/closure-requests` is a placeholder; case header has no working "Request closure" action.
 11. **Dashboards & reports** — with filters, drill-down, exports, scheduled reports. **PARTIAL** (2026-11-01) — all 9 report types from §5.10 built (Case register, By status/category/court, Outcomes, Average duration, Financial exposure, Lawyer workload, Upcoming hearings, Overdue deadlines, Inactive cases), each with the shared filter bar, time filtering, and CSV/Excel/PDF export; status/category/court charts drill into the Case register. Still missing: **scheduled reports** (e.g. monthly case register emailed to the Head of Legal) — no job runner exists for that yet, same gap noted under Notifications (item 8).

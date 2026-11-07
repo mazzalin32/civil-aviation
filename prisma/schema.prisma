@@ -334,14 +334,16 @@ model Outcome {
 }
 
 /// Reminder schedule for one trigger (a hearing coming up, a deadline, an assignment, …).
-/// Sending the actual reminder is Phase 8; this phase only edits the schedule.
+/// The time-based ones are sent by the job runner (src/lib/jobs) — see each trigger's handler
+/// there for how its offsets are read.
 model NotificationRule {
-  id       String   @id @default(cuid())
-  trigger  String   @unique // e.g. "HEARING_REMINDER", "DEADLINE_REMINDER" — matches spec §5.9
-  label    String // shown in the settings UI, e.g. "Hearing coming up"
-  offsets  Int[] // days before (positive) / after (negative) the trigger date; 0 = same day
-  channels String[] // "IN_APP" | "EMAIL"
-  mutable  Boolean  @default(true) // false = lawyer can't turn this one off (spec §5.9)
+  id         String   @id @default(cuid())
+  trigger    String   @unique // e.g. "HEARING_REMINDER", "DEADLINE_REMINDER" — matches spec §5.9
+  label      String // shown in the settings UI, e.g. "Hearing coming up"
+  offsets    Int[] // before (positive) / after (negative) the trigger date; 0 = same day
+  offsetUnit String   @default("DAYS") // "DAYS" | "MINUTES" — CHAT_UNREAD_EMAIL's delay is in minutes
+  channels   String[] // "IN_APP" | "EMAIL"
+  mutable    Boolean  @default(true) // false = lawyer can't turn this one off (spec §5.9)
 
   preferences NotificationPreference[]
 }
@@ -361,10 +363,25 @@ model Notification {
   url        String? // where "open" takes you; null for notifications with nowhere to go
   readAt     DateTime?
   emailedAt  DateTime?
+  // Chat notifications don't email at once: the job runner emails them at this time, and only
+  // if they are still unread (FLOWS §10 — "email only if unread after 10 min"). Null = no
+  // deferred email pending.
+  emailDueAt DateTime?
   createdAt  DateTime  @default(now())
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+  @@index([emailDueAt])
+}
+
+/// One row per time-based reminder already sent, so the once-a-minute job runner never sends
+/// the same reminder twice (restarts, overlapping runs, several app instances). The key names
+/// the reminder exactly, e.g. "HEARING_REMINDER:<entryId>:2026-11-14:7:<userId>".
+model ReminderLog {
+  key       String   @id
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 /// Per-user mute for a mutable NotificationRule (spec §5.9) — absence of a row means "on"
