@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 import { requireMatterChatAccess, canEditMatter } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
-import { previewText } from "@/lib/mentions";
+import { extractMentionIds, previewText } from "@/lib/mentions";
+import { CLOSED_CHAT_MESSAGE, checkCanDeleteMessage, isMatterChatReadOnly } from "@/lib/chat/rules";
+import { MESSAGE_INCLUDE, getMentionableUsers, loadMessagePage, serializeMessage, type MessagePage } from "@/lib/chat/messages";
 import { chatMessageUrl } from "@/lib/notifications/links";
 import { encryptFile, sha256Hex } from "@/lib/documents/encryption";
 import { putObject } from "@/lib/documents/storage";
@@ -17,6 +19,7 @@ import {
   postCaseMessageSchema,
   togglePinMessageSchema,
   deleteCaseMessageSchema,
+  loadEarlierSchema,
 } from "@/lib/validation/case-chat";
 
 export type ActionResult<T = unknown> = {
@@ -54,7 +57,6 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
   const matterId = String(formData.get("matterId") ?? "");
   const body = String(formData.get("body") ?? "");
   const attachedDocIdsRaw = formData.get("attachedDocumentIds");
-  const mentionedUserIdsRaw = formData.get("mentionedUserIds");
 
   let attachedDocumentIds: string[] = [];
   try {
@@ -63,18 +65,12 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
     attachedDocumentIds = [];
   }
 
-  let mentionedUserIds: string[] = [];
-  try {
-    if (mentionedUserIdsRaw) mentionedUserIds = JSON.parse(String(mentionedUserIdsRaw));
-  } catch {
-    mentionedUserIds = [];
-  }
-
+  // Note: any "mentionedUserIds" a client sends is ignored — mentions are derived from the
+  // message text below and checked against who can actually open this chat.
   const parsed = postCaseMessageSchema.safeParse({
     matterId,
     body,
     attachedDocumentIds,
-    mentionedUserIds,
   });
 
   if (!parsed.success) {
@@ -90,10 +86,16 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
   const user = await requireMatterChatAccess(matterId);
   const matter = await db.matter.findUnique({
     where: { id: matterId },
-    select: { id: true, title: true, reference: true },
+    select: { id: true, title: true, reference: true, status: true, organizationId: true },
   });
 
   if (!matter) return { error: "Case not found." };
+  if (isMatterChatReadOnly(matter.status)) return { error: CLOSED_CHAT_MESSAGE };
+
+  // Only people who can open this chat can be mentioned (assigned lawyers + the org's Admins).
+  const mentionable = await getMentionableUsers(matterId, matter.organizationId);
+  const mentionableIds = new Set(mentionable.map((u) => u.id));
+  const mentionedUserIds = extractMentionIds(body).filter((id) => mentionableIds.has(id));
 
   // Process uploaded files (envelope encryption + ClamAV scan)
   const preparedDirectUploads: {
@@ -207,18 +209,9 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
 
     // Create mentions
     if (mentionedUserIds.length > 0) {
-      const validUsers = await tx.user.findMany({
-        where: { id: { in: mentionedUserIds }, isActive: true },
-        select: { id: true },
+      await tx.matterMessageMention.createMany({
+        data: mentionedUserIds.map((userId) => ({ messageId: message.id, userId })),
       });
-      for (const u of validUsers) {
-        await tx.matterMessageMention.create({
-          data: {
-            messageId: message.id,
-            userId: u.id,
-          },
-        });
-      }
     }
 
     await tx.matter.update({
@@ -259,42 +252,9 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
   }
 
   // Fetch full serialized message to return & broadcast
-  const fullMessage = await db.matterMessage.findUniqueOrThrow({
-    where: { id: result.id },
-    include: {
-      author: { select: { id: true, name: true } },
-      pinnedBy: { select: { id: true, name: true } },
-      attachments: true,
-      mentions: { include: { user: { select: { id: true, name: true } } } },
-    },
-  });
-
-  const serialized: SerializedChatMessage = {
-    id: fullMessage.id,
-    matterId: fullMessage.matterId,
-    body: fullMessage.body,
-    createdAt: fullMessage.createdAt.toISOString(),
-    authorId: fullMessage.author.id,
-    authorName: fullMessage.author.name,
-    isPinned: fullMessage.isPinned,
-    pinnedAt: fullMessage.pinnedAt?.toISOString() ?? null,
-    pinnedById: fullMessage.pinnedById,
-    pinnedByName: fullMessage.pinnedBy?.name ?? null,
-    deletedAt: fullMessage.deletedAt?.toISOString() ?? null,
-    attachments: fullMessage.attachments.map((att) => ({
-      id: att.id,
-      name: att.name,
-      size: att.size,
-      mimeType: att.mimeType,
-      isLinkedDocument: Boolean(att.documentId),
-      documentId: att.documentId,
-      downloadUrl: `/api/cases/${matterId}/chat/attachments/${att.id}/download`,
-    })),
-    mentions: fullMessage.mentions.map((m) => ({
-      userId: m.user.id,
-      userName: m.user.name,
-    })),
-  };
+  const serialized = serializeMessage(
+    await db.matterMessage.findUniqueOrThrow({ where: { id: result.id }, include: MESSAGE_INCLUDE }),
+  );
 
   // Broadcast to active SSE clients
   chatEventBus.publish({
@@ -314,6 +274,10 @@ export async function togglePinCaseMessage(raw: unknown): Promise<ActionResult> 
 
   const { matterId, messageId, isPinned } = parsed.data;
   const user = await requireMatterChatAccess(matterId);
+
+  const pinMatter = await db.matter.findUnique({ where: { id: matterId }, select: { status: true } });
+  if (!pinMatter) return { error: "Case not found." };
+  if (isMatterChatReadOnly(pinMatter.status)) return { error: CLOSED_CHAT_MESSAGE };
 
   const canPin = await canEditMatter(user.id, user.role, matterId);
   if (!canPin) {
@@ -370,12 +334,17 @@ export async function deleteCaseMessage(raw: unknown): Promise<ActionResult> {
     return { error: "Message not found." };
   }
 
-  const canEdit = await canEditMatter(user.id, user.role, matterId);
-  const isAuthor = message.authorId === user.id;
+  const deleteMatter = await db.matter.findUnique({ where: { id: matterId }, select: { status: true } });
+  if (!deleteMatter) return { error: "Case not found." };
 
-  if (!isAuthor && !canEdit && user.role !== "ADMIN") {
-    return { error: "You do not have permission to delete this message." };
-  }
+  // Author within the edit window, or an Admin (moderation) — never once the matter is closed.
+  const allowed = checkCanDeleteMessage({
+    isAuthor: message.authorId === user.id,
+    isAdmin: user.role === "ADMIN",
+    createdAt: message.createdAt,
+    matterStatus: deleteMatter.status,
+  });
+  if (!allowed.ok) return { error: allowed.error };
 
   await db.matterMessage.update({
     where: { id: messageId },
@@ -404,14 +373,11 @@ export async function deleteCaseMessage(raw: unknown): Promise<ActionResult> {
   return {};
 }
 
-// Backwards compatibility for any legacy callers
-export async function postMessage(raw: unknown): Promise<{ error?: string } | void> {
-  const fd = new FormData();
-  if (typeof raw === "object" && raw !== null) {
-    const obj = raw as Record<string, unknown>;
-    if (obj.matterId) fd.append("matterId", String(obj.matterId));
-    if (obj.body) fd.append("body", String(obj.body));
-  }
-  const result = await postCaseMessage(fd);
-  if (result.error) return { error: result.error };
+/** Older history for the "Load earlier messages" button — same access rule as reading the chat. */
+export async function loadEarlierCaseMessages(raw: unknown): Promise<ActionResult<MessagePage>> {
+  const parsed = loadEarlierSchema.safeParse(raw);
+  if (!parsed.success) return { error: "Invalid request." };
+  const { matterId, before } = parsed.data;
+  await requireMatterChatAccess(matterId);
+  return { data: await loadMessagePage(matterId, new Date(before)) };
 }

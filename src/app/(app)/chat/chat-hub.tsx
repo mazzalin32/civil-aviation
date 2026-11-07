@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FileText,
   Link2,
+  Lock,
   Mic,
   Paperclip,
   Pin,
@@ -27,6 +28,7 @@ import {
   postCaseMessage,
   togglePinCaseMessage,
   deleteCaseMessage,
+  loadEarlierCaseMessages,
   type SerializedChatMessage,
 } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
 import { MentionPopover, type MentionUser } from "@/app/(app)/cases/[id]/tabs/mention-popover";
@@ -36,6 +38,7 @@ import { VideoCallPanel } from "@/components/app/video-call-panel";
 import { VoiceRecorder } from "@/components/app/voice-recorder";
 import { toast, withToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { CLOSED_CHAT_MESSAGE, checkCanDeleteMessage } from "@/lib/chat/rules";
 
 // ------------------------------------------------------------------
 // Types
@@ -226,7 +229,6 @@ export function CaseChatHub({
   allCases,
   initialSelectedCaseId,
   initialChatData,
-  allLawyers,
   highlightMessageId = null,
 }: {
   highlightMessageId?: string | null;
@@ -235,7 +237,6 @@ export function CaseChatHub({
   allCases: CaseConversationSummary[];
   initialSelectedCaseId: string | null;
   initialChatData: CaseChatData | null;
-  allLawyers: { id: string; name: string }[];
 }) {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(initialSelectedCaseId);
   const [conversations, setConversations] = useState<CaseConversationSummary[]>(allCases);
@@ -300,8 +301,15 @@ export function CaseChatHub({
   const pendingHighlightRef = useRef<string | null>(highlightMessageId);
   const [highlightedId, setHighlightedId] = useState<string | null>(highlightMessageId);
 
+  // Loading older history prepends messages; that must not yank the view to the bottom.
+  const skipAutoScrollRef = useRef(false);
+
   // Auto-scroll on new messages
   useEffect(() => {
+    if (skipAutoScrollRef.current) {
+      skipAutoScrollRef.current = false;
+      return;
+    }
     const pending = pendingHighlightRef.current;
     const target = pending ? document.getElementById(`msg-${pending}`) : null;
     if (target) {
@@ -312,6 +320,35 @@ export function CaseChatHub({
     }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatData?.messages.length]);
+
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  async function loadEarlier() {
+    if (!selectedCaseId || !chatData?.cursor || loadingEarlier) return;
+    setLoadingEarlier(true);
+    // Remember where the reader is so prepending history doesn't move what they were looking at.
+    const list = listRef.current;
+    const prevHeight = list?.scrollHeight ?? 0;
+    const prevTop = list?.scrollTop ?? 0;
+    try {
+      const res = await loadEarlierCaseMessages({ matterId: selectedCaseId, before: chatData.cursor });
+      if (res.error || !res.data) return void toast.error(res.error ?? "Could not load earlier messages.");
+      const page = res.data;
+      skipAutoScrollRef.current = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (list) list.scrollTop = prevTop + (list.scrollHeight - prevHeight);
+      }));
+      setChatData((prev) => {
+        if (!prev || prev.messages[0]?.matterId !== selectedCaseId) return prev;
+        const have = new Set(prev.messages.map((m) => m.id));
+        return { ...prev, messages: [...page.messages.filter((m) => !have.has(m.id)), ...prev.messages], hasMoreEarlier: page.hasMore, cursor: page.cursor ?? prev.cursor };
+      });
+    } catch {
+      toast.error("Could not load earlier messages.");
+    } finally {
+      setLoadingEarlier(false);
+    }
+  }
 
   // Handle switching cases
   const selectCase = useCallback(
@@ -447,7 +484,7 @@ export function CaseChatHub({
   }
 
   // Mention users list
-  const mentionUsers: MentionUser[] = allLawyers.map((l) => ({
+  const mentionUsers: MentionUser[] = (chatData?.mentionable ?? []).map((l) => ({
     id: l.id,
     name: l.name,
     isTeamMember: chatData?.team.some((t) => t.id === l.id),
@@ -997,7 +1034,7 @@ export function CaseChatHub({
             )}
 
             {/* Messages Feed */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            <div ref={listRef} className="flex-1 overflow-y-auto p-5 space-y-5">
               {isLoadingChat ? (
                 <div className="flex h-full items-center justify-center text-xs text-text-muted">
                   Loading discussion messages...
@@ -1019,7 +1056,20 @@ export function CaseChatHub({
                   </p>
                 </div>
               ) : (
-                groupedMessages.map((group) => (
+                <>
+                {chatData?.hasMoreEarlier && (
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={loadEarlier}
+                      disabled={loadingEarlier}
+                      className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-primary hover:bg-surface-muted disabled:opacity-60"
+                    >
+                      {loadingEarlier ? "Loading…" : "Load earlier messages"}
+                    </button>
+                  </div>
+                )}
+                {groupedMessages.map((group) => (
                   <div key={group.label} className="space-y-3">
                     {/* Date separator */}
                     <div className="relative flex items-center justify-center my-3">
@@ -1142,7 +1192,7 @@ export function CaseChatHub({
 
                             {/* Floating hover toolbar */}
                             <div className="absolute right-2 top-2 flex items-center gap-0.5 rounded-md border border-border/60 bg-surface px-1 py-0.5 shadow-xs opacity-0 transition-opacity group-hover:opacity-100">
-                              {chatData?.canPin && (
+                              {chatData?.canPin && !chatData?.readOnly && (
                                 <button
                                   type="button"
                                   onClick={() => handleTogglePin(m.id, !m.isPinned)}
@@ -1156,7 +1206,7 @@ export function CaseChatHub({
                                   )}
                                 </button>
                               )}
-                              {(isMine || chatData?.canPin) && (
+                              {!chatData?.readOnly && checkCanDeleteMessage({ isAuthor: isMine, isAdmin: !!chatData?.isAdmin, createdAt: m.createdAt, matterStatus: "OPEN" }).ok && (
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteMessage(m.id)}
@@ -1172,12 +1222,18 @@ export function CaseChatHub({
                       })}
                     </div>
                   </div>
-                ))
+                ))}
+                </>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Unified Composer Container */}
+            {/* Unified Composer Container — replaced by a notice once the matter is closed */}
+            {chatData?.readOnly ? (
+              <div className="flex shrink-0 items-center justify-center gap-2 border-t border-border/60 bg-surface-muted/40 p-4 text-xs text-text-muted">
+                <Lock className="size-3.5" /> {CLOSED_CHAT_MESSAGE}
+              </div>
+            ) : (
             <div className="border-t border-border/60 p-3.5 bg-surface shrink-0">
               <form
                 ref={formRef}
@@ -1332,6 +1388,7 @@ export function CaseChatHub({
                 </div>
               </form>
             </div>
+            )}
 
             {/* Document linking modal */}
             {showAttachDialog && (

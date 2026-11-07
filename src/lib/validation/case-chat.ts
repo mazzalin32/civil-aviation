@@ -20,6 +20,11 @@ export const deleteCaseMessageSchema = z.object({
   messageId: z.string().min(1),
 });
 
+export const loadEarlierSchema = z.object({
+  matterId: z.string().min(1),
+  before: z.string().datetime(),
+});
+
 export type PostCaseMessageInput = z.infer<typeof postCaseMessageSchema>;
 export type TogglePinMessageInput = z.infer<typeof togglePinMessageSchema>;
 export type DeleteCaseMessageInput = z.infer<typeof deleteCaseMessageSchema>;

@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FileText,
   Link2,
+  Lock,
   Mic,
   Paperclip,
   Pin,
@@ -20,10 +21,12 @@ import {
 import { Avatar } from "@/components/app/avatar";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/time";
+import { CLOSED_CHAT_MESSAGE, checkCanDeleteMessage } from "@/lib/chat/rules";
 import {
   postCaseMessage,
   togglePinCaseMessage,
   deleteCaseMessage,
+  loadEarlierCaseMessages,
   type SerializedChatMessage,
   type SerializedChatAttachment,
 } from "./discussion-actions";
@@ -229,17 +232,27 @@ export function DiscussionTab({
   currentUserId,
   messages: initialMessages,
   team,
-  allLawyers,
+  mentionable,
   caseDocuments,
   canPin,
+  readOnly,
+  isAdmin,
+  hasMoreEarlier: initialHasMore,
+  cursor: initialCursor,
 }: {
   matterId: string;
   currentUserId: string;
   messages: SerializedChatMessage[];
   team: { id: string; name: string; role: string }[];
-  allLawyers: { id: string; name: string }[];
+  /** Who can be @mentioned: the people who can open this chat. */
+  mentionable: { id: string; name: string }[];
   caseDocuments: LinkableDocument[];
   canPin: boolean;
+  /** Closed matter: no posting, pinning or deleting. */
+  readOnly: boolean;
+  isAdmin: boolean;
+  hasMoreEarlier: boolean;
+  cursor: string | null;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -269,13 +282,49 @@ export function DiscussionTab({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Loading older history prepends messages; that must not yank the view to the bottom.
+  const skipAutoScrollRef = useRef(false);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [cursor, setCursor] = useState(initialCursor);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+
+  async function loadEarlier() {
+    if (!cursor || loadingEarlier) return;
+    setLoadingEarlier(true);
+    // Keep the reader's place: prepending history grows the page above them.
+    const doc = document.documentElement;
+    const prevHeight = doc.scrollHeight;
+    const prevTop = window.scrollY;
+    try {
+      const res = await loadEarlierCaseMessages({ matterId, before: cursor });
+      if (res.error || !res.data) return void toast.error(res.error ?? "Could not load earlier messages.");
+      const page = res.data;
+      skipAutoScrollRef.current = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: prevTop + (doc.scrollHeight - prevHeight) })));
+      setMessages((prev) => {
+        const have = new Set(prev.map((m) => m.id));
+        return [...page.messages.filter((m) => !have.has(m.id)), ...prev];
+      });
+      setHasMore(page.hasMore);
+      if (page.cursor) setCursor(page.cursor);
+    } catch {
+      toast.error("Could not load earlier messages.");
+    } finally {
+      setLoadingEarlier(false);
+    }
+  }
+
   // Scroll to bottom on new messages
   useEffect(() => {
+    if (skipAutoScrollRef.current) {
+      skipAutoScrollRef.current = false;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
   // Prepare mention users list
-  const mentionUsers: MentionUser[] = allLawyers.map((l) => ({
+  const mentionUsers: MentionUser[] = mentionable.map((l) => ({
     id: l.id,
     name: l.name,
     isTeamMember: team.some((t) => t.id === l.id),
@@ -572,7 +621,7 @@ export function DiscussionTab({
       <PinnedBanner
         messages={messages}
         onUnpin={(id) => handlePin(id, false)}
-        canPin={canPin}
+        canPin={canPin && !readOnly}
       />
 
       {/* Message list */}
@@ -585,6 +634,18 @@ export function DiscussionTab({
           </p>
         ) : (
           <ul className="m-0 grid list-none gap-4 p-0">
+            {hasMore && (
+              <li className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={loadEarlier}
+                  disabled={loadingEarlier}
+                  className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-primary hover:bg-surface-muted disabled:opacity-60"
+                >
+                  {loadingEarlier ? "Loading…" : "Load earlier messages"}
+                </button>
+              </li>
+            )}
             {visibleMessages.map((m) => {
               const mine = m.authorId === currentUserId;
               return (
@@ -634,7 +695,7 @@ export function DiscussionTab({
                     </div>
                     {/* Message actions — visible on hover */}
                     <div className="mt-0.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      {canPin && (
+                      {canPin && !readOnly && (
                         <button
                           type="button"
                           onClick={() => handlePin(m.id, !m.isPinned)}
@@ -644,7 +705,7 @@ export function DiscussionTab({
                           {m.isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
                         </button>
                       )}
-                      {(mine || canPin) && (
+                      {!readOnly && checkCanDeleteMessage({ isAuthor: mine, isAdmin, createdAt: m.createdAt, matterStatus: "OPEN" }).ok && (
                         <button
                           type="button"
                           onClick={() => handleDelete2(m.id)}
@@ -664,7 +725,12 @@ export function DiscussionTab({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Composer */}
+      {/* Composer — replaced by a notice once the matter is closed */}
+      {readOnly ? (
+        <div className="flex items-center justify-center gap-2 rounded-card border border-border bg-surface-muted/40 p-4 text-[13px] text-text-muted">
+          <Lock className="size-3.5" /> {CLOSED_CHAT_MESSAGE}
+        </div>
+      ) : (
       <form
         ref={formRef}
         onSubmit={(e) => {
@@ -767,6 +833,7 @@ export function DiscussionTab({
           </Button>
         </div>
       </form>
+      )}
 
       {/* Attach document dialog */}
       {showAttachDialog && (

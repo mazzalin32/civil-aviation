@@ -3,20 +3,34 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { canAccessMatterChat, canEditMatter } from "@/lib/authz";
+import { isMatterChatReadOnly } from "@/lib/chat/rules";
+import { getMentionableUsers, loadMessagePage, loadMessagePageUntil, type Mentionable } from "@/lib/chat/messages";
 import type {
   SerializedChatMessage,
 } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
 import type { LinkableDocument } from "@/app/(app)/cases/[id]/tabs/attach-document-dialog";
 
 export type CaseChatData = {
+  /** The latest page of the thread (plus every pinned message), oldest first. */
   messages: SerializedChatMessage[];
+  /** Older history exists; pass `cursor` to loadEarlierCaseMessages. */
+  hasMoreEarlier: boolean;
+  cursor: string | null;
   caseDocuments: LinkableDocument[];
   team: { id: string; name: string; role: string }[];
+  /** Who can be @mentioned: the people who can open this chat (assigned lawyers + org Admins). */
+  mentionable: Mentionable[];
   canPin: boolean;
+  /** Closed matter: nobody can post, pin or delete. */
+  readOnly: boolean;
+  isAdmin: boolean;
 };
 
+/** Everything the chat UI needs for one case, after the same access checks the stream and download routes apply. */
 export async function getCaseChatData(
-  matterId: string
+  matterId: string,
+  /** Make sure this message is in the returned page (deep link from a notification). */
+  ensureMessageId?: string,
 ): Promise<{ error?: string; data?: CaseChatData }> {
   const user = await getCurrentUser();
   if (!user) return { error: "Authentication required." };
@@ -29,7 +43,7 @@ export async function getCaseChatData(
     return { error: "You are not assigned to this case." };
   }
 
-  const [matter, rawMessages, rawDocuments] = await Promise.all([
+  const [matter, page, rawDocuments, mentionable] = await Promise.all([
     db.matter.findUnique({
       where: { id: matterId },
       include: {
@@ -39,16 +53,7 @@ export async function getCaseChatData(
         },
       },
     }),
-    db.matterMessage.findMany({
-      where: { matterId },
-      include: {
-        author: { select: { id: true, name: true } },
-        pinnedBy: { select: { id: true, name: true } },
-        attachments: true,
-        mentions: { include: { user: { select: { id: true, name: true } } } },
-      },
-      orderBy: { createdAt: "asc" },
-    }),
+    ensureMessageId ? loadMessagePageUntil(matterId, ensureMessageId) : loadMessagePage(matterId),
     db.document.findMany({
       where: { matterId, deletedAt: null },
       include: {
@@ -57,6 +62,7 @@ export async function getCaseChatData(
       },
       orderBy: { name: "asc" },
     }),
+    getMentionableUsers(matterId, matterOrg.organizationId),
   ]);
 
   if (!matter) return { error: "Case not found." };
@@ -68,33 +74,6 @@ export async function getCaseChatData(
     role: a.role,
   }));
 
-  const messages: SerializedChatMessage[] = rawMessages.map((m) => ({
-    id: m.id,
-    matterId: m.matterId,
-    body: m.body,
-    createdAt: m.createdAt.toISOString(),
-    authorId: m.author.id,
-    authorName: m.author.name,
-    isPinned: m.isPinned,
-    pinnedAt: m.pinnedAt?.toISOString() ?? null,
-    pinnedById: m.pinnedById,
-    pinnedByName: m.pinnedBy?.name ?? null,
-    deletedAt: m.deletedAt?.toISOString() ?? null,
-    attachments: m.attachments.map((att) => ({
-      id: att.id,
-      name: att.name,
-      size: att.size,
-      mimeType: att.mimeType,
-      isLinkedDocument: Boolean(att.documentId),
-      documentId: att.documentId,
-      downloadUrl: `/api/cases/${matter.id}/chat/attachments/${att.id}/download`,
-    })),
-    mentions: m.mentions.map((men) => ({
-      userId: men.user.id,
-      userName: men.user.name,
-    })),
-  }));
-
   const caseDocuments: LinkableDocument[] = rawDocuments.map((d) => ({
     id: d.id,
     name: d.name,
@@ -104,10 +83,15 @@ export async function getCaseChatData(
 
   return {
     data: {
-      messages,
+      messages: page.messages,
+      hasMoreEarlier: page.hasMore,
+      cursor: page.cursor,
       caseDocuments,
       team,
+      mentionable,
       canPin,
+      readOnly: isMatterChatReadOnly(matter.status),
+      isAdmin: user.role === "ADMIN",
     },
   };
 }

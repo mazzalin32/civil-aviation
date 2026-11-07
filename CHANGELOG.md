@@ -1,5 +1,17 @@
 # Changelog
 
+## Chat hardening — step 1 of the chat pass (2026-11-07)
+
+Correctness and security fixes to case chat, found in an audit against FLOWS §10. No schema changes.
+
+- **Mentions are validated on the server.** The server now derives mentions from the message text (the client-supplied id list is ignored) and keeps only people who can actually open that chat — the matter's assigned lawyers plus the organisation's active Admins (`getMentionableUsers`). Before, any active user id was accepted, so a crafted request could notify a user in another organisation with this case's title, and mentioning an unassigned lawyer sent them a notification leading to a "forbidden" page. The @-autocomplete in the Chat page and the case Discussion tab uses the same list, so it no longer offers people who can't see the chat.
+- **Delete rule matches the spec:** the author for 15 minutes, or an Admin at any time (moderation; still a soft delete with an audit row). Previously the author could delete at any time and any lead/support lawyer could delete anyone's message. The 15 minutes lives in one constant (`MESSAGE_EDIT_WINDOW_MINUTES`).
+- **A closed matter's chat is read-only** (FLOWS §10 step 5): posting, pinning and deleting are refused by the server, and both screens replace the composer with a notice and hide the pin/delete buttons.
+- **Pagination:** a thread loads the latest 50 messages plus every pinned message, with a "Load earlier messages" button for older history (the reader's place is kept). Deep links from notifications keep loading older pages until the target message is included. Search covers the messages loaded so far.
+- **Less duplication:** one loader/serialiser (`src/lib/chat/messages.ts`) now backs the Chat page, the case Discussion tab, the stream payload and the chat server actions — previously four copies. Removed the unused legacy `postMessage` wrapper. Business rules are pure functions in `src/lib/chat/rules.ts` with tests.
+
+Verified live in a real browser against 60 seeded temporary messages (removed afterwards): first page capped at 50, load-earlier fetched the rest and kept the reading position, the mention list excluded unassigned lawyers, no delete button on old messages but one on a fresh one, and a CLOSED matter showed the read-only notice with no composer or delete buttons.
+
 ## Real-time notifications + cleaner bell (2026-11-07)
 
 Notifications now arrive live instead of on a 45-second poll, and no longer show raw mention markup.

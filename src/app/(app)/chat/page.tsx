@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
-import { requireRole, canEditMatter } from "@/lib/authz";
+import { requireRole } from "@/lib/authz";
 import { orgId } from "@/lib/org";
 import { CaseChatHub, type CaseConversationSummary } from "./chat-hub";
-import type { CaseChatData } from "./actions";
+import { getCaseChatData, type CaseChatData } from "./actions";
 
 export const metadata = { title: "Case Chat" };
 
@@ -114,93 +114,13 @@ export default async function ChatPage({
   // A notification deep-links to one message (?msg=…). Only honoured if it belongs to the selected thread.
   const requestedMessageId = typeof sp?.msg === "string" ? sp.msg : undefined;
 
-  let initialChatData: CaseChatData | null = null;
-
-  if (selectedCaseId) {
-    const [rawMessages, rawDocuments, canPin, selectedMatter] = await Promise.all([
-      db.matterMessage.findMany({
-        where: { matterId: selectedCaseId },
-        include: {
-          author: { select: { id: true, name: true } },
-          pinnedBy: { select: { id: true, name: true } },
-          attachments: true,
-          mentions: { include: { user: { select: { id: true, name: true } } } },
-        },
-        orderBy: { createdAt: "asc" },
-      }),
-      db.document.findMany({
-        where: { matterId: selectedCaseId, deletedAt: null },
-        include: {
-          folder: true,
-          currentVersion: { select: { size: true } },
-        },
-        orderBy: { name: "asc" },
-      }),
-      canEditMatter(user.id, user.role, selectedCaseId),
-      db.matter.findUnique({
-        where: { id: selectedCaseId },
-        select: {
-          assignments: {
-            where: { removedAt: null },
-            include: { user: { select: { id: true, name: true } } },
-          },
-        },
-      }),
-    ]);
-
-    const team = (selectedMatter?.assignments ?? []).map((a) => ({
-      id: a.user.id,
-      name: a.user.name,
-      role: a.role,
-    }));
-
-    initialChatData = {
-      messages: rawMessages.map((m) => ({
-        id: m.id,
-        matterId: m.matterId,
-        body: m.body,
-        createdAt: m.createdAt.toISOString(),
-        authorId: m.author.id,
-        authorName: m.author.name,
-        isPinned: m.isPinned,
-        pinnedAt: m.pinnedAt?.toISOString() ?? null,
-        pinnedById: m.pinnedById,
-        pinnedByName: m.pinnedBy?.name ?? null,
-        deletedAt: m.deletedAt?.toISOString() ?? null,
-        attachments: m.attachments.map((att) => ({
-          id: att.id,
-          name: att.name,
-          size: att.size,
-          mimeType: att.mimeType,
-          isLinkedDocument: Boolean(att.documentId),
-          documentId: att.documentId,
-          downloadUrl: `/api/cases/${selectedCaseId}/chat/attachments/${att.id}/download`,
-        })),
-        mentions: m.mentions.map((men) => ({
-          userId: men.user.id,
-          userName: men.user.name,
-        })),
-      })),
-      caseDocuments: rawDocuments.map((d) => ({
-        id: d.id,
-        name: d.name,
-        folderName: d.folder.name,
-        size: d.currentVersion?.size ?? null,
-      })),
-      team,
-      canPin,
-    };
-  }
+  // Same loader (and same access checks) the hub uses when you switch conversations.
+  const initialChatData: CaseChatData | null = selectedCaseId
+    ? ((await getCaseChatData(selectedCaseId, requestedMessageId)).data ?? null)
+    : null;
 
   const highlightMessageId =
     requestedMessageId && initialChatData?.messages.some((m) => m.id === requestedMessageId) ? requestedMessageId : null;
-
-  // Active lawyers for @mentions
-  const allLawyers = await db.user.findMany({
-    where: { role: "LAWYER", isActive: true, organizationId: orgId(user.organizationId) },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
 
   return (
     <div className="-mt-1 -mb-6">
@@ -214,7 +134,6 @@ export default async function ChatPage({
         allCases={conversationSummaries}
         initialSelectedCaseId={selectedCaseId}
         initialChatData={initialChatData}
-        allLawyers={allLawyers}
       />
     </div>
   );

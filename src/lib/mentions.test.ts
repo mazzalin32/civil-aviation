@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { previewText, stripMentionTokens } from "./mentions";
+import { extractMentionIds, previewText, stripMentionTokens } from "./mentions";
 
 describe("stripMentionTokens", () => {
   it("turns a mention token into @Name", () => {
@@ -28,4 +28,13 @@ describe("previewText", () => {
     expect(out.endsWith("…")).toBe(true);
   });
   it("does not add an ellipsis to short text", () => expect(previewText("short", 40)).toBe("short"));
+});
+
+describe("extractMentionIds", () => {
+  it("returns ids in order without duplicates", () => {
+    expect(extractMentionIds("@[A](user:u1) hi @[B](user:u2) and again @[A](user:u1)")).toEqual(["u1", "u2"]);
+  });
+  it("ignores plain @text and malformed tokens", () => {
+    expect(extractMentionIds("@Agnes please see @[Broken(user:x) and @[N](notuser:1)")).toEqual([]);
+  });
 });

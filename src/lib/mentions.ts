@@ -8,6 +8,14 @@ const FULL_TOKEN = /@\[([^\]]+)\]\(user:[^)]*\)/g;
 const TRUNCATED_TOKEN = /@\[([^\]]+)\]\(user:[^)]*$/;
 const DANGLING_OPEN = /@\[[^\]]*$/;
 
+/** User ids mentioned in a message body, in order, without duplicates. The server derives mentions
+ *  from the text itself rather than trusting a separate list from the client. */
+export function extractMentionIds(body: string): string[] {
+  const ids: string[] = [];
+  for (const m of body.matchAll(/@\[[^\]]+\]\(user:([^)\s]+)\)/g)) if (!ids.includes(m[1])) ids.push(m[1]);
+  return ids;
+}
+
 export function stripMentionTokens(text: string): string {
   return text.replace(FULL_TOKEN, "@$1").replace(TRUNCATED_TOKEN, "@$1").replace(DANGLING_OPEN, "").replace(/\s+/g, " ").trim();
 }
