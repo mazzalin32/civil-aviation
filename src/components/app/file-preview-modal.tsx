@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import {
   Download,
@@ -220,10 +221,18 @@ export function FilePreviewModal({
 
           {category === "image" && (
             <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
-              <img
+              {/* `unoptimized`: this is a private case file served by the permission-checked download route.
+                  Next's image optimizer would fetch it server-side without the user's session and cache resized
+                  copies on disk, bypassing the permission check and access log — so it must not be used here.
+                  width/height 0 + auto sizing keeps the file's natural size, capped to the window (as before). */}
+              <Image
                 src={file.viewUrl}
                 alt={file.name}
-                className="max-h-full max-w-full object-contain rounded-md shadow-md"
+                width={0}
+                height={0}
+                sizes="100vw"
+                unoptimized
+                className="h-auto w-auto max-h-full max-w-full object-contain rounded-md shadow-md"
               />
             </div>
           )}

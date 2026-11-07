@@ -1,5 +1,13 @@
 # Changelog
 
+## Lint is fully clean: image preview uses next/image (2026-11-07)
+
+The last lint warning (`<img>` in the file preview) is gone. The preview now uses `next/image` with `unoptimized`, on purpose: these are private case files served by the permission-checked download route, and Next's image optimizer would fetch them server-side without the user's session and cache resized copies on disk, bypassing the permission check and access log. Sizing is unchanged (natural size, capped to the window — checked with a small and a large image). Full `eslint` now reports nothing.
+
+## Contracts list: the whole row is clickable (2026-11-07)
+
+Client feedback: clicking a contract in the Contracts list "did nothing". Only the title text was a link, yet the whole row highlighted on hover, so it looked clickable. New `ClickableRow` (`components/app/clickable-row.tsx`) opens the contract when you click anywhere on the row; links and buttons inside it keep their own behaviour, the title link stays for keyboard / middle-click / new tab, and selecting text doesn't trigger it. Verified in a browser: clicking a non-title cell opens the contract, the title link still works, and the Matters list already behaved correctly.
+
 ## Department channel — step 4 of the chat pass (2026-11-07)
 
 The org-wide department chat from PROJECT_SPEC §5.14 / the 2026-09-30 decision now exists: a **Department chat** conversation at the top of the Chat hub, separate from each case's own thread. **Schema change** (migration `department_channel`): `GroupMessage` gains `organizationId` (backfilled for the existing welcome message), `editedAt`, `replyToId`, `deletedAt`/`deletedById`; its unused placeholder columns `attachmentName` / `attachmentUrl` / `voiceNoteUrl` (raw file URLs, against the never-expose-storage-URLs rule) are dropped; new `GroupChatRead` per-user read marker.
@@ -10,7 +18,9 @@ The org-wide department chat from PROJECT_SPEC §5.14 / the 2026-09-30 decision 
 - **One thread engine for both:** the thread and composer hooks now take a small `ThreadApi` adapter (`thread-api.ts`: post / edit / delete / load earlier / mark read / stream URL), so case threads and the department channel run the same code. The three SSE routes share `lib/sse.ts`, and the per-user live bus now carries named events (`notification`, `chat-activity`).
 - Also removed the unused `lib/validation/group-chat.ts`.
 
-Unit tests added for the channel key, department links and mention parsing (62 tests total). The department live suite (`chat4`: unread chip with no bell entry, divider, quiet live delivery, mention → bell, reply quote + notification, edit, admin delete, audit rows, signed-out stream refused) is written but **was not run before this entry was written** — the dev server had to be restarted to pick up the regenerated Prisma client and that was blocked; see below.
+Unit tests added for the channel key, department links and mention parsing (62 tests total). Verified live with two real sessions (22 checks): the stream refuses signed-out requests; a plain message raises the sidebar chip and the list badge live with **no** bell entry; opening the channel shows the divider and clears both badges; live delivery while viewing is quiet; an @mention makes a bell entry naming the department chat and raises the chip once (not twice); a reply carries its quote and notifies the replied-to person; edit shows (edited) live; an Admin cannot edit but can delete another person's message; and post / edit / delete each wrote an audit row. The case-chat suites (paging, mentions, delete rule, read-only, two-user live, unread / reply / edit) still pass after the thread code was generalised.
+
+**Video calls verified (LiveKit configured in .env):** two sessions joined the same case room, each saw both participants, and leaving closed the panel (headless browser with fake camera/microphone).
 
 Operational note: restart the dev server after pulling this (new Prisma client, as with the previous migration).
 
