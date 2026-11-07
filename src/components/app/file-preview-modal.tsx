@@ -14,7 +14,6 @@ import {
   FileCode,
   Mic,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export type PreviewFile = {
   name: string;
@@ -100,36 +99,40 @@ export function FilePreviewModal({
     };
   }, [file]);
 
+  // Opening a different file resets the preview state. Done during render (React's "adjust state
+  // when a prop changes" pattern) instead of inside the fetch effect below.
+  const [prevFile, setPrevFile] = useState(file);
+  if (prevFile !== file) {
+    setPrevFile(file);
+    setTextContent(null);
+    setLoadError(null);
+    setIsLoadingText(!!file && getFileCategory(file.name, file.mimeType) === "text");
+  }
+
   // Fetch text file content if category is text
   useEffect(() => {
-    if (!file) {
-      setTextContent(null);
-      setLoadError(null);
-      return;
-    }
+    if (!file || getFileCategory(file.name, file.mimeType) !== "text") return;
+    let cancelled = false;
 
-    const category = getFileCategory(file.name, file.mimeType);
-    if (category === "text") {
-      setIsLoadingText(true);
-      setLoadError(null);
+    fetch(file.viewUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load text preview");
+        return res.text();
+      })
+      .then((text) => {
+        if (cancelled) return;
+        setTextContent(text);
+        setIsLoadingText(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError("Could not render text file.");
+        setIsLoadingText(false);
+      });
 
-      fetch(file.viewUrl)
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to load text preview");
-          return res.text();
-        })
-        .then((text) => {
-          setTextContent(text);
-          setIsLoadingText(false);
-        })
-        .catch(() => {
-          setLoadError("Could not render text file.");
-          setIsLoadingText(false);
-        });
-    } else {
-      setTextContent(null);
-      setLoadError(null);
-    }
+    return () => {
+      cancelled = true; // a slow response for a previous file must not overwrite the current one
+    };
   }, [file]);
 
   if (!file) return null;

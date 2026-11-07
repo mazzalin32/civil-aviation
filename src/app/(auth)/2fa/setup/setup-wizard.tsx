@@ -30,7 +30,7 @@ export function SetupWizard({ email }: { email: string }) {
   function send() {
     setError(undefined);
     setSending(true);
-    sendTwoFactorSetupOtp().then(applySendResult);
+    sendTwoFactorSetupOtp({ resend: true }).then(applySendResult);
   }
 
   // Send the first code as soon as the page opens — one less click. Every setState call

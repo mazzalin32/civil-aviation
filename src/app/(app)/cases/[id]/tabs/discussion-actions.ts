@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { requireMatterChatAccess, canEditMatter } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
+import { previewText } from "@/lib/mentions";
+import { chatMessageUrl } from "@/lib/notifications/links";
 import { encryptFile, sha256Hex } from "@/lib/documents/encryption";
 import { putObject } from "@/lib/documents/storage";
 import { scanBuffer } from "@/lib/documents/virus-scan";
@@ -249,8 +251,8 @@ export async function postCaseMessage(formData: FormData): Promise<ActionResult<
         type: "MESSAGE_MENTION",
         matterId,
         subject: `Mentioned in ${matter.reference}`,
-        message: `${user.name} mentioned you in ${matter.title}: "${body.slice(0, 120)}"`,
-        url: `/cases/${matterId}?tab=discussion#msg-${result.id}`,
+        message: `${user.name} mentioned you in ${matter.title}: "${previewText(body, 120)}"`,
+        url: chatMessageUrl(matterId, result.id),
         payload: { matterId, messageId: result.id },
       });
     }

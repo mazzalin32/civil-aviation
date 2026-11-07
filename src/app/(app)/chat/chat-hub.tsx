@@ -28,14 +28,14 @@ import {
   togglePinCaseMessage,
   deleteCaseMessage,
   type SerializedChatMessage,
-  type SerializedChatAttachment,
 } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
 import { MentionPopover, type MentionUser } from "@/app/(app)/cases/[id]/tabs/mention-popover";
-import { AttachDocumentDialog, type LinkableDocument } from "@/app/(app)/cases/[id]/tabs/attach-document-dialog";
+import { AttachDocumentDialog } from "@/app/(app)/cases/[id]/tabs/attach-document-dialog";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
 import { VideoCallPanel } from "@/components/app/video-call-panel";
 import { VoiceRecorder } from "@/components/app/voice-recorder";
 import { toast, withToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
 // ------------------------------------------------------------------
 // Types
@@ -227,7 +227,9 @@ export function CaseChatHub({
   initialSelectedCaseId,
   initialChatData,
   allLawyers,
+  highlightMessageId = null,
 }: {
+  highlightMessageId?: string | null;
   currentUserId: string;
   currentUserRole: string;
   allCases: CaseConversationSummary[];
@@ -293,8 +295,21 @@ export function CaseChatHub({
 
   const selectedCase = conversations.find((c) => c.id === selectedCaseId) ?? null;
 
+  // Message a notification linked to: shown once (scrolled to the middle, briefly tinted) instead of
+  // jumping to the bottom, then normal "scroll to newest" behaviour resumes.
+  const pendingHighlightRef = useRef<string | null>(highlightMessageId);
+  const [highlightedId, setHighlightedId] = useState<string | null>(highlightMessageId);
+
   // Auto-scroll on new messages
   useEffect(() => {
+    const pending = pendingHighlightRef.current;
+    const target = pending ? document.getElementById(`msg-${pending}`) : null;
+    if (target) {
+      pendingHighlightRef.current = null;
+      target.scrollIntoView({ block: "center" });
+      const t = setTimeout(() => setHighlightedId(null), 3500);
+      return () => clearTimeout(t);
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatData?.messages.length]);
 
@@ -448,10 +463,14 @@ export function CaseChatHub({
     return a.name.localeCompare(b.name);
   });
 
-  // Reset mention index when query changes
-  useEffect(() => {
+  // Reset the highlighted suggestion when the query changes. Done during render (React's
+  // "adjust state when a prop/state changes" pattern) rather than in an effect, which would
+  // render the stale index once before correcting it.
+  const [prevMentionQuery, setPrevMentionQuery] = useState(mentionQuery);
+  if (prevMentionQuery !== mentionQuery) {
+    setPrevMentionQuery(mentionQuery);
     setMentionSelectedIndex(0);
-  }, [mentionQuery]);
+  }
 
   // Composer mention triggers with accurate caret offset
   function handleTextareaInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
@@ -1023,7 +1042,10 @@ export function CaseChatHub({
                           <div
                             key={m.id}
                             id={`msg-${m.id}`}
-                            className="group relative flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-surface-muted/30"
+                            className={cn(
+                              "group relative flex items-start gap-3 rounded-lg p-2 transition-colors duration-700 hover:bg-surface-muted/30",
+                              m.id === highlightedId && "bg-primary-soft ring-1 ring-primary/40",
+                            )}
                           >
                             <Avatar
                               name={m.authorName}

@@ -1,5 +1,19 @@
 # Changelog
 
+## Real-time notifications + cleaner bell (2026-11-07)
+
+Notifications now arrive live instead of on a 45-second poll, and no longer show raw mention markup.
+
+- **Live push (SSE):** new `GET /api/notifications/stream` streams the signed-in user's own notifications. `notify()` publishes to a per-user in-process bus (`src/lib/notifications/event-bus.ts`, same pattern as the chat bus) right after the row is created and before the email send. The bell prepends the item, bumps the badge, plays a short bell animation (off under `prefers-reduced-motion`) and shows a toast when the panel is closed. Polling stays only as a 2-minute fallback, and the client re-syncs on every automatic reconnect. Streams close after 10 minutes so the browser reconnects and re-checks the session.
+- **Bus limitation:** in-process, like chat — it only reaches connections on the same Node process. If notifications are ever published from another process (the unbuilt reminder job runner) or the app runs on several instances, swap the internals of `event-bus.ts` to Postgres LISTEN/NOTIFY (PROJECT_SPEC §4); its two exported functions stay the same.
+- **Mention bug:** the bell showed `@[Agnes Nakato](user:cmw68…)` because the chat body was interpolated into the notification text unmodified (and cut at 120 chars first, which could split the token). New `src/lib/mentions.ts` resolves tokens to `@Name` before truncating; `notify()` also cleans every message/subject centrally, so emails and all other callers are covered, and the bell cleans rows saved before this fix.
+- **Display:** rows now show a type label and icon (blue = activity, amber = due soon, red = needs attention), the case/contract reference as a chip, a two-line preview, a relative time and an unread dot, grouped Today / Earlier, with empty and error states. `NotificationItem` moved to `src/lib/notifications/item.ts` and gained `reference`. No schema changes.
+
+- **Mentions open the Chat, not the case:** a mention used to link to the case's Discussion tab (`/cases/:id?tab=discussion#msg-…`), which neither opened the Chat page nor scrolled anywhere. It now links to `/chat?caseId=…&msg=…` (`src/lib/notifications/links.ts`); the Chat hub opens that thread, scrolls the message to the centre and tints it for a few seconds. Notifications saved with the old link are rewritten on read. The hub is now keyed on case + message, because navigating `/chat` → `/chat?caseId=…` from the bell previously kept the old thread (selection lives in client state).
+- **Lint cleanup:** full `eslint` is now 0 errors (was 3 × `react-hooks/set-state-in-effect`: mention-index reset in `chat-hub.tsx` and `discussion-tab.tsx`, preview reset in `file-preview-modal.tsx` — now reset during render, and the preview fetch ignores stale responses). Removed unused imports/state, and configured a leading `_` as "deliberately unused" so `canUploadDocument`'s kept signature stops warning. One warning remains (`<img>` in the file preview, which loads through the permission-checked download route, so `next/image` doesn't fit).
+
+Verified live in a real browser (signed in as a lawyer, notification created server-side without reloading): the bell updated in ~90 ms, the toast and panel rendered, and no raw token appeared. On the very first request after a dev-server restart the stream route has to compile, which can take several seconds — the bell catches up as soon as it connects.
+
 ## 2FA switched from authenticator app to emailed codes (2026-11-02)
 
 The QR-code/authenticator-app (TOTP) setup was reportedly too fiddly for staff, so replaced it with Better Auth's built-in email-OTP method — a 6-digit code emailed at login, nothing to install. Scrapped, not kept alongside TOTP: backup codes, the QR step, and the "scan with Google Authenticator" copy are all gone.

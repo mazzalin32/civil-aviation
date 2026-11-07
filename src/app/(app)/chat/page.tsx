@@ -111,6 +111,9 @@ export default async function ChatPage({
     ? requestedCaseId!
     : conversationSummaries[0]?.id ?? null;
 
+  // A notification deep-links to one message (?msg=…). Only honoured if it belongs to the selected thread.
+  const requestedMessageId = typeof sp?.msg === "string" ? sp.msg : undefined;
+
   let initialChatData: CaseChatData | null = null;
 
   if (selectedCaseId) {
@@ -189,6 +192,9 @@ export default async function ChatPage({
     };
   }
 
+  const highlightMessageId =
+    requestedMessageId && initialChatData?.messages.some((m) => m.id === requestedMessageId) ? requestedMessageId : null;
+
   // Active lawyers for @mentions
   const allLawyers = await db.user.findMany({
     where: { role: "LAWYER", isActive: true, organizationId: orgId(user.organizationId) },
@@ -198,7 +204,11 @@ export default async function ChatPage({
 
   return (
     <div className="-mt-1 -mb-6">
+      {/* keyed: a notification click is a same-route navigation (/chat → /chat?caseId=…&msg=…); without
+          a key the hub keeps its old selected case, because that lives in client state. */}
       <CaseChatHub
+        key={`${selectedCaseId ?? "none"}:${highlightMessageId ?? ""}`}
+        highlightMessageId={highlightMessageId}
         currentUserId={user.id}
         currentUserRole={user.role}
         allCases={conversationSummaries}

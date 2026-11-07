@@ -254,7 +254,6 @@ export function DiscussionTab({
   // Composer state
   const [directFiles, setDirectFiles] = useState<File[]>([]);
   const [linkedDocIds, setLinkedDocIds] = useState<string[]>([]);
-  const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [showAttachDialog, setShowAttachDialog] = useState(false);
 
   // @mention
@@ -291,9 +290,12 @@ export function DiscussionTab({
     return a.name.localeCompare(b.name);
   });
 
-  useEffect(() => {
+  // Reset the highlighted suggestion when the query changes — during render, not in an effect.
+  const [prevMentionQuery, setPrevMentionQuery] = useState(mentionQuery);
+  if (prevMentionQuery !== mentionQuery) {
+    setPrevMentionQuery(mentionQuery);
     setMentionSelectedIndex(0);
-  }, [mentionQuery]);
+  }
 
   // SSE callbacks (wrapped in useCallback to avoid re-subscribing)
   const handleNewMessage = useCallback((msg: SerializedChatMessage) => {

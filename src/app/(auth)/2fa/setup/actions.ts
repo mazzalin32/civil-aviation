@@ -4,15 +4,17 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit";
+import { sendTwoFactorOtpOnce } from "@/lib/two-factor-otp";
 import { getCurrentUser } from "@/lib/session";
 import { otpCodeSchema } from "@/lib/validation/auth";
 
 export type SendResult = { ok: true } | { ok: false; error: string };
 
-/** Emails the first code. Also used to resend — each call issues a fresh code. */
-export async function sendTwoFactorSetupOtp(): Promise<SendResult> {
+/** Emails the first code (duplicate mount-time calls collapse into one send). Pass
+ *  `resend: true` for an explicit "Resend" click — that always issues a fresh code. */
+export async function sendTwoFactorSetupOtp({ resend = false }: { resend?: boolean } = {}): Promise<SendResult> {
   try {
-    await auth.api.sendTwoFactorOTP({ headers: await headers(), asResponse: false });
+    await sendTwoFactorOtpOnce({ force: resend });
     return { ok: true };
   } catch {
     return { ok: false, error: "Couldn't send the code. Try again in a moment." };
