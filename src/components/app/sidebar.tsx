@@ -1,6 +1,6 @@
 "use client";
 
-import { CHAT_NOTIFICATION_TYPES, NOTIFICATION_EVENT } from "@/lib/notifications/links";
+import { CHAT_ACTIVITY_EVENT, CHAT_NOTIFICATION_TYPES, NOTIFICATION_EVENT } from "@/lib/notifications/links";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -76,8 +76,15 @@ export function Sidebar({ user, openTaskCount = 0, unreadChatCount = 0 }: { user
       const item = (e as CustomEvent<{ type: string }>).detail;
       if (CHAT_NOTIFICATION_TYPES.includes(item.type)) setLive((l) => ({ ...l, extra: l.extra + 1 }));
     }
+    function onActivity() {
+      setLive((l) => ({ ...l, extra: l.extra + 1 }));
+    }
     window.addEventListener(NOTIFICATION_EVENT, onNotification);
-    return () => window.removeEventListener(NOTIFICATION_EVENT, onNotification);
+    window.addEventListener(CHAT_ACTIVITY_EVENT, onActivity);
+    return () => {
+      window.removeEventListener(NOTIFICATION_EVENT, onNotification);
+      window.removeEventListener(CHAT_ACTIVITY_EVENT, onActivity);
+    };
   }, []);
 
   useEffect(() => {

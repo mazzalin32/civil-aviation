@@ -2,7 +2,9 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { orgId } from "@/lib/org";
 import { getUnreadCounts } from "@/lib/chat/unread";
-import { CaseChatHub, type CaseConversationSummary } from "./chat-hub";
+import { getDepartmentLastMessage, getDepartmentUnread } from "@/lib/chat/department";
+import { getDepartmentChatData, type DepartmentChatData } from "./department-actions";
+import { CaseChatHub, type CaseConversationSummary, type DepartmentSummary } from "./chat-hub";
 import { getCaseChatData, type CaseChatData } from "./actions";
 
 export const metadata = { title: "Case Chat" };
@@ -12,7 +14,7 @@ export default async function ChatPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const user = await requireRole();
+  const user = await requireRole("ADMIN", "LAWYER"); // the Chat page is for an organisation's own staff
   const isAdmin = user.role === "ADMIN";
 
   // Per user requirement:
@@ -104,6 +106,25 @@ export default async function ChatPage({
     };
   });
 
+  // The department channel's line in the list (newest message + your unread count).
+  const [departmentLast, departmentUnread] = await Promise.all([
+    user.organizationId ? getDepartmentLastMessage(user.organizationId) : null,
+    getDepartmentUnread(user),
+  ]);
+  const departmentSummary: DepartmentSummary = {
+    unreadCount: departmentUnread,
+    lastMessage: departmentLast
+      ? {
+          id: departmentLast.id,
+          body: departmentLast.body,
+          createdAt: departmentLast.createdAt.toISOString(),
+          authorName: departmentLast.author.name,
+          authorId: departmentLast.author.id,
+          hasAttachments: false,
+        }
+      : null,
+  };
+
   // Determine initial selected case
   const sp = await searchParams;
   const requestedCaseId = typeof sp?.caseId === "string" ? sp.caseId : undefined;
@@ -115,29 +136,35 @@ export default async function ChatPage({
     ? requestedCaseId!
     : conversationSummaries[0]?.id ?? null;
 
-  // A notification deep-links to one message (?msg=…). Only honoured if it belongs to the selected thread.
+  // ?channel=department opens the department chat; so does having no case conversations at all.
+  const initialView: "case" | "department" = sp?.channel === "department" || !selectedCaseId ? "department" : "case";
+
+  // A notification deep-links to one message (?msg=…). Only honoured if it belongs to the opened thread.
   const requestedMessageId = typeof sp?.msg === "string" ? sp.msg : undefined;
 
-  // Same loader (and same access checks) the hub uses when you switch conversations.
-  const initialChatData: CaseChatData | null = selectedCaseId
-    ? ((await getCaseChatData(selectedCaseId, requestedMessageId)).data ?? null)
-    : null;
+  // Same loaders (and same access checks) the hub uses when you switch conversations.
+  const initialChatData: CaseChatData | null =
+    initialView === "case" && selectedCaseId ? ((await getCaseChatData(selectedCaseId, requestedMessageId)).data ?? null) : null;
+  const initialDepartmentData: DepartmentChatData | null = initialView === "department" ? ((await getDepartmentChatData()).data ?? null) : null;
 
-  const highlightMessageId =
-    requestedMessageId && initialChatData?.messages.some((m) => m.id === requestedMessageId) ? requestedMessageId : null;
+  const openedMessages = initialView === "department" ? initialDepartmentData?.messages : initialChatData?.messages;
+  const highlightMessageId = requestedMessageId && openedMessages?.some((m) => m.id === requestedMessageId) ? requestedMessageId : null;
 
   return (
     <div className="-mt-1 -mb-6">
       {/* keyed: a notification click is a same-route navigation (/chat → /chat?caseId=…&msg=…); without
           a key the hub keeps its old selected case, because that lives in client state. */}
       <CaseChatHub
-        key={`${selectedCaseId ?? "none"}:${highlightMessageId ?? ""}`}
+        key={`${initialView}:${selectedCaseId ?? "none"}:${highlightMessageId ?? ""}`}
         highlightMessageId={highlightMessageId}
         currentUserId={user.id}
         currentUserRole={user.role}
         allCases={conversationSummaries}
+        department={departmentSummary}
+        initialView={initialView}
         initialSelectedCaseId={selectedCaseId}
         initialChatData={initialChatData}
+        initialDepartmentData={initialDepartmentData}
       />
     </div>
   );

@@ -10,7 +10,16 @@ import { ReplyBar } from "@/components/app/chat/reply";
 import type { MessageComposer } from "@/components/app/chat/use-message-composer";
 
 /** The Chat hub's composer: one card with the text box and an action bar (attach, link, record, @, send). */
-export function HubComposer({ composer, placeholder }: { composer: MessageComposer; placeholder: string }) {
+export function HubComposer({
+  composer,
+  placeholder,
+  allowAttachments = true,
+}: {
+  composer: MessageComposer;
+  placeholder: string;
+  /** The department channel has no files or voice notes (yet). */
+  allowAttachments?: boolean;
+}) {
   const { mention } = composer;
   // The composer owns its DOM refs; the shared hook only ever receives the elements.
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -65,6 +74,8 @@ export function HubComposer({ composer, placeholder }: { composer: MessageCompos
 
           <div className="flex items-center justify-between pt-1.5 border-t border-border/30 mt-1">
             <div className="flex items-center gap-0.5 text-text-muted">
+              {allowAttachments && (
+                <>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -92,6 +103,8 @@ export function HubComposer({ composer, placeholder }: { composer: MessageCompos
               </button>
 
               <VoiceRecorder onRecorded={composer.addFile} buttonClassName="grid size-7 place-items-center rounded-md" iconClassName="size-3.5" />
+                </>
+              )}
 
               <button
                 type="button"

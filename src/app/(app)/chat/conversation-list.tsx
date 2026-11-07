@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Paperclip, Search, X } from "lucide-react";
+import { Building2, Paperclip, Search, X } from "lucide-react";
 import { formatRelativeTime, getStatusDotColor } from "@/components/app/chat/chat-utils";
 import { stripMentionTokens } from "@/lib/mentions";
-import type { CaseConversationSummary } from "./types";
+import type { CaseConversationSummary, DepartmentSummary } from "./types";
 
 /** The Chat hub's left column: every conversation you can open, searchable, newest activity first. */
 export function ConversationList({
@@ -13,15 +13,25 @@ export function ConversationList({
   currentUserId,
   currentUserRole,
   onSelect,
+  department,
+  departmentSelected,
+  onSelectDepartment,
 }: {
   conversations: CaseConversationSummary[];
+  /** The case open on the right (null while the department channel is open). */
   selectedCaseId: string | null;
+  department: DepartmentSummary;
+  departmentSelected: boolean;
+  onSelectDepartment: () => void;
   currentUserId: string;
   currentUserRole: string;
   onSelect: (caseId: string) => void;
 }) {
   const [searchFilter, setSearchFilter] = useState("");
   const [filterMode, setFilterMode] = useState<"all" | "assigned">("all");
+
+  // The department channel is not a case, so the search box and "My Cases" filter only hide it when they should.
+  const showDepartment = filterMode === "all" && (!searchFilter.trim() || "department chat".includes(searchFilter.trim().toLowerCase()));
 
   const filtered = conversations.filter((c) => {
     if (filterMode === "assigned" && !c.assignedLawyers.some((l) => l.id === currentUserId)) return false;
@@ -86,13 +96,55 @@ export function ConversationList({
       </div>
 
       <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-        {filtered.length === 0 ? (
+        {showDepartment && (
+          <div
+            onClick={onSelectDepartment}
+            className={`group relative flex cursor-pointer flex-col rounded-lg px-3 py-2.5 transition-colors ${
+              departmentSelected
+                ? "bg-surface-muted font-medium text-text shadow-xs ring-1 ring-border/50"
+                : "text-text hover:bg-surface-muted/50"
+            }`}
+          >
+            <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Building2 className="size-3.5 shrink-0 text-primary" />
+                <span className="text-xs font-semibold text-text truncate">Department chat</span>
+              </div>
+              {department.lastMessage && (
+                <time className="shrink-0 text-[10px] text-text-muted font-normal">{formatRelativeTime(department.lastMessage.createdAt)}</time>
+              )}
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <p className="m-0 min-w-0 flex-1 truncate text-[11.5px] text-text-muted font-normal">
+                {department.lastMessage ? (
+                  <>
+                    <span className="text-text/75 font-medium">
+                      {department.lastMessage.authorId === currentUserId ? "You: " : `${department.lastMessage.authorName.split(" ")[0]}: `}
+                    </span>
+                    {stripMentionTokens(department.lastMessage.body)}
+                  </>
+                ) : (
+                  <span className="italic text-text-muted/60">Everyone in your organisation</span>
+                )}
+              </p>
+              {department.unreadCount > 0 && (
+                <span
+                  className="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-on-primary tabular-nums"
+                  aria-label={`${department.unreadCount} unread`}
+                >
+                  {department.unreadCount > 99 ? "99+" : department.unreadCount}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        {filtered.length === 0 && !showDepartment ? (
           <div className="p-6 text-center text-xs text-text-muted">
             {searchFilter ? "No matching case chats." : "No cases assigned to you."}
           </div>
         ) : (
           filtered.map((item) => {
-            const isSelected = item.id === selectedCaseId;
+            const isSelected = !departmentSelected && item.id === selectedCaseId;
             const last = item.lastMessage;
             const isMine = last?.authorId === currentUserId;
 

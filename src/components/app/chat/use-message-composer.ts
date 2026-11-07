@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { toast, withToast } from "@/components/ui/toast";
-import { postCaseMessage, type SerializedChatMessage } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
+import type { SerializedChatMessage } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
+import type { ThreadApi } from "./thread-api";
 import type { MentionUser } from "./mention-popover";
 import type { LinkableDocument } from "./attach-document-dialog";
 import { previewText } from "@/lib/mentions";
@@ -10,7 +11,8 @@ import { REPLY_SNIPPET_CHARS } from "@/lib/chat/rules";
 import { serializeMentions } from "./chat-utils";
 
 type Options = {
-  matterId: string;
+  /** Sends the message (case or department); the same thread api the thread hook uses. */
+  api: ThreadApi;
   /** Everyone who can be @mentioned in this chat. */
   mentionUsers: MentionUser[];
   caseDocuments: LinkableDocument[];
@@ -23,7 +25,7 @@ type Options = {
  * @mention autocomplete, attached files and linked case documents, and sending. The two screens
  * render this differently; the logic is the same.
  */
-export function useMessageComposer({ matterId, mentionUsers, caseDocuments, onPosted }: Options) {
+export function useMessageComposer({ api, mentionUsers, caseDocuments, onPosted }: Options) {
   const [pending, startTransition] = useTransition();
 
   const [directFiles, setDirectFiles] = useState<File[]>([]);
@@ -161,14 +163,7 @@ export function useMessageComposer({ matterId, mentionUsers, caseDocuments, onPo
     const body = serializeMentions(raw, trackedMentions);
 
     startTransition(async () => {
-      const fd = new FormData();
-      fd.append("matterId", matterId);
-      fd.append("body", body);
-      if (linkedDocIds.length > 0) fd.append("attachedDocumentIds", JSON.stringify(linkedDocIds));
-      if (replyingTo) fd.append("replyToId", replyingTo.id);
-      for (const file of directFiles) fd.append("files", file);
-
-      const result = await withToast(postCaseMessage(fd), null);
+      const result = await withToast(api.post({ body, replyToId: replyingTo?.id ?? null, files: directFiles, linkedDocIds }), null);
       if (result?.error) {
         toast.error(result.error);
         return;

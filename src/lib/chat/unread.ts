@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "../db";
+import { getDepartmentUnread } from "./department";
 
 /**
  * Unread tracking for case chats. `MatterChatRead.lastReadAt` is how far a person has read a thread.
@@ -39,9 +40,11 @@ export async function getUnreadCounts(user: Who, matterIds?: string[]): Promise<
   return new Map(rows.map((r) => [r.matterId, r.n]));
 }
 
+/** Everything unread across the case threads you can open plus the department channel (the sidebar chip). */
 export async function getTotalUnread(user: Who): Promise<number> {
-  let total = 0;
-  for (const n of (await getUnreadCounts(user)).values()) total += n;
+  const [byCase, department] = await Promise.all([getUnreadCounts(user), getDepartmentUnread(user)]);
+  let total = department;
+  for (const n of byCase.values()) total += n;
   return total;
 }
 

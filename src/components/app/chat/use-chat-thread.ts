@@ -2,20 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { toast, withToast } from "@/components/ui/toast";
-import {
-  deleteCaseMessage,
-  editCaseMessage,
-  loadEarlierCaseMessages,
-  markCaseChatRead,
-  togglePinCaseMessage,
-  type SerializedChatMessage,
-} from "@/app/(app)/cases/[id]/tabs/discussion-actions";
+import type { SerializedChatMessage } from "@/app/(app)/cases/[id]/tabs/discussion-actions";
 import { NOTIFICATIONS_CHANGED_EVENT } from "@/lib/notifications/links";
 import { findFirstUnreadId } from "./chat-utils";
-import { useCaseChatStream, type PinChange } from "./use-case-chat-stream";
+import type { ThreadApi } from "./thread-api";
+import { useChatStream, type PinChange } from "./use-chat-stream";
 
 type Options = {
-  matterId: string;
+  /** What this thread does on the server (case or department). Must be referentially stable. */
+  api: ThreadApi;
   currentUserId: string;
   /** How far the reader had read before opening (ISO); messages from others after it are "new". */
   lastReadAt: string;
@@ -31,11 +26,12 @@ type Options = {
 };
 
 /**
- * Everything one case thread needs on the client, shared by the Chat hub and the Discussion tab:
+ * Everything one chat thread needs on the client, shared by the Chat hub (case threads and the
+ * department channel) and the Discussion tab:
  * the message list, live updates, "load earlier" paging (keeping the reader's place), auto-scroll to
  * the newest message, the one-off highlight, and pin / delete actions.
  */
-export function useCaseThread({ matterId, currentUserId, lastReadAt, onRead, initial, endRef, highlightMessageId = null, onIncomingMessage }: Options) {
+export function useChatThread({ api, currentUserId, lastReadAt, onRead, initial, endRef, highlightMessageId = null, onIncomingMessage }: Options) {
   const [messages, setMessages] = useState(initial.messages);
   const [hasMore, setHasMore] = useState(initial.hasMoreEarlier);
   const [cursor, setCursor] = useState(initial.cursor);
@@ -57,13 +53,14 @@ export function useCaseThread({ matterId, currentUserId, lastReadAt, onRead, ini
   });
 
   const markRead = useCallback(() => {
-    markCaseChatRead(matterId)
+    api
+      .markRead()
       .then(() => {
         onReadRef.current?.();
         window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT)); // the bell clears this thread's entries
       })
       .catch(() => {});
-  }, [matterId]);
+  }, [api]);
 
   // Opening the thread reads it; so does coming back to the tab while it is open.
   useEffect(() => {
@@ -108,7 +105,7 @@ export function useCaseThread({ matterId, currentUserId, lastReadAt, onRead, ini
     setMessages((prev) => prev.map((m) => (m.id === data.messageId ? { ...m, deletedAt: new Date().toISOString() } : m)));
   }, []);
 
-  useCaseChatStream(matterId, handleIncoming, replaceMessage, handlePinChange, handleDeleted);
+  useChatStream(api.streamUrl, handleIncoming, replaceMessage, handlePinChange, handleDeleted);
 
   // Scroll to the newest message when one arrives — or, once, to the message a notification linked to.
   useEffect(() => {
@@ -136,7 +133,7 @@ export function useCaseThread({ matterId, currentUserId, lastReadAt, onRead, ini
     const prevHeight = el ? el.scrollHeight : document.documentElement.scrollHeight;
     const prevTop = el ? el.scrollTop : window.scrollY;
     try {
-      const res = await loadEarlierCaseMessages({ matterId, before: cursor });
+      const res = await api.loadEarlier(cursor);
       if (res.error || !res.data) return void toast.error(res.error ?? "Could not load earlier messages.");
       const page = res.data;
       skipAutoScrollRef.current = true;
@@ -160,19 +157,20 @@ export function useCaseThread({ matterId, currentUserId, lastReadAt, onRead, ini
   }
 
   async function togglePin(messageId: string, isPinned: boolean) {
-    await withToast(togglePinCaseMessage({ matterId, messageId, isPinned }), "Pin updated");
+    if (!api.pin) return; // pinning is for case threads only
+    await withToast(api.pin(messageId, isPinned), "Pin updated");
   }
 
   /** Saves an edit; resolves true on success so the editor can close. */
   async function editMessage(messageId: string, body: string): Promise<boolean> {
-    const res = await withToast(editCaseMessage({ matterId, messageId, body }), "Message updated");
+    const res = await withToast(api.edit(messageId, body), "Message updated");
     if (res?.data) replaceMessage(res.data);
     return Boolean(res?.data);
   }
 
   async function deleteMessage(messageId: string) {
     if (!window.confirm("Delete this message? It will be hidden from the thread.")) return;
-    await withToast(deleteCaseMessage({ matterId, messageId }), "Message deleted");
+    await withToast(api.remove(messageId), "Message deleted");
   }
 
   return {

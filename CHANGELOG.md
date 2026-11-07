@@ -1,5 +1,19 @@
 # Changelog
 
+## Department channel — step 4 of the chat pass (2026-11-07)
+
+The org-wide department chat from PROJECT_SPEC §5.14 / the 2026-09-30 decision now exists: a **Department chat** conversation at the top of the Chat hub, separate from each case's own thread. **Schema change** (migration `department_channel`): `GroupMessage` gains `organizationId` (backfilled for the existing welcome message), `editedAt`, `replyToId`, `deletedAt`/`deletedById`; its unused placeholder columns `attachmentName` / `attachmentUrl` / `voiceNoteUrl` (raw file URLs, against the never-expose-storage-URLs rule) are dropped; new `GroupChatRead` per-user read marker.
+
+- **Who:** every Admin and lawyer in the organisation can read and post; nobody else — not another organisation, not a Superadmin. The live stream, every action and the page all check this on the server.
+- **What it does:** live updates, @mention of anyone in the organisation, reply with a quote, edit your own message for 15 minutes (`(edited)`), delete (author for 15 minutes, Admin any time; soft delete), load-earlier paging, search, unread badge on its list entry and the sidebar chip, and a "New messages" divider. Every post / edit / delete is audited (`groupMessage.*`).
+- **Notifications are deliberately quieter than case chats:** only an @mention or a reply makes a bell entry; everyone else gets a silent live ping that just raises the unread badge, so 30 colleagues don't each get a bell entry per message. No file or voice attachments, no pinning, in this first version.
+- **One thread engine for both:** the thread and composer hooks now take a small `ThreadApi` adapter (`thread-api.ts`: post / edit / delete / load earlier / mark read / stream URL), so case threads and the department channel run the same code. The three SSE routes share `lib/sse.ts`, and the per-user live bus now carries named events (`notification`, `chat-activity`).
+- Also removed the unused `lib/validation/group-chat.ts`.
+
+Unit tests added for the channel key, department links and mention parsing (62 tests total). The department live suite (`chat4`: unread chip with no bell entry, divider, quiet live delivery, mention → bell, reply quote + notification, edit, admin delete, audit rows, signed-out stream refused) is written but **was not run before this entry was written** — the dev server had to be restarted to pick up the regenerated Prisma client and that was blocked; see below.
+
+Operational note: restart the dev server after pulling this (new Prisma client, as with the previous migration).
+
 ## Chat features — step 3 of the chat pass: unread, notifications, edit, reply (2026-11-07)
 
 The case chat now covers the rest of FLOWS §10. **Schema change** (migration `chat_unread_edit_reply`, additive): `MatterMessage.editedAt`, `MatterMessage.replyToId` (self-relation, SetNull) and a new `MatterChatRead(userId, matterId, lastReadAt)`. Seed adds the `CASE_MESSAGE` and `MESSAGE_REPLY` notification rules (in-app only).

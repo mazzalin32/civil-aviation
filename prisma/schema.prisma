@@ -34,9 +34,11 @@ model Organization {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  users     User[]
-  matters   Matter[]
-  contracts Contract[]
+  users          User[]
+  matters        Matter[]
+  groupMessages  GroupMessage[]
+  groupChatReads GroupChatRead[]
+  contracts      Contract[]
 }
 
 model User {
@@ -109,7 +111,9 @@ model User {
   deletedMatterMessages   MatterMessage[]          @relation("MessageDeletedBy")
   matterMessageMentions   MatterMessageMention[]
   matterChatReads         MatterChatRead[]
-  groupMessages           GroupMessage[]
+  groupMessages           GroupMessage[]           @relation("GroupMessageAuthor")
+  groupMessagesDeleted    GroupMessage[]           @relation("GroupMessageDeletedBy")
+  groupChatReads          GroupChatRead[]
   lawFirmsAdded           LawFirm[]
   resourceLinksAdded      ResourceLink[]
 
@@ -1138,16 +1142,38 @@ model AuditLog {
 /// Everyone in the org can read/post; attachmentUrl/voiceNoteUrl point at an uploaded
 /// asset (Phase 6's document storage), no calling backend behind the UI yet.
 model GroupMessage {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
   authorId       String
-  author         User     @relation(fields: [authorId], references: [id])
+  author         User         @relation("GroupMessageAuthor", fields: [authorId], references: [id])
   body           String
-  attachmentName String?
-  attachmentUrl  String?
-  voiceNoteUrl   String?
-  createdAt      DateTime @default(now())
 
-  @@index([createdAt])
+  // Edit / reply / soft delete work exactly as in a case thread (FLOWS §10). Never hard-deleted.
+  editedAt    DateTime?
+  replyToId   String?
+  replyTo     GroupMessage?  @relation("GroupMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     GroupMessage[] @relation("GroupMessageReplies")
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?          @relation("GroupMessageDeletedBy", fields: [deletedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([replyToId])
+}
+
+/// How far each person has read the department channel (one channel per organisation).
+model GroupChatRead {
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lastReadAt     DateTime
+
+  @@id([userId, organizationId])
+  @@index([organizationId])
 }
 
 /// Directory of outside law firms / counsel the department deals with (spec-adjacent —

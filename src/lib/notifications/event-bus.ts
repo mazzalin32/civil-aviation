@@ -2,12 +2,17 @@ import { EventEmitter } from "events";
 import type { NotificationItem } from "./item";
 
 /**
- * Per-user fan-out for live notifications — same in-process pattern as the chat bus
+ * Per-user fan-out for live events — same in-process pattern as the chat bus
  * (src/lib/chat/event-bus.ts). It only reaches SSE connections held by *this* Node process;
- * if notifications ever need to be published from another process (a reminder job runner) or
+ * if events ever need to be published from another process (a reminder job runner) or
  * the app runs on several instances, swap this file's internals for Postgres LISTEN/NOTIFY
- * (PROJECT_SPEC §4) — `publishNotification` / `subscribeToNotifications` stay the same.
+ * (PROJECT_SPEC §4) — the exported functions stay the same.
+ *
+ * Event names on the wire: "notification" (a bell entry, data = NotificationItem) and
+ * "chat-activity" (something new in a chat that has no bell entry, data = { channel }).
  */
+export type UserEvent = { name: "notification"; data: NotificationItem } | { name: "chat-activity"; data: { channel: string; messageId: string } };
+
 class NotificationBus extends EventEmitter {
   constructor() {
     super();
@@ -19,11 +24,15 @@ const globalForBus = globalThis as unknown as { notificationBus?: NotificationBu
 const bus = globalForBus.notificationBus ?? new NotificationBus();
 if (process.env.NODE_ENV !== "production") globalForBus.notificationBus = bus;
 
-export function publishNotification(userId: string, item: NotificationItem) {
-  bus.emit(`user:${userId}`, item);
+export function publishUserEvent(userId: string, event: UserEvent) {
+  bus.emit(`user:${userId}`, event);
 }
 
-export function subscribeToNotifications(userId: string, listener: (item: NotificationItem) => void) {
+export function publishNotification(userId: string, item: NotificationItem) {
+  publishUserEvent(userId, { name: "notification", data: item });
+}
+
+export function subscribeToUserEvents(userId: string, listener: (event: UserEvent) => void) {
   const channel = `user:${userId}`;
   bus.on(channel, listener);
   return () => {

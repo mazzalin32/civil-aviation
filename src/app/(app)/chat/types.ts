@@ -1,3 +1,9 @@
+/** The department channel's line in the conversation list. */
+export type DepartmentSummary = {
+  lastMessage: CaseConversationSummary["lastMessage"];
+  unreadCount: number;
+};
+
 export type CaseConversationSummary = {
   id: string;
   reference: string;

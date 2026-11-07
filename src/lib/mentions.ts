@@ -16,6 +16,13 @@ export function extractMentionIds(body: string): string[] {
   return ids;
 }
 
+/** Everyone mentioned in a body as {id, name}, first occurrence only. */
+export function extractMentions(body: string): { id: string; name: string }[] {
+  const out: { id: string; name: string }[] = [];
+  for (const m of body.matchAll(/@\[([^\]]+)\]\(user:([^)\s]+)\)/g)) if (!out.some((x) => x.id === m[2])) out.push({ id: m[2], name: m[1] });
+  return out;
+}
+
 /** Tokens to plain `@Name`, leaving every other character (including newlines) untouched — what the
  *  edit box shows. Unlike stripMentionTokens it does not collapse whitespace. */
 export function mentionsToHandles(body: string): string {

@@ -12,18 +12,18 @@ export type PinChange = {
 };
 
 /**
- * Live updates for one case's thread (SSE from /api/cases/:id/chat/stream), reconnecting with
- * exponential backoff. Pass stable (useCallback) handlers — changing them re-subscribes.
+ * Live updates for one thread (SSE from `url`), reconnecting with exponential backoff. Pass stable
+ * (useCallback) handlers — changing them re-subscribes.
  */
-export function useCaseChatStream(
-  matterId: string | null,
+export function useChatStream(
+  url: string | null,
   onMessage: (msg: SerializedChatMessage) => void,
   onEdit: (msg: SerializedChatMessage) => void,
   onPinChange: (data: PinChange) => void,
   onDelete: (data: { messageId: string }) => void,
 ) {
   useEffect(() => {
-    if (!matterId) return;
+    if (!url) return;
 
     let eventSource: EventSource | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
@@ -40,7 +40,7 @@ export function useCaseChatStream(
     }
 
     function connect() {
-      eventSource = new EventSource(`/api/cases/${matterId}/chat/stream`);
+      eventSource = new EventSource(url!);
       listen("message.created", onMessage);
       listen("message.edited", onEdit);
       listen("message.pinned", onPinChange);
@@ -60,5 +60,5 @@ export function useCaseChatStream(
       eventSource?.close();
       clearTimeout(reconnectTimeout);
     };
-  }, [matterId, onMessage, onEdit, onPinChange, onDelete]);
+  }, [url, onMessage, onEdit, onPinChange, onDelete]);
 }

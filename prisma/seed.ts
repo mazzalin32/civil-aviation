@@ -751,7 +751,7 @@ async function seedCases(lawyersByEmail: Map<string, string>, adminId: string, o
 /** A few Law Firms / Links / a group chat message so the pitch prototype's newer pages
  *  (org-wide, not tied to a matter) aren't empty on a fresh seed. Guarded by name/title
  *  so reseeding doesn't duplicate them. */
-async function seedPitchExtras(adminId: string, firstLawyerId: string) {
+async function seedPitchExtras(adminId: string, firstLawyerId: string, organizationId: string) {
   const firms: { name: string; contactName: string; phone: string; email: string }[] = [
     { name: "Katende, Ssempebwa & Co. Advocates", contactName: "Ms. Harriet Nabirye", phone: "+256 414 342 634", email: "info@ksadvocates.co.ug" },
     { name: "MMAKS Advocates", contactName: "Mr. Timothy Kanyerezi", phone: "+256 417 701 000", email: "info@mmaks.co.ug" },
@@ -780,7 +780,7 @@ async function seedPitchExtras(adminId: string, firstLawyerId: string) {
   const groupMessageCount = await db.groupMessage.count();
   if (groupMessageCount === 0) {
     await db.groupMessage.create({
-      data: { authorId: firstLawyerId, body: "Welcome to the department group chat — post updates that affect everyone here." },
+      data: { organizationId, authorId: firstLawyerId, body: "Welcome to the department group chat — post updates that affect everyone here." },
     });
   }
 
@@ -882,7 +882,7 @@ async function main() {
   const lawyersByEmail = new Map(lawyerUsers.map((u) => [u.email, u.id]));
   await seedCases(lawyersByEmail, adminUser.id, organization.id);
   await seedContracts(lawyersByEmail, adminUser.id, organization.id);
-  await seedPitchExtras(adminUser.id, lawyerUsers[0]?.id ?? adminUser.id);
+  await seedPitchExtras(adminUser.id, lawyerUsers[0]?.id ?? adminUser.id, organization.id);
 
   await db.auditLog.create({
     data: { userId: null, action: "seed.run", entity: "System", after: { phase: 4, users: lawyers.length + 1, cases: CASE_SEEDS.length, contracts: CONTRACT_SEEDS.length } },

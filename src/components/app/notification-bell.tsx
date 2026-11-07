@@ -7,7 +7,14 @@ import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/time";
 import { stripMentionTokens } from "@/lib/mentions";
-import { CHAT_NOTIFICATION_TYPES, NOTIFICATION_EVENT, NOTIFICATIONS_CHANGED_EVENT, chatCaseIdFromUrl } from "@/lib/notifications/links";
+import {
+  CHAT_ACTIVITY_EVENT,
+  CHAT_NOTIFICATION_TYPES,
+  NOTIFICATION_EVENT,
+  NOTIFICATIONS_CHANGED_EVENT,
+  chatCaseIdFromUrl,
+  isDepartmentChatUrl,
+} from "@/lib/notifications/links";
 import type { NotificationItem } from "@/lib/notifications/item";
 import { getNotifications, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead } from "@/app/(app)/notifications/actions";
 import { NotificationRow, notificationMeta } from "./notification-item";
@@ -16,10 +23,11 @@ import { NotificationRow, notificationMeta } from "./notification-item";
 /** True for a chat notification about the case whose chat this person is looking at (and the tab is in front). */
 function isViewingChatFor(item: NotificationItem): boolean {
   if (document.visibilityState !== "visible" || !CHAT_NOTIFICATION_TYPES.includes(item.type)) return false;
-  const caseId = chatCaseIdFromUrl(item.url);
-  if (!caseId) return false;
   const { pathname, search } = window.location;
   const params = new URLSearchParams(search);
+  if (isDepartmentChatUrl(item.url)) return pathname === "/chat" && params.get("channel") === "department";
+  const caseId = chatCaseIdFromUrl(item.url);
+  if (!caseId) return false;
   if (pathname === "/chat") return params.get("caseId") === caseId;
   return pathname === `/cases/${caseId}` && params.get("tab") === "discussion";
 }
@@ -100,6 +108,18 @@ export function NotificationBell({ initialUnreadCount }: { initialUnreadCount: n
       setItems((prev) => (prev ? [item, ...prev.filter((i) => i.id !== item.id)].slice(0, MAX_ITEMS) : prev));
       // With the panel closed, a toast is the only sign something just happened.
       if (!openRef.current && !viewing) toast.info(`${notificationMeta(item.type).label}: ${stripMentionTokens(item.message)}`);
+    });
+
+    // A department message with no bell entry of its own: tell the sidebar / chat list so their unread badges move.
+    source.addEventListener("chat-activity", (e) => {
+      try {
+        const data = JSON.parse((e as MessageEvent<string>).data) as { channel: string };
+        const { pathname, search } = window.location;
+        const viewing = data.channel === "department" && pathname === "/chat" && new URLSearchParams(search).get("channel") === "department" && document.visibilityState === "visible";
+        if (!viewing) window.dispatchEvent(new CustomEvent(CHAT_ACTIVITY_EVENT, { detail: data }));
+      } catch {
+        /* ignore malformed events */
+      }
     });
 
     // Something elsewhere (e.g. opening a chat thread) marked notifications read — re-sync.

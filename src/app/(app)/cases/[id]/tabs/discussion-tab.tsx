@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, Search, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,8 @@ import { AttachDocumentDialog, type LinkableDocument } from "@/components/app/ch
 import { matchesThreadSearch, toMentionUsers } from "@/components/app/chat/chat-utils";
 import { ThreadSearchBar } from "@/components/app/chat/thread-search-bar";
 import { LoadEarlierButton, NewMessagesDivider, ReadOnlyNotice } from "@/components/app/chat/thread-notices";
-import { useCaseThread } from "@/components/app/chat/use-case-thread";
+import { useChatThread } from "@/components/app/chat/use-chat-thread";
+import { caseThreadApi } from "@/components/app/chat/thread-api";
 import { useMessageComposer } from "@/components/app/chat/use-message-composer";
 import { FilePreviewModal, type PreviewFile } from "@/components/app/file-preview-modal";
 import { VideoCallPanel } from "@/components/app/video-call-panel";
@@ -51,9 +52,10 @@ export function DiscussionTab({
   lastReadAt: string;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
-  const thread = useCaseThread({ matterId, currentUserId, lastReadAt, endRef, initial: { messages: initialMessages, hasMoreEarlier, cursor } });
+  const api = useMemo(() => caseThreadApi(matterId), [matterId]);
+  const thread = useChatThread({ api, currentUserId, lastReadAt, endRef, initial: { messages: initialMessages, hasMoreEarlier, cursor } });
   const composer = useMessageComposer({
-    matterId,
+    api,
     mentionUsers: toMentionUsers(mentionable, team),
     caseDocuments,
     onPosted: thread.addMessage,
