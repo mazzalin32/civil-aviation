@@ -111,18 +111,36 @@ export async function sendLawyerReadyEmail(to: string, name: string, password: s
   );
 }
 
-/** Both the first-time invite and every later "forgot password" send this same email (spec §15). */
+/**
+ * The invite link and "forgot password" are the same single-use 72 h link (spec §15); the
+ * wording differs by whether the person has a password yet (decided in auth.ts).
+ */
+export async function sendInviteEmail(to: string, name: string, url: string) {
+  await send(
+    to,
+    "You've been invited to CAA Legal",
+    layout(
+      `Welcome, ${esc(name)}`,
+      `<p style="margin:0 0 8px;">The Legal Department has created your account on CAA Legal, the Uganda Civil Aviation Authority's legal case and matter management system. Choose your password to get started.</p>
+      ${button(url, "Choose your password")}
+      <p style="margin:0 0 8px;font-size:13px;color:#6B6760;">This link is valid for 72 hours and can be used once. If it has expired, ask the Head of Legal to send a new one.</p>
+      <p style="margin:0;font-size:13px;color:#6B6760;">If you weren't expecting this, you can ignore it.</p>`,
+      "Choose your password to get started.",
+    ),
+  );
+}
+
 export async function sendResetPasswordEmail(to: string, name: string, url: string) {
   await send(
     to,
-    "Set your CAA Legal password",
+    "Reset your CAA Legal password",
     layout(
       `Hello ${esc(name)}`,
-      `<p style="margin:0 0 8px;">You've been invited to CAA Legal, the Uganda Civil Aviation Authority's legal case and matter management system. Use the button below to choose your password.</p>
-      ${button(url, "Set your password")}
-      <p style="margin:0 0 8px;font-size:13px;color:#6B6760;">This link is valid for 72 hours and can be used once.</p>
-      <p style="margin:0;font-size:13px;color:#6B6760;">If you didn't expect this email, you can ignore it &mdash; no changes were made to your account.</p>`,
-      "Choose your password to get started.",
+      `<p style="margin:0 0 8px;">Someone asked to reset the password for your CAA Legal account. Use the button below to choose a new one.</p>
+      ${button(url, "Choose a new password")}
+      <p style="margin:0 0 8px;font-size:13px;color:#6B6760;">This link is valid for 72 hours and can be used once. Any earlier reset link no longer works.</p>
+      <p style="margin:0;font-size:13px;color:#6B6760;">If you didn't ask for this, you can ignore it &mdash; your password stays the same.</p>`,
+      "Choose a new password for your account.",
     ),
   );
 }

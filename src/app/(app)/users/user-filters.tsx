@@ -23,6 +23,7 @@ export function UserFiltersBar({ filters, departments }: { filters: UserFilters;
         <option value="">All statuses</option>
         <option value="active">Active</option>
         <option value="invited">Invited</option>
+        <option value="expired">Invite expired</option>
         <option value="deactivated">Deactivated</option>
       </Select>
       <Select

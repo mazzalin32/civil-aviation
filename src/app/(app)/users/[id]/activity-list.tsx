@@ -12,7 +12,11 @@ const LABELS: Record<string, string> = {
   "user.login.failed": "Failed sign-in attempt",
   "user.login.locked": "Account locked (too many failed attempts)",
   "user.password.changed": "Password changed",
-  "user.password.activated": "Account activated",
+  "user.password.activated": "Invite accepted — account activated",
+  "user.password.reset": "Password reset by email link",
+  "user.welcome.dismissed": "Closed the welcome card",
+  "user.restore": "Account restored",
+  "user.delete": "Deleted",
   "user.2fa.enabled": "Two-factor authentication enabled",
 };
 

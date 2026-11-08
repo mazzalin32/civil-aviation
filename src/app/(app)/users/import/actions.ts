@@ -1,14 +1,12 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { Role } from "@/generated/prisma/client";
-import { demoLoginPassword, setDemoLoginPassword } from "@/lib/demo-login";
-import { sendLawyerReadyEmail } from "@/lib/mailer";
+import { sendInvite } from "@/lib/invites";
+import { PASSWORD_LINK_PREFIX } from "@/lib/password-links";
 import { detectColumns, parseWorkbookToGrid, validateMappedRows, type ColumnMapping, type ParsedRow } from "./parse";
 
 export type PreviewResult =
@@ -48,7 +46,6 @@ export type ConfirmResult = { batchId: string; created: number; skipped: number 
 
 export async function confirmImport(rows: ParsedRow[]): Promise<ConfirmResult | { error: string }> {
   const admin = await requireRole("ADMIN");
-  const hdrs = await headers();
 
   // Re-check against the database at the moment of import, not just at preview time.
   const existing = await existingEmailSet();
@@ -82,13 +79,7 @@ export async function confirmImport(rows: ParsedRow[]): Promise<ConfirmResult | 
       },
     });
     createdIds.push(user.id);
-    const shared = demoLoginPassword();
-    if (shared) {
-      await setDemoLoginPassword(user.id);
-      await sendLawyerReadyEmail(user.email, user.name, shared);
-    } else {
-      await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/activate" }, headers: hdrs, asResponse: false });
-    }
+    await sendInvite(user);
   }
 
   const createdRowNumbers = new Set(toCreate.map((r) => r.row));
@@ -121,8 +112,8 @@ const ROLLBACK_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function rollbackImportBatch(batchId: string) {
   const admin = await requireRole("ADMIN");
-  const batch = await db.importBatch.findUnique({ where: { id: batchId }, include: { members: { select: { id: true } } } });
-  if (!batch) return { error: "That import batch no longer exists." };
+  const batch = await db.importBatch.findUnique({ where: { id: batchId }, include: { members: { select: { id: true } }, createdBy: { select: { organizationId: true } } } });
+  if (!batch || batch.createdBy.organizationId !== admin.organizationId) return { error: "That import batch no longer exists." };
   if (batch.rolledBackAt) return { error: "This batch was already rolled back." };
   if (Date.now() - batch.createdAt.getTime() > ROLLBACK_WINDOW_MS) return { error: "This batch is older than 24 hours and can no longer be rolled back automatically." };
 
@@ -130,6 +121,8 @@ export async function rollbackImportBatch(batchId: string) {
   await db.$transaction([
     db.user.updateMany({ where: { id: { in: memberIds } }, data: { isActive: false } }),
     db.session.deleteMany({ where: { userId: { in: memberIds } } }),
+    // Their invite links go too — a rolled-back account mustn't be activatable.
+    db.verification.deleteMany({ where: { value: { in: memberIds }, identifier: { startsWith: PASSWORD_LINK_PREFIX } } }),
     db.importBatch.update({ where: { id: batchId }, data: { rolledBackAt: new Date(), rolledBackById: admin.id } }),
   ]);
   await writeAudit({ userId: admin.id, action: "user.import.rolledBack", entity: "ImportBatch", entityId: batchId, after: { deactivated: memberIds.length } });

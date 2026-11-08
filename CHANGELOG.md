@@ -1,5 +1,30 @@
 # Changelog
 
+## Invitations: one working link, visible status, welcome card (2026-11-08)
+
+Closes the gaps in the real invite-link flow (FLOWS §3). With `DEMO_LOGIN_PASSWORD` set, invites still email the shared prototype password exactly as before.
+- **One link per person.** Every new link (invite, resend, Excel import, Superadmin → Admin, "forgot password") retires that person's earlier ones, so a resend really replaces the old link. Deactivating, deleting or rolling back an import cancels pending links. "Forgot password" for a deactivated or deleted account sends nothing (the page still shows the same confirmation).
+- **The right email.** Someone who hasn't set a password yet gets "You've been invited to CAA Legal"; everyone else gets the new "Reset your CAA Legal password". Before, a long-standing user who forgot their password was told they'd "been invited". The "password changed" warning is no longer sent when someone picks their *first* password.
+- **Invite status for Admins.** Users (list, detail, filters, Excel/PDF export) shows **Invited** with "Sent 2 days ago · expires in 1 day", or **Invite expired** in red, with "Last sent … ago" when the expired link has been opened. New filter "Invite expired". "Active" now means "has set a password" (it used to include people still invited). Resend is refused once someone has a password, and is the primary button when the invite has expired. A Superadmin sees the same status and Resend for an organisation's Admins.
+- **Activation page.** It now says "Welcome, <name>" for a first-time person and "Choose a new password" for a reset, and the activity log tells "Invite accepted" apart from "Password reset by email link".
+- **Welcome card** (FLOWS §3 step 3) on the dashboard after first sign-in. Lawyers see: your matters will appear here, your calendar fills automatically, turn on email digests (marked done if it's already on). Admins see: invite your lawyers, open the first matter, digests. **Got it** closes it for good (audited).
+- **One sending path:** `src/lib/invites.ts` replaces three copies of the same code. Link queries live in `src/lib/password-links.ts`; the status rules are pure in `src/lib/invite-status.ts` (unit-tested).
+- **Fix found along the way:** rolling back an import batch didn't check the batch belonged to your organisation.
+- **Migration** `invites`: adds `User.welcomeDismissedAt`; backfills it for everyone who has already signed in (so only new people see the card); removes duplicate older links. The seed marks seeded accounts as already welcomed.
+
+**Tests:** `invite-status.test.ts` (8); 85 tests total.
+
+**End to end on a production build with the demo password off (35 checks):**
+- Add a lawyer → invite email → Users shows Invited with sent/expiry times.
+- Resend → new link, old link refused, one link in the database.
+- Expire it → "Invite expired" in red; the filters sort them correctly; the expired link is refused; the detail page says when it was last sent.
+- "Forgot password" before activating → invite wording, and the previous link stops working.
+- Activate → "Welcome, <name>" → set up the emailed sign-in code → dashboard with the welcome card. No "password changed" email. "Got it" persists across reloads; the person shows as Active, and Resend is gone.
+- "Forgot password" when active → reset email and wording; a real reset still sends the "password changed" warning.
+- Deactivating cancels a pending link, and "Forgot password" then sends nothing.
+- Superadmin invites an Admin → Invited with Resend → the resend leaves one link; an Admin with a password shows Active.
+- Every step is audited.
+
 ## Suspicious-activity alerts: unusual downloads and failed sign-ins (2026-11-07)
 
 The last missing piece of Phase 8 (spec §5.9, FLOWS §15).

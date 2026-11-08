@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { RowActionsMenu } from "@/components/ui/row-actions-menu";
 import { Avatar } from "@/components/app/avatar";
 import { formatDate } from "@/lib/time";
+import type { AccountStatus } from "@/lib/invite-status";
 import { cn } from "@/lib/utils";
 import { deleteUser, resendInvite, signOutAllSessions, toggleUserActive, updateLawyer } from "./actions";
 import { toast, withToast } from "@/components/ui/toast";
@@ -23,7 +24,7 @@ export type UserRowData = {
   practisingCertNo: string | null;
   certExpiry: string | null; // ISO date
   isActive: boolean;
-  hasAccount: boolean;
+  status: AccountStatus;
   isSelf: boolean;
 };
 
@@ -79,7 +80,7 @@ export function UserRowItem({ user }: { user: UserRowData }) {
     );
   }
 
-  const status = !user.isActive ? { tone: "neutral" as const, label: "Deactivated" } : user.hasAccount ? { tone: "success" as const, label: "Active" } : { tone: "warning" as const, label: "Invited" };
+  const { status } = user;
 
   return (
     <tr
@@ -105,13 +106,18 @@ export function UserRowItem({ user }: { user: UserRowData }) {
       </td>
       <td className="border-b border-border px-4 py-3">
         <Badge tone={status.tone}>{status.label}</Badge>
+        {status.detail && <span className="mt-1 block text-xs text-text-muted">{status.detail}</span>}
       </td>
       <td className="border-b border-border px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
         <RowActionsMenu
           actions={[
             { label: "Edit", icon: Pencil, onClick: () => setEditing(true) },
-            ...(!user.hasAccount && user.isActive
-              ? [{ label: "Resend invite", icon: Mail, disabled: pending, onClick: () => startTransition(() => withToast(resendInvite(user.id), "Invitation sent again")) }]
+            ...(status.canResend
+              ? [{ label: "Resend invite", icon: Mail, disabled: pending, onClick: () =>
+                    startTransition(async () => {
+                      await withToast(resendInvite(user.id), "Invitation sent again");
+                    }),
+                }]
               : []),
             { label: "Sign out all sessions", icon: LogOut, disabled: pending, onClick: () => startTransition(() => withToast(signOutAllSessions(user.id), "Signed out of all sessions")) },
             { kind: "separator" as const },

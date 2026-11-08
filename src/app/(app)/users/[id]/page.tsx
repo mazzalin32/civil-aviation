@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { getCurrentUser } from "@/lib/session";
+import { accountStatus } from "@/lib/invite-status";
+import { inviteInfo } from "@/lib/password-links";
 import { Card } from "@/components/ui/card";
 import { UserDetailCard } from "./user-detail-card";
 import { ActivityList } from "./activity-list";
@@ -23,6 +25,10 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
   // accounts belong to no organisation and are managed from /superadmin instead, and another
   // organisation's user must 404 rather than be confirmed to exist.
   if (!user || user.role === "SUPERADMIN" || user.organizationId !== admin.organizationId) notFound();
+
+  const hasPassword = user.accounts.length > 0;
+  const invite = hasPassword ? { link: null, lastSentAt: null } : (await inviteInfo([user.id]))(user.id);
+  const status = accountStatus({ isActive: user.isActive, hasPassword, ...invite, now: new Date() });
 
   const activity = await db.auditLog.findMany({
     where: { entity: "User", entityId: id },
@@ -50,7 +56,7 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
               certExpiry: user.certExpiry ? user.certExpiry.toISOString() : null,
               role: user.role,
               isActive: user.isActive,
-              hasAccount: user.accounts.length > 0,
+              status,
               twoFactorEnabled: user.twoFactorEnabled,
               lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
               createdAt: user.createdAt.toISOString(),

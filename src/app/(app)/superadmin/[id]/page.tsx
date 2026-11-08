@@ -3,6 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
+import { accountStatus } from "@/lib/invite-status";
+import { inviteInfo } from "@/lib/password-links";
 import { OrgPanel } from "./org-panel";
 
 export const metadata = { title: "Organisation" };
@@ -14,10 +16,16 @@ export default async function OrganizationPage({ params }: { params: Promise<{ i
   const org = await db.organization.findUnique({
     where: { id },
     include: {
-      users: { where: { role: "ADMIN", deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true, email: true, isActive: true, lastLoginAt: true } },
+      users: {
+        where: { role: "ADMIN", deletedAt: null },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, email: true, isActive: true, lastLoginAt: true, accounts: { where: { providerId: "credential" }, select: { id: true } } },
+      },
     },
   });
   if (!org) notFound();
+  const invite = await inviteInfo(org.users.filter((u) => u.accounts.length === 0).map((u) => u.id));
+  const now = new Date();
 
   return (
     <div>
@@ -35,7 +43,12 @@ export default async function OrganizationPage({ params }: { params: Promise<{ i
         name={org.name}
         logoUrl={org.logoUrl}
         primaryColor={org.primaryColor}
-        admins={org.users.map((u) => ({ id: u.id, name: u.name, email: u.email, isActive: u.isActive, lastLoginAt: u.lastLoginAt?.toISOString() ?? null }))}
+        admins={org.users.map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          status: accountStatus({ isActive: u.isActive, hasPassword: u.accounts.length > 0, ...invite(u.id), now }),
+        }))}
       />
     </div>
   );

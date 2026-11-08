@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/time";
+import type { AccountStatus } from "@/lib/invite-status";
 import { resendInvite, signOutAllSessions, toggleUserActive, updateLawyer } from "../actions";
 import { toast, withToast } from "@/components/ui/toast";
 
@@ -23,7 +24,7 @@ export type UserDetail = {
   certExpiry: string | null;
   role: "ADMIN" | "LAWYER";
   isActive: boolean;
-  hasAccount: boolean;
+  status: AccountStatus;
   twoFactorEnabled: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -56,7 +57,7 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
     });
   }
 
-  const status = !user.isActive ? { tone: "neutral" as const, label: "Deactivated" } : user.hasAccount ? { tone: "success" as const, label: "Active" } : { tone: "warning" as const, label: "Invited" };
+  const { status } = user;
 
   if (editing) {
     return (
@@ -110,8 +111,17 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
           <Button onClick={() => setEditing(true)}>
             <Pencil className="size-4" /> Edit
           </Button>
-          {!user.hasAccount && user.isActive && (
-            <Button disabled={pending} onClick={() => startTransition(() => withToast(resendInvite(user.id), "Invitation sent again"))}>
+          {status.canResend && (
+            <Button
+              variant={status.key === "expired" ? "primary" : "secondary"}
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = await withToast(resendInvite(user.id), "Invitation sent again");
+                  if (!result?.error) router.refresh();
+                })
+              }
+            >
               <Mail className="size-4" /> Resend invite
             </Button>
           )}
@@ -141,7 +151,15 @@ export function UserDetailCard({ user }: { user: UserDetail }) {
         <Fact label="Phone" value={user.phone ?? "—"} />
         <Fact label="Department" value={user.department ?? "—"} />
         <Fact label="Role" value={user.role === "ADMIN" ? "Admin" : "Lawyer"} />
-        <Fact label="Status" value={<Badge tone={status.tone}>{status.label}</Badge>} />
+        <Fact
+          label="Status"
+          value={
+            <span className="inline-flex flex-col items-end gap-1">
+              <Badge tone={status.tone}>{status.label}</Badge>
+              {status.detail && <span className="text-xs font-normal text-text-muted">{status.detail}</span>}
+            </span>
+          }
+        />
         <Fact
           label="Practising certificate"
           value={

@@ -6,6 +6,8 @@ import { getCurrentUser } from "@/lib/session";
 import { writeAudit } from "@/lib/audit";
 import { formatDate } from "@/lib/time";
 import { buildUserWhere, parseUserFilters } from "@/app/(app)/users/filters";
+import { accountStatus } from "@/lib/invite-status";
+import { inviteInfo } from "@/lib/password-links";
 
 const COLUMNS = [
   { header: "Name", key: "name", width: 26 },
@@ -20,11 +22,6 @@ const COLUMNS = [
   { header: "Last signed in", key: "lastLoginAt", width: 16 },
 ];
 
-function statusOf(u: { isActive: boolean; accounts: unknown[] }) {
-  if (!u.isActive) return "Deactivated";
-  return u.accounts.length > 0 ? "Active" : "Invited";
-}
-
 export async function GET(request: NextRequest) {
   const me = await getCurrentUser();
   if (!me || me.role !== "ADMIN") return new NextResponse("Forbidden", { status: 403 });
@@ -33,11 +30,14 @@ export async function GET(request: NextRequest) {
   const format = url.searchParams.get("format") === "pdf" ? "pdf" : "xlsx";
   const filters = parseUserFilters(Object.fromEntries(url.searchParams));
 
+  const now = new Date();
   const users = await db.user.findMany({
-    where: buildUserWhere(filters, me.organizationId),
+    where: await buildUserWhere(filters, me.organizationId, now),
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
     include: { accounts: { where: { providerId: "credential" }, select: { id: true } } },
   });
+  const invite = await inviteInfo(users.filter((u) => u.accounts.length === 0).map((u) => u.id));
+  const statusOf = (u: (typeof users)[number]) => accountStatus({ isActive: u.isActive, hasPassword: u.accounts.length > 0, ...invite(u.id), now }).label;
 
   await writeAudit({ userId: me.id, action: "user.export", entity: "User", after: { format, count: users.length } });
 

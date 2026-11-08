@@ -7,14 +7,16 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
 import { env } from "./env";
 import { demoLoginPassword } from "./demo-login";
-import { sendPasswordChangedEmail, sendResetPasswordEmail, sendTwoFactorCodeEmail } from "./mailer";
+import { sendInviteEmail, sendPasswordChangedEmail, sendResetPasswordEmail, sendTwoFactorCodeEmail } from "./mailer";
+import { cancelPasswordLinks } from "./password-links";
 
 /**
  * Better Auth server instance (CLAUDE.md: Auth · email-OTP 2FA · Admin-created accounts only).
  *
  * - No public sign-up. Admin creates the `User` row directly (Phase 3); the person
  *   only ever reaches Better Auth through the same reset-password link, whether it's
- *   their first-time invite or a later "forgot password" (spec §15 decision).
+ *   their first-time invite or a later "forgot password" (spec §15 decision). The email
+ *   differs: no password yet → the invite email; otherwise the reset email.
  * - `twoFactor` adds its own table + the `twoFactorEnabled` flag on User. Email-OTP only
  *   (not the authenticator-app TOTP method) — staff found scanning a QR code and running a
  *   separate app too much friction; a code emailed at login is the whole flow (2026-11-02).
@@ -32,10 +34,28 @@ export const auth = betterAuth({
     minPasswordLength: demoLoginPassword() ? Math.min(8, demoLoginPassword()!.length) : 10,
     resetPasswordTokenExpiresIn: 60 * 60 * 72, // 72h covers both the invite link and forgot-password
     revokeSessionsOnPasswordReset: true,
-    sendResetPassword: async ({ user, url }) => {
-      await sendResetPasswordEmail(user.email, user.name, url);
+    // Runs for every new link: Admin invite, resend, import, Superadmin → Admin, and "forgot password".
+    sendResetPassword: async ({ user, url, token }) => {
+      // Only the newest link works — a resend or a fresh "forgot password" retires the earlier ones.
+      await cancelPasswordLinks(user.id, token);
+      const account = await db.user.findUnique({
+        where: { id: user.id },
+        select: { isActive: true, deletedAt: true, accounts: { where: { providerId: "credential", password: { not: null } }, select: { id: true } } },
+      });
+      // A deactivated or deleted account can't use the link anyway; don't send it ("forgot
+      // password" still shows the same confirmation either way, so nothing is revealed).
+      if (!account || !account.isActive || account.deletedAt) {
+        await cancelPasswordLinks(user.id);
+        return;
+      }
+      if (account.accounts.length === 0) await sendInviteEmail(user.email, user.name, url);
+      else await sendResetPasswordEmail(user.email, user.name, url);
     },
     onPasswordReset: async ({ user }) => {
+      // First activation creates the credential moments before this runs — that's someone
+      // choosing their first password, not a change worth warning them about.
+      const credential = await db.account.findFirst({ where: { userId: user.id, providerId: "credential" }, select: { createdAt: true } });
+      if (credential && credential.createdAt.getTime() > Date.now() - 60_000) return;
       await sendPasswordChangedEmail(user.email, user.name);
     },
   },

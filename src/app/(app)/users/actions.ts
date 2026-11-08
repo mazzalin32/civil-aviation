@@ -1,15 +1,16 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { Role } from "@/generated/prisma/client";
 import { createLawyerSchema, updateLawyerSchema } from "@/lib/validation/users";
-import { demoLoginPassword, setDemoLoginPassword } from "@/lib/demo-login";
-import { sendLawyerReadyEmail } from "@/lib/mailer";
+import { sendInvite } from "@/lib/invites";
+import { cancelPasswordLinks, PASSWORD_LINK_PREFIX } from "@/lib/password-links";
+
+const idSchema = z.string().min(1).max(64);
 
 async function reload() {
   revalidatePath("/users");
@@ -25,17 +26,7 @@ function fields(data: { phone?: string; title?: string; department?: string; pra
   };
 }
 
-async function sendInvite(user: { id: string; email: string; name: string }) {
-  const shared = demoLoginPassword();
-  if (shared) {
-    await setDemoLoginPassword(user.id);
-    await sendLawyerReadyEmail(user.email, user.name, shared);
-    return;
-  }
-  await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/activate" }, headers: await headers(), asResponse: false });
-}
-
-/** Creates the account and sends the invite (shared prototype password, or the real reset link). */
+/** Creates the account and sends the invite (shared prototype password, or the real invite link). */
 export async function createLawyer(formData: FormData) {
   const admin = await requireRole("ADMIN");
   const parsed = createLawyerSchema.safeParse({
@@ -64,14 +55,22 @@ export async function createLawyer(formData: FormData) {
   await reload();
 }
 
-/** Resends the same invite/reset link — useful if the first one expired or was missed. */
+/**
+ * Sends a fresh invite link — the earlier one stops working (FLOWS §3 step 4). Only for
+ * someone who hasn't chosen a password yet; anyone else uses "Forgot password" themselves.
+ */
 export async function resendInvite(id: string) {
   const admin = await requireRole("ADMIN");
-  const user = await db.user.findUnique({ where: { id } });
-  if (!user || user.organizationId !== admin.organizationId) return;
+  const parsed = idSchema.safeParse(id);
+  if (!parsed.success) return { error: "That user no longer exists." };
+  const user = await db.user.findUnique({ where: { id: parsed.data }, include: { accounts: { where: { providerId: "credential" }, select: { id: true } } } });
+  if (!user || user.deletedAt || user.organizationId !== admin.organizationId) return { error: "That user no longer exists." };
+  if (!user.isActive) return { error: `${user.name}'s account is deactivated. Reactivate it first.` };
+  if (user.accounts.length > 0) return { error: `${user.name} has already set a password. They can use "Forgot password" on the sign-in page.` };
   await sendInvite(user);
-  await writeAudit({ userId: admin.id, action: "user.invite.resent", entity: "User", entityId: id });
+  await writeAudit({ userId: admin.id, action: "user.invite.resent", entity: "User", entityId: user.id });
   await reload();
+  revalidatePath(`/users/${user.id}`);
 }
 
 export async function updateLawyer(formData: FormData) {
@@ -107,7 +106,10 @@ export async function toggleUserActive(id: string, isActive: boolean) {
   const before = await db.user.findUnique({ where: { id } });
   if (!before || before.organizationId !== admin.organizationId) return { error: "That user no longer exists." };
   const updated = await db.user.update({ where: { id }, data: { isActive } });
-  if (!isActive) await db.session.deleteMany({ where: { userId: id } });
+  if (!isActive) {
+    await db.session.deleteMany({ where: { userId: id } });
+    await cancelPasswordLinks(id); // a pending invite/reset link must not outlive the account
+  }
   await writeAudit({
     userId: admin.id,
     action: isActive ? "user.reactivate" : "user.deactivate",
@@ -151,6 +153,7 @@ export async function deleteUser(id: string) {
     await tx.user.update({ where: { id }, data: { deletedAt: new Date(), isActive: false } });
     await tx.session.deleteMany({ where: { userId: id } });
     await tx.account.deleteMany({ where: { userId: id } });
+    await tx.verification.deleteMany({ where: { value: id, identifier: { startsWith: PASSWORD_LINK_PREFIX } } });
     await tx.matterAssignment.updateMany({ where: { userId: id, removedAt: null }, data: { removedAt: new Date() } });
     await writeAudit({ userId: admin.id, action: "user.delete", entity: "User", entityId: id, before: { name: user.name, email: user.email } }, tx);
   });

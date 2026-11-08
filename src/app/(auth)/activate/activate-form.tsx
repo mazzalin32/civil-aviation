@@ -9,7 +9,7 @@ import { activateAction, type ActivateState } from "./actions";
 
 const initialState: ActivateState = {};
 
-export function ActivateForm({ token }: { token: string }) {
+export function ActivateForm({ token, submitLabel }: { token: string; submitLabel: string }) {
   const [state, action] = useActionState(activateAction, initialState);
 
   return (
@@ -22,7 +22,7 @@ export function ActivateForm({ token }: { token: string }) {
       <Field label="Confirm password" htmlFor="confirmPassword" error={state.fieldErrors?.confirmPassword}>
         <PasswordInput id="confirmPassword" name="confirmPassword" autoComplete="new-password" required />
       </Field>
-      <SubmitButton pendingLabel="Setting password…">Set password and continue</SubmitButton>
+      <SubmitButton pendingLabel="Saving password…">{submitLabel}</SubmitButton>
     </form>
   );
 }

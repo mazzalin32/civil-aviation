@@ -882,6 +882,12 @@ async function main() {
     });
     lawyerUsers.push({ id: user.id, email: user.email, name: user.name, isNew: !existing });
   }
+  // Seeded accounts arrive with matters already on them — the first-sign-in welcome card
+  // (FLOWS §3) is for genuinely new people invited through the app, so skip it here.
+  await db.user.updateMany({
+    where: { id: { in: [adminUser.id, ...lawyerUsers.map((u) => u.id)] }, welcomeDismissedAt: null },
+    data: { welcomeDismissedAt: new Date() },
+  });
 
   await seedReferenceData();
 

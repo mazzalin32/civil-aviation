@@ -109,7 +109,7 @@ function RiskBreakdown({ risk }: { risk: DashboardData["risk"] }) {
   );
 }
 
-export function LegalDashboard({ data }: { data: DashboardData }) {
+export function LegalDashboard({ data, welcome }: { data: DashboardData; welcome?: React.ReactNode }) {
   return (
     <>
       <p className="m-0 mb-1 text-[12px] font-medium tracking-[0.04em] text-text-muted uppercase">{data.dateLabel}</p>
@@ -123,6 +123,8 @@ export function LegalDashboard({ data }: { data: DashboardData }) {
           </div>
         )}
       </div>
+
+      {welcome}
 
       <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {data.kpis.map((k) => (

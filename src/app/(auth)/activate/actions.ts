@@ -26,8 +26,12 @@ export async function activateAction(_prev: ActivateState, formData: FormData): 
   // doesn't hand back the email, and we need it to sign the user straight in afterwards.
   const verification = await db.verification.findFirst({ where: { identifier: `reset-password:${token}` } });
   if (!verification || verification.expiresAt < new Date()) return { error: INVALID_LINK };
-  const pendingUser = await db.user.findUnique({ where: { id: verification.value }, select: { id: true, email: true, isActive: true } });
-  if (!pendingUser || !pendingUser.isActive) return { error: INVALID_LINK };
+  const pendingUser = await db.user.findUnique({
+    where: { id: verification.value },
+    select: { id: true, email: true, isActive: true, deletedAt: true, accounts: { where: { providerId: "credential" }, select: { id: true } } },
+  });
+  if (!pendingUser || !pendingUser.isActive || pendingUser.deletedAt) return { error: INVALID_LINK };
+  const firstTime = pendingUser.accounts.length === 0;
 
   const hdrs = await headers();
   try {
@@ -37,7 +41,13 @@ export async function activateAction(_prev: ActivateState, formData: FormData): 
   }
 
   await db.user.update({ where: { id: pendingUser.id }, data: afterSuccessfulAttempt() });
-  await writeAudit({ userId: pendingUser.id, action: "user.password.activated", entity: "User", entityId: pendingUser.id, ip: hdrs.get("x-forwarded-for") ?? undefined });
+  await writeAudit({
+    userId: pendingUser.id,
+    action: firstTime ? "user.password.activated" : "user.password.reset",
+    entity: "User",
+    entityId: pendingUser.id,
+    ip: hdrs.get("x-forwarded-for") ?? undefined,
+  });
 
   // The password is already set at this point. If the automatic sign-in fails for any reason,
   // send them to the login page rather than showing an error for a step that succeeded.

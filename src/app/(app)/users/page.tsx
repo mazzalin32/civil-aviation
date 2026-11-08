@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
 import { getCurrentUser } from "@/lib/session";
+import { accountStatus } from "@/lib/invite-status";
+import { inviteInfo } from "@/lib/password-links";
 import { AddLawyer } from "./add-lawyer";
 import { UserRowItem } from "./user-row";
 import { UserFiltersBar } from "./user-filters";
@@ -26,15 +28,17 @@ export default async function UsersPage({
   const filters = parseUserFilters(sp);
   const openAdd = sp.new === "1";
 
+  const now = new Date();
   const [users, departmentRows] = await Promise.all([
     db.user.findMany({
-      where: buildUserWhere(filters, me?.organizationId ?? null),
+      where: await buildUserWhere(filters, me?.organizationId ?? null, now),
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
       include: { accounts: { where: { providerId: "credential" }, select: { id: true } } },
     }),
     db.user.findMany({ where: { department: { not: null }, organizationId: orgId(me?.organizationId ?? null) }, select: { department: true }, distinct: ["department"] }),
   ]);
   const departments = departmentRows.map((d) => d.department!).sort();
+  const invite = await inviteInfo(users.filter((u) => u.accounts.length === 0).map((u) => u.id));
 
   const query = new URLSearchParams();
   if (filters.status) query.set("status", filters.status);
@@ -83,7 +87,7 @@ export default async function UsersPage({
                     practisingCertNo: u.practisingCertNo,
                     certExpiry: u.certExpiry ? u.certExpiry.toISOString() : null,
                     isActive: u.isActive,
-                    hasAccount: u.accounts.length > 0,
+                    status: accountStatus({ isActive: u.isActive, hasPassword: u.accounts.length > 0, ...invite(u.id), now }),
                     isSelf: u.id === me?.id,
                   }}
                 />

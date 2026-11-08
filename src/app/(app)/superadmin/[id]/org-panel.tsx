@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil, UserPlus } from "lucide-react";
+import { Mail, Pencil, UserPlus } from "lucide-react";
+import type { AccountStatus } from "@/lib/invite-status";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SlideOver } from "@/components/ui/slide-over";
 import { Avatar } from "@/components/app/avatar";
-import { updateOrganization, inviteAdmin } from "../actions";
+import { updateOrganization, inviteAdmin, resendAdminInvite } from "../actions";
 import { withToast } from "@/components/ui/toast";
 
-export type AdminRow = { id: string; name: string; email: string; isActive: boolean; lastLoginAt: string | null };
+export type AdminRow = { id: string; name: string; email: string; status: AccountStatus };
 
 export function OrgPanel({
   organizationId,
@@ -69,14 +70,7 @@ export function OrgPanel({
         ) : (
           <ul className="m-0 grid list-none gap-2.5 p-0">
             {admins.map((a) => (
-              <li key={a.id} className="flex items-center gap-2.5 text-[13px]">
-                <Avatar name={a.name} />
-                <div className="min-w-0 flex-1">
-                  <p className="m-0 truncate font-medium">{a.name}</p>
-                  <p className="m-0 truncate text-[12px] text-text-muted">{a.email}</p>
-                </div>
-                <Badge tone={a.isActive ? "success" : "neutral"}>{a.isActive ? "Active" : "Deactivated"}</Badge>
-              </li>
+              <AdminItem key={a.id} admin={a} />
             ))}
           </ul>
         )}
@@ -85,6 +79,36 @@ export function OrgPanel({
       <BrandingEditor organizationId={organizationId} name={name} logoUrl={logoUrl} primaryColor={primaryColor} open={editing} onClose={() => setEditing(false)} />
       <InviteAdminDialog organizationId={organizationId} open={inviting} onClose={() => setInviting(false)} />
     </div>
+  );
+}
+
+function AdminItem({ admin }: { admin: AdminRow }) {
+  const [pending, startTransition] = useTransition();
+  const { status } = admin;
+  return (
+    <li className="flex items-start gap-2.5 text-[13px]">
+      <Avatar name={admin.name} seed={admin.id} />
+      <div className="min-w-0 flex-1">
+        <p className="m-0 truncate font-medium">{admin.name}</p>
+        <p className="m-0 truncate text-[12px] text-text-muted">{admin.email}</p>
+        {status.detail && <p className="m-0 mt-0.5 text-[12px] text-text-muted">{status.detail}</p>}
+        {status.canResend && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                await withToast(resendAdminInvite(admin.id), "Invite sent again");
+              })
+            }
+            className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:underline disabled:opacity-50"
+          >
+            <Mail className="size-3.5" /> {pending ? "Sending…" : "Resend invite"}
+          </button>
+        )}
+      </div>
+      <Badge tone={status.tone}>{status.label}</Badge>
+    </li>
   );
 }
 

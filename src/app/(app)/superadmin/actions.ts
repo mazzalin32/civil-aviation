@@ -1,15 +1,13 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/authz";
 import { writeAudit } from "@/lib/audit";
 import { Role } from "@/generated/prisma/client";
 import { createOrganizationSchema, updateOrganizationSchema, inviteAdminSchema } from "@/lib/validation/organization";
-import { demoLoginPassword, setDemoLoginPassword } from "@/lib/demo-login";
-import { sendLawyerReadyEmail } from "@/lib/mailer";
+import { sendInvite } from "@/lib/invites";
 
 type ActionResult = { error: string } | void;
 type CreateOrgResult = { error: string } | { organizationId: string };
@@ -43,16 +41,6 @@ export async function updateOrganization(raw: unknown): Promise<ActionResult> {
   revalidatePath("/superadmin");
 }
 
-async function sendAdminInvite(user: { id: string; email: string; name: string }) {
-  const shared = demoLoginPassword();
-  if (shared) {
-    await setDemoLoginPassword(user.id);
-    await sendLawyerReadyEmail(user.email, user.name, shared);
-    return;
-  }
-  await auth.api.requestPasswordReset({ body: { email: user.email, redirectTo: "/activate" }, headers: await headers(), asResponse: false });
-}
-
 /** Superadmin invites the first (or another) Admin for an organisation — same invite-link
  * mechanism as an Admin inviting a lawyer (spec §4), just one tier up. */
 export async function inviteAdmin(raw: unknown): Promise<ActionResult> {
@@ -72,8 +60,24 @@ export async function inviteAdmin(raw: unknown): Promise<ActionResult> {
     : await db.user.create({ data: { name, email, role: Role.ADMIN, organizationId } });
   await writeAudit({ userId: superadmin.id, action: existing ? "user.restore" : "user.create", entity: "User", entityId: created.id, after: { name: created.name, email: created.email, role: "ADMIN" } });
 
-  await sendAdminInvite(created);
+  await sendInvite(created);
   await writeAudit({ userId: superadmin.id, action: "user.invite.sent", entity: "User", entityId: created.id });
 
   revalidatePath(`/superadmin/${organizationId}`);
+}
+
+/** Fresh invite link for an organisation's Admin who hasn't chosen a password yet; the old link stops working. */
+export async function resendAdminInvite(raw: unknown): Promise<ActionResult> {
+  const superadmin = await requireRole("SUPERADMIN");
+  const parsed = z.string().min(1).max(64).safeParse(raw);
+  if (!parsed.success) return { error: "That Admin no longer exists." };
+
+  const user = await db.user.findUnique({ where: { id: parsed.data }, include: { accounts: { where: { providerId: "credential" }, select: { id: true } } } });
+  if (!user || user.role !== Role.ADMIN || user.deletedAt) return { error: "That Admin no longer exists." };
+  if (!user.isActive) return { error: `${user.name}'s account is deactivated.` };
+  if (user.accounts.length > 0) return { error: `${user.name} has already set a password. They can use "Forgot password" on the sign-in page.` };
+
+  await sendInvite(user);
+  await writeAudit({ userId: superadmin.id, action: "user.invite.resent", entity: "User", entityId: user.id });
+  revalidatePath(`/superadmin/${user.organizationId}`);
 }

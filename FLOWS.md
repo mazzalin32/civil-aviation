@@ -104,6 +104,8 @@ flowchart TD
 3. 🟩 Lawyer opens link → sets password → sets up 2FA → lands on an empty dashboard with a short 3-step welcome ("Your matters will appear here", "Your calendar fills automatically", "Turn on email digests").
 4. Invite expired? 🟦 Admin clicks **Resend invite**.
 
+**Built (2026-11-08):** Users shows **Invited** ("Sent 2 days ago · expires in 1 day") or **Invite expired** in red, with a filter for each. Resend sends a new link and the old one stops working; only the newest link per person ever works. Deactivating or deleting someone cancels their pending link. "Forgot password" from someone who never activated sends the invite email again; from everyone else, a separate "Reset your password" email. The step-3 welcome is a card on the dashboard that stays until they click **Got it** (Admins invited by a Superadmin get Admin-flavoured steps). A Superadmin sees the same status and Resend for an organisation's Admins.
+
 **Prototype shortcut (env-gated, `DEMO_LOGIN_PASSWORD` — see PROJECT_SPEC.md §4/§15):** when set, every invited/seeded lawyer can instead sign in immediately with one shared password — skips steps 2–3's activation link entirely. Must be unset in production; the real invite-link flow above is what ships to the client.
 
 **Offboarding:** 🟦 Users → lawyer → **Deactivate** → system shows their open cases → Admin reassigns them (all to one person or one by one) → ⚙️ sessions revoked, account disabled, history kept, 🔔 new lead lawyers notified. 📝

@@ -69,6 +69,7 @@ model User {
   digestEnabled      Boolean       @default(false)
   theme              String        @default("system") // system | light | dark
   icsToken           String?       @unique // long-lived token for the .ics calendar subscription URL
+  welcomeDismissedAt DateTime? // the first-sign-in welcome card (FLOWS §3) shows until this is set
   lastLoginAt        DateTime?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
@@ -189,6 +190,9 @@ model Account {
 }
 
 /// Single-use tokens: invite links and "forgot password" both use this (spec §15 decision).
+/// A password link is identifier "reset-password:<token>", value = the user's id; only the
+/// newest one per user is kept (src/lib/invites.ts), and its createdAt/expiresAt are the
+/// invite status Admins see.
 model Verification {
   id         String   @id @default(cuid())
   identifier String
